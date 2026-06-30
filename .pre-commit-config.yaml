@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint
+        entry: podman exec vb-intern npx eslint --fix
+        language: system
+        files: \.(js|ts|vue)$
+        pass_filenames: true
+
+      - id: prettier
+        name: Prettier
+        entry: podman exec vb-intern npx prettier --write --experimental-cli
+        language: system
+        files: \.(js|ts|vue|json|css)$
+        pass_filenames: true
+
+      - id: vue-tsc
+        name: Vue TypeScript Strict Type Checking
+        entry: podman exec vb-intern npm run type-check
+        language: system
+        types: [vue]
+        pass_filenames: false
+
+      - id: vitest
+        name: Vitest & Code Coverage
+        entry: podman exec vb-intern npm run test:coverage
+        language: system
+        types: [vue]
+        pass_filenames: false
+        always_run: true

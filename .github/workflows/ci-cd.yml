@@ -1,0 +1,93 @@
+# Unified CI/CD Pipeline for Vindobona Intern (Frontend)
+# Handles Linting, Testing, Security Scanning, and Deployment via GitHub Releases.
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Runs CodeQL automatically every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    # Allows manual triggering from the GitHub Actions UI
+  release:
+    # Trigger 1: This listens specifically to the "Publish release" button in GitHub
+    types: [published]
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check code style (ESLint)
+        run: npm run lint
+      - name: Check formatting (Prettier)
+        run: npm run format:check
+
+  quality:
+    name: Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run vue-tsc (Strict Type Checking)
+        run: npm run type-check
+      - name: Run Test Suite & Coverage
+        run: npm run test:coverage
+
+  security:
+    name: CodeQL Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+
+  release-image:
+    name: Build & Push Image
+    needs: [lint, quality, security]
+    runs-on: ubuntu-latest
+    # Trigger 2 (Die Weiche): Der Job startet NUR, wenn ein Release publiziert wurde
+    # ODER du manuell auf "Run workflow" geklickt hast.
+    # Bei einem normalen Push auf main ist hier Endstation!
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.prod
+          push: true
+          # Trigger 3: Wir vergeben jetzt 3 Tags (latest, den Git-Hash und den Release-Namen)
+          tags: |
+            ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest
+            ghcr.io/k-o-st-v-vindobona-ii/vb-intern:sha-${{ github.sha }}
+            ghcr.io/k-o-st-v-vindobona-ii/vb-intern:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

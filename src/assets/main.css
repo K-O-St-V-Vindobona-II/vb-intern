@@ -1,0 +1,38 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+}
+
+html.p-overflow-hidden {
+  overflow: auto !important;
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}
+
+.p-dialog-content {
+  cursor: default;
+  user-select: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+@media (max-width: 767px) {
+  .p-card .p-card-body {
+    padding: 0.75rem;
+  }
+}
+
+.p-datatable-table-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
