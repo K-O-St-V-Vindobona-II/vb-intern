@@ -4,7 +4,7 @@ import { useLoadingStore } from '@/stores/loading'
 import router from '@/router'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://api.vb-intern.dev.schimpl.cc/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://api.vindobona2.at/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

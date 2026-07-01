@@ -89,5 +89,8 @@ jobs:
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:sha-${{ github.sha }}
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:${{ github.ref_name }}
+          build-args: |
+            VITE_APP_ENVIRONMENT=production
+            VITE_API_BASE_URL=https://api.vindobona2.at/api
           cache-from: type=gha
           cache-to: type=gha,mode=max
