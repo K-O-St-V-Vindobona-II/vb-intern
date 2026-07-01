@@ -4,6 +4,5 @@ coverage
 .git
 .gitignore
 Dockerfile
-Dockerfile.prod
 *.md
 src/**/__tests__
