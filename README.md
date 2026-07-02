@@ -29,6 +29,17 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+### After cloning
+
+```sh
+# Install git hooks — required once per clone, prevents CI failures from formatting mismatches
+pre-commit install
+```
+
+> **Why this matters:** Without `pre-commit install`, commits bypass ESLint, Prettier,
+> `vue-tsc` type-checking, and the Vitest suite entirely. The CI pipeline runs the same
+> checks — all of which the pre-commit hooks mirror locally.
+
 ### Compile and Hot-Reload for Development
 
 ```sh
