@@ -38,6 +38,10 @@ vi.mock('@/services/memberService', () => ({
   default: { toggleChronicleMail: vi.fn(() => Promise.resolve(true)) },
 }))
 
+vi.mock('@/runtimeConfig', () => ({
+  appEnvironment: vi.fn(() => 'qa'),
+}))
+
 const mountOpts = {
   global: {
     plugins: [PrimeVue, ConfirmationService, ToastService],
@@ -97,5 +101,10 @@ describe('ProfileView.vue', () => {
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+  })
+
+  it('shows the current app environment discreetly at the bottom of the page', () => {
+    const wrapper = mount(ProfileView, mountOpts)
+    expect(wrapper.text()).toContain('qa')
   })
 })

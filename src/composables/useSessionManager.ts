@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'] as const
-const COUNTDOWN_INTERVAL_MS = 60_000
+const EXPIRY_CHECK_INTERVAL_MS = 60_000
 const ACTIVITY_DEBOUNCE_MS = 10_000
 const PROACTIVE_REFRESH_BUFFER_S = 120
 
@@ -13,9 +13,8 @@ export function useSessionManager() {
   const authStore = useAuthStore()
 
   const loginTime = ref('')
-  const logoutCountdown = ref('')
 
-  let countdownTimer: ReturnType<typeof setInterval> | null = null
+  let expiryCheckTimer: ReturnType<typeof setInterval> | null = null
   let idleTimer: ReturnType<typeof setTimeout> | null = null
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
   let lastActivityTs = 0
@@ -45,28 +44,11 @@ export function useSessionManager() {
     router.push({ name: 'login' })
   }
 
-  const updateCountdown = () => {
-    const { exp } = parseTokenPayload()
-    if (!exp) {
-      logoutCountdown.value = ''
-      return
-    }
-    const remaining = Math.max(0, exp - Math.floor(Date.now() / 1000))
-    if (remaining === 0) {
-      proactiveRefresh()
-      return
-    }
-    const h = Math.floor(remaining / 3600)
-    const m = Math.floor((remaining % 3600) / 60)
-    logoutCountdown.value = h > 0 ? `${h} Std. ${m} Min.` : `${m} Min.`
-  }
-
   const proactiveRefresh = async () => {
     try {
       const { data } = await api.post('/auth/refresh')
       authStore.setToken(data.access_token)
       scheduleProactiveRefresh()
-      updateCountdown()
     } catch {
       performLogout()
     }
@@ -83,6 +65,16 @@ export function useSessionManager() {
     refreshTimer = setTimeout(proactiveRefresh, refreshInMs)
   }
 
+  // Backstop for scheduleProactiveRefresh's own timer: a backgrounded/throttled
+  // tab can delay that timeout past the token's actual expiry, so this periodic
+  // check catches it and refreshes anyway instead of waiting for a 401.
+  const checkExpiryFallback = () => {
+    const { exp } = parseTokenPayload()
+    if (!exp) return
+    const remaining = exp - Math.floor(Date.now() / 1000)
+    if (remaining <= 0) proactiveRefresh()
+  }
+
   const startIdleTimer = () => {
     if (idleTimer) clearTimeout(idleTimer)
     const timeoutMs = (authStore.user?.session_idle_timeout ?? 30) * 60_000
@@ -97,9 +89,9 @@ export function useSessionManager() {
   }
 
   const stopAll = () => {
-    if (countdownTimer) {
-      clearInterval(countdownTimer)
-      countdownTimer = null
+    if (expiryCheckTimer) {
+      clearInterval(expiryCheckTimer)
+      expiryCheckTimer = null
     }
     if (idleTimer) {
       clearTimeout(idleTimer)
@@ -118,8 +110,7 @@ export function useSessionManager() {
     const { iat } = parseTokenPayload()
     loginTime.value = iat ? formatDt(iat) : ''
 
-    updateCountdown()
-    countdownTimer = setInterval(updateCountdown, COUNTDOWN_INTERVAL_MS)
+    expiryCheckTimer = setInterval(checkExpiryFallback, EXPIRY_CHECK_INTERVAL_MS)
 
     scheduleProactiveRefresh()
     startIdleTimer()
@@ -131,5 +122,5 @@ export function useSessionManager() {
 
   onUnmounted(stopAll)
 
-  return { loginTime, logoutCountdown }
+  return { loginTime }
 }

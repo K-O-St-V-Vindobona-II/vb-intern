@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import authService from '@/services/authService'
 import { getApiErrorDetail } from '@/utils/formatters'
+import { passwordMinLength } from '@/runtimeConfig'
 
 import Card from 'primevue/card'
 import Password from 'primevue/password'
@@ -42,7 +43,7 @@ const handleReset = async () => {
     return
   }
 
-  const minLength = Number(import.meta.env.VITE_PASSWORD_MIN_LENGTH || 8)
+  const minLength = passwordMinLength()
   if (password.value.length < minLength) {
     errorMessage.value = `Das Passwort muss mindestens ${minLength} Zeichen lang sein.`
     return

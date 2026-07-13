@@ -76,10 +76,5 @@ jobs:
           tags: |
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:sha-${{ github.sha }}
-          build-args: |
-            VITE_APP_ENVIRONMENT=production
-            VITE_API_BASE_URL=https://api.vindobona2.at/api
-            VITE_GOOGLE_CLIENT_ID=714868981969-nfh5csfttbnjr7613ai1vujq0ub31a8r.apps.googleusercontent.com
-            VITE_PASSWORD_MIN_LENGTH=8
           cache-from: type=gha
           cache-to: type=gha,mode=max

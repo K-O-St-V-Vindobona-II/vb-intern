@@ -20,6 +20,7 @@ export default mergeConfig(
           'src/composables/**',
           'src/services/**',
           'src/utils/**',
+          'src/runtimeConfig.ts',
         ],
         // Granular quality gates instead of a global threshold
         thresholds: {

@@ -11,7 +11,7 @@ import Drawer from 'primevue/drawer'
 const router = useRouter()
 const authStore = useAuthStore()
 const { mainMenuItems } = useNavigation()
-const { loginTime, logoutCountdown } = useSessionManager()
+const { loginTime } = useSessionManager()
 
 const profileDrawerVisible = ref(false)
 const avatarUrl = ref<string | null>(null)
@@ -94,11 +94,9 @@ const toggleUserMenu = () => {
             <i class="pi pi-clock" />
             Angemeldet seit {{ loginTime }}
           </div>
-          <div v-if="logoutCountdown" class="user-card-meta">
-            Abmeldung in spätestens {{ logoutCountdown }}
-          </div>
-          <div v-if="logoutCountdown" class="user-card-meta">
-            (oder nach {{ authStore.user?.session_idle_timeout ?? 30 }} Min. Inaktivität)
+          <div v-if="authStore.user" class="user-card-meta">
+            Automatische Abmeldung nach {{ authStore.user?.session_idle_timeout ?? 30 }} Min.
+            Inaktivität
           </div>
         </div>
         <div class="user-card-actions">
