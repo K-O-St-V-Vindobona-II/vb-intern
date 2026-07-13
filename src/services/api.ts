@@ -2,9 +2,10 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import router from '@/router'
+import { apiBaseUrl } from '@/runtimeConfig'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://api.vindobona2.at/api',
+  baseURL: apiBaseUrl(),
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

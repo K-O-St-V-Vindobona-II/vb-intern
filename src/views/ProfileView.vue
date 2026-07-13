@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import memberService from '@/services/memberService'
+import { appEnvironment } from '@/runtimeConfig'
 
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -173,6 +174,8 @@ const toggleChronicle = async () => {
         <p v-else class="empty-hint">Keine speziellen Berechtigungen zugewiesen.</p>
       </template>
     </Card>
+
+    <p v-if="appEnvironment()" class="env-footer">{{ appEnvironment() }}</p>
   </div>
 </template>
 
@@ -287,6 +290,16 @@ const toggleChronicle = async () => {
   color: var(--p-text-muted-color);
   font-style: italic;
   margin: 0;
+}
+
+.env-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.7rem;
+  color: var(--p-text-muted-color);
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 @media (min-width: 600px) {

@@ -12,6 +12,7 @@ import Tooltip from 'primevue/tooltip'
 
 import App from './App.vue'
 import router from './router'
+import { googleClientId } from './runtimeConfig'
 
 const app = createApp(App)
 
@@ -61,7 +62,7 @@ app.use(PrimeVue, {
 })
 
 app.use(vue3GoogleLogin, {
-  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+  clientId: googleClientId(),
 })
 
 app.use(ConfirmationService)

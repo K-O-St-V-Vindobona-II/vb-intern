@@ -74,24 +74,6 @@ describe('useSessionManager', () => {
     expect(result.loginTime.value).toContain('25.06.2026')
   })
 
-  it('calculates countdown from JWT exp claim', () => {
-    const now = Math.floor(Date.now() / 1000)
-    mockAuthStore.token = makeJwt({ iat: now, exp: now + 5400, sub: 'test' })
-
-    const { result } = mountComposable()
-
-    expect(result.logoutCountdown.value).toBe('1 Std. 30 Min.')
-  })
-
-  it('shows minutes only when less than one hour remains', () => {
-    const now = Math.floor(Date.now() / 1000)
-    mockAuthStore.token = makeJwt({ iat: now, exp: now + 2700, sub: 'test' })
-
-    const { result } = mountComposable()
-
-    expect(result.logoutCountdown.value).toBe('45 Min.')
-  })
-
   it('attempts refresh when token expires instead of logging out', async () => {
     const now = Math.floor(Date.now() / 1000)
     mockAuthStore.token = makeJwt({ iat: now, exp: now + 120, sub: 'test' })
@@ -156,17 +138,17 @@ describe('useSessionManager', () => {
     expect(mockLogout).toHaveBeenCalledOnce()
   })
 
-  it('updates countdown display on interval tick', async () => {
+  it('refreshes via the periodic fallback check if the token is already expired', async () => {
     const now = Math.floor(Date.now() / 1000)
-    mockAuthStore.token = makeJwt({ iat: now, exp: now + 7200, sub: 'test' })
+    mockAuthStore.token = makeJwt({ iat: now - 3600, exp: now - 1, sub: 'test' })
 
-    const { result } = mountComposable()
-
-    expect(result.logoutCountdown.value).toBe('2 Std. 0 Min.')
+    mountComposable()
 
     vi.advanceTimersByTime(60_000)
+    await nextTick()
 
-    expect(result.logoutCountdown.value).toBe('1 Std. 59 Min.')
+    const api = (await import('@/services/api')).default
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
   })
 
   it('cleans up timers and listeners on unmount', () => {
@@ -189,7 +171,6 @@ describe('useSessionManager', () => {
     const { result } = mountComposable()
 
     expect(result.loginTime.value).toBe('')
-    expect(result.logoutCountdown.value).toBe('')
   })
 
   it('treats an unparsable token payload as empty instead of throwing', () => {
@@ -198,7 +179,6 @@ describe('useSessionManager', () => {
     const { result } = mountComposable()
 
     expect(result.loginTime.value).toBe('')
-    expect(result.logoutCountdown.value).toBe('')
   })
 
   it('applies the refreshed token and reschedules instead of logging out on a successful proactive refresh', async () => {
@@ -206,9 +186,9 @@ describe('useSessionManager', () => {
     mockAuthStore.token = makeJwt({ iat: now, exp: now + 120, sub: 'test' })
     const refreshedToken = makeJwt({ iat: now + 120, exp: now + 120 + 7200, sub: 'test' })
 
-    // Both the dedicated refresh timer and the countdown interval's
-    // remaining===0 check can independently trigger a refresh around the
-    // same simulated tick, so every call must succeed, not just the first.
+    // Both the dedicated refresh timer and the periodic expiry fallback
+    // check can independently trigger a refresh around the same simulated
+    // tick, so every call must succeed, not just the first.
     const api = (await import('@/services/api')).default
     vi.mocked(api.post).mockResolvedValue({ data: { access_token: refreshedToken } })
 
