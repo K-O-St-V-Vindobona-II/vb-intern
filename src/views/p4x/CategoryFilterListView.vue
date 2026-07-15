@@ -48,7 +48,17 @@ onMounted(load)
       <Column header="" style="width: 5rem">
         <template #body="{ data }">
           <div class="icon-group">
-            <i v-tooltip="'Details'" class="pi pi-info-circle clickable" />
+            <i
+              v-tooltip="'Details'"
+              class="pi pi-info-circle clickable"
+              @click="
+                router.push({
+                  name: 'p4x-transactions-filter',
+                  params: { accountId: data.p4x_account_id },
+                  query: { filterId: data.id },
+                })
+              "
+            />
             <i
               v-tooltip="'Bearbeiten'"
               class="pi pi-pencil clickable"

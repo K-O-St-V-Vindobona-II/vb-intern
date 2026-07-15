@@ -9,8 +9,9 @@ import type {
   PaginatedTransactions,
 } from '@/types/p4x'
 
+const mockRoute = { params: { accountId: '2' }, query: {} as Record<string, string> }
 vi.mock('vue-router', () => ({
-  useRoute: vi.fn(() => ({ params: { accountId: '2' } })),
+  useRoute: vi.fn(() => mockRoute),
 }))
 
 const mockGetCategoryFilters = vi.fn()
@@ -105,6 +106,7 @@ async function selectFilter(wrapper: ReturnType<typeof mount>, id: number) {
 describe('TransactionsByFilterView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRoute.query = {}
     mockGetCategoryFilters.mockResolvedValue({
       data: [buildFilter({ id: 1, p4x_account_id: 2 }), buildFilter({ id: 2, p4x_account_id: 9 })],
     })
@@ -127,6 +129,27 @@ describe('TransactionsByFilterView', () => {
     const wrapper = mount(TransactionsByFilterView, mountOpts)
     await flushPromises()
 
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('preselects and loads the filter given via the filterId query param', async () => {
+    mockRoute.query = { filterId: '1' }
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+
+    expect(mockGetTransactionsByFilter).toHaveBeenCalledWith(2, 1, 1)
+    const select = wrapper.findComponent({ name: 'Select' })
+    expect(select.props('modelValue')).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('ignores a filterId query param that does not belong to this account', async () => {
+    mockRoute.query = { filterId: '2' }
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+
+    expect(mockGetTransactionsByFilter).not.toHaveBeenCalled()
     expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
     wrapper.unmount()
   })

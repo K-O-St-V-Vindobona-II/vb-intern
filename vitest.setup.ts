@@ -1,3 +1,4 @@
+import { config } from '@vue/test-utils'
 import { vi } from 'vitest'
 
 // jsdom does not implement matchMedia, but several PrimeVue components
@@ -15,3 +16,9 @@ vi.stubGlobal(
     dispatchEvent: vi.fn(),
   })),
 )
+
+// main.ts registers PrimeVue's Tooltip directive globally (app.directive('tooltip', ...)),
+// but component tests mount in isolation and never go through that app instance. Without
+// this stub, every `v-tooltip` usage logs a "Failed to resolve directive" warning even
+// though production behavior is unaffected.
+config.global.directives.tooltip = {}
