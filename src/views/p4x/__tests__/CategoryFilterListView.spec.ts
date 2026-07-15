@@ -79,6 +79,23 @@ describe('CategoryFilterListView', () => {
     wrapper.unmount()
   })
 
+  it('navigates to the transactions-by-filter view for the clicked filter row', async () => {
+    mockGetCategoryFilters.mockResolvedValue({
+      data: [buildFilter({ id: 9, p4x_account_id: 3 })],
+    })
+    const wrapper = mount(CategoryFilterListView, mountOpts)
+    await flushPromises()
+
+    await wrapper.find('.pi-info-circle').trigger('click')
+
+    expect(mockPush).toHaveBeenCalledWith({
+      name: 'p4x-transactions-filter',
+      params: { accountId: 3 },
+      query: { filterId: 9 },
+    })
+    wrapper.unmount()
+  })
+
   it('navigates to the edit view for the clicked filter row', async () => {
     mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter({ id: 9 })] })
     const wrapper = mount(CategoryFilterListView, mountOpts)

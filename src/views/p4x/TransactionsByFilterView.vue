@@ -40,6 +40,12 @@ onMounted(async () => {
   ])
   filters.value = fResp.data.filter((f) => f.p4x_account_id === accountId)
   categories.value = dResp.data.categories
+
+  const queryFilterId = Number(route.query.filterId)
+  if (queryFilterId && filters.value.some((f) => f.id === queryFilterId)) {
+    selectedFilterId.value = queryFilterId
+    loadTransactions()
+  }
 })
 
 const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.id }))
