@@ -29,6 +29,11 @@ export interface ScheduledJobResponse {
   description: string | null
 }
 
+export interface BackupTriggerResponse {
+  backup_name: string
+  triggered_at: string
+}
+
 export default {
   getPermissionRules() {
     return api.get<PermissionRuleResponse[]>('/system/permission-rules')
@@ -36,6 +41,10 @@ export default {
 
   getScheduledJobs() {
     return api.get<ScheduledJobResponse[]>('/system/scheduled-jobs')
+  },
+
+  triggerBackup() {
+    return api.post<BackupTriggerResponse>('/system/backups/trigger')
   },
 
   getTables() {

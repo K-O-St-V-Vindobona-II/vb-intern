@@ -4,8 +4,12 @@ import SchedulerView from '../SchedulerView.vue'
 import PrimeVue from 'primevue/config'
 
 const mockGetScheduledJobs = vi.fn()
+const mockTriggerBackup = vi.fn()
 vi.mock('@/services/systemService', () => ({
-  default: { getScheduledJobs: (...args: unknown[]) => mockGetScheduledJobs(...args) },
+  default: {
+    getScheduledJobs: (...args: unknown[]) => mockGetScheduledJobs(...args),
+    triggerBackup: (...args: unknown[]) => mockTriggerBackup(...args),
+  },
 }))
 
 const mockToastAdd = vi.fn()
@@ -64,6 +68,45 @@ describe('SchedulerView', () => {
 
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'Serverfehler' }),
+    )
+  })
+
+  it('triggers a backup and shows a success toast with the backup name', async () => {
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerBackup.mockResolvedValue({
+      data: {
+        backup_name: 'development-2026-07-15_12-00-00-manual.dump',
+        triggered_at: '2026-07-15T12:00:00Z',
+      },
+    })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockTriggerBackup).toHaveBeenCalledOnce()
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'success',
+        summary: 'Backup erstellt: development-2026-07-15_12-00-00-manual.dump',
+      }),
+    )
+  })
+
+  it('shows an error toast when triggering a backup fails', async () => {
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerBackup.mockRejectedValue({
+      response: { data: { detail: 'pg_dump fehlgeschlagen' } },
+    })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'pg_dump fehlgeschlagen' }),
     )
   })
 })
