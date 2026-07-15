@@ -2,15 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import systemService from '@/services/systemService'
 
 const mockGet = vi.fn()
+const mockPost = vi.fn()
 vi.mock('@/services/api', () => ({
   default: {
     get: (...args: unknown[]) => mockGet(...args),
+    post: (...args: unknown[]) => mockPost(...args),
   },
 }))
 
 describe('systemService', () => {
   beforeEach(() => {
     mockGet.mockReset()
+    mockPost.mockReset()
   })
 
   it('getPermissionRules fetches /system/permission-rules', () => {
@@ -33,5 +36,10 @@ describe('systemService', () => {
     expect(mockGet).toHaveBeenCalledWith('/system/tables/members', {
       params: { page: 2, page_size: 50 },
     })
+  })
+
+  it('triggerBackup posts to /system/backups/trigger', () => {
+    systemService.triggerBackup()
+    expect(mockPost).toHaveBeenCalledWith('/system/backups/trigger')
   })
 })

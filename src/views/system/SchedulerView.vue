@@ -5,10 +5,12 @@ import systemService from '@/services/systemService'
 import type { ScheduledJobResponse } from '@/services/systemService'
 import { formatApiError } from '@/utils/formatters'
 import Tag from 'primevue/tag'
+import Button from 'primevue/button'
 
 const toast = useToast()
 const loading = ref(true)
 const jobs = ref<ScheduledJobResponse[]>([])
+const backupLoading = ref(false)
 
 onMounted(async () => {
   try {
@@ -24,6 +26,26 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const triggerBackup = async () => {
+  backupLoading.value = true
+  try {
+    const resp = await systemService.triggerBackup()
+    toast.add({
+      severity: 'success',
+      summary: `Backup erstellt: ${resp.data.backup_name}`,
+      life: 5000,
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: formatApiError(e, 'Backup konnte nicht erstellt werden.'),
+      life: 5000,
+    })
+  } finally {
+    backupLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -31,6 +53,15 @@ onMounted(async () => {
     <h2>System</h2>
     <p class="subtitle">Scheduler</p>
     <p class="hint">Registrierte Hintergrund-Jobs und ihre nächste geplante Ausführung.</p>
+
+    <div class="backup-action">
+      <Button
+        label="Backup jetzt erstellen"
+        icon="pi pi-database"
+        :loading="backupLoading"
+        @click="triggerBackup"
+      />
+    </div>
 
     <div v-if="!loading" class="job-grid">
       <div v-for="job in jobs" :key="job.id" class="job-card">
@@ -71,6 +102,11 @@ onMounted(async () => {
   font-size: 0.85rem;
   color: var(--p-text-muted-color);
   margin: 0.5rem 0 1.5rem;
+}
+
+.backup-action {
+  display: flex;
+  margin-bottom: 1.5rem;
 }
 
 .job-grid {

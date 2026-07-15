@@ -15,11 +15,6 @@ html.p-overflow-hidden {
   margin-right: 0 !important;
 }
 
-.p-dialog-content {
-  cursor: default;
-  user-select: none;
-}
-
 body {
   margin: 0;
   padding: 0;
