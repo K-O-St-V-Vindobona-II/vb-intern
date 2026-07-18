@@ -126,6 +126,18 @@ export function useNavigation() {
       ],
     },
     {
+      label: 'www-Administration',
+      icon: 'pi pi-globe',
+      visible: hasPermission('publicContentEditor'),
+      items: [
+        {
+          label: 'Galerie',
+          icon: 'pi pi-images',
+          command: () => router.push({ name: 'public-site-gallery' }),
+        },
+      ],
+    },
+    {
       label: 'System',
       icon: 'pi pi-cog',
       visible: hasPermission('systemAdmin'),

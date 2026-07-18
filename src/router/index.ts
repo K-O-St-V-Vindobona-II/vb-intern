@@ -373,6 +373,12 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
+          path: 'public-site/gallery',
+          name: 'public-site-gallery',
+          component: () => import('../views/publicsite/GalleryAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
           path: ':pathMatch(.*)*',
           name: 'not-found',
           component: () => import('../views/NotFoundView.vue'),

@@ -24,7 +24,7 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ['app.vb-intern.dev.schimpl.cc'],
+    allowedHosts: ['intern.vindobona2.at.dev.schimpl.cc'],
   },
   build: {
     sourcemap: false,

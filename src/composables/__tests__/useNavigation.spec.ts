@@ -59,7 +59,14 @@ describe('useNavigation', () => {
     it('exposes the top-level menu groups in order', () => {
       const { mainMenuItems } = useNavigation()
       const labels = mainMenuItems.value.map((item) => item.label)
-      expect(labels).toEqual(['Standesdatenbank', 'Archiv', 'Information', 'AH-Kassen', 'System'])
+      expect(labels).toEqual([
+        'Standesdatenbank',
+        'Archiv',
+        'Information',
+        'AH-Kassen',
+        'www-Administration',
+        'System',
+      ])
     })
 
     it('hides permission-gated items when the user lacks the permission', () => {
@@ -69,27 +76,37 @@ describe('useNavigation', () => {
 
       const p4xGroup = mainMenuItems.value.find((item) => item.label === 'AH-Kassen')
       const systemGroup = mainMenuItems.value.find((item) => item.label === 'System')
+      const wwwGroup = mainMenuItems.value.find((item) => item.label === 'www-Administration')
       const standesdbGroup = mainMenuItems.value.find((item) => item.label === 'Standesdatenbank')
       const exportItem = standesdbGroup?.items?.find((item) => item.label === 'Export')
 
       expect(p4xGroup?.visible).toBe(false)
       expect(systemGroup?.visible).toBe(false)
+      expect(wwwGroup?.visible).toBe(false)
       expect(exportItem?.visible).toBe(false)
     })
 
     it('shows permission-gated items when the user has the permission', () => {
       const authStore = useAuthStore()
-      authStore.user = buildUser(['p4xView', 'systemAdmin', 'standesdbExport', 'keylist'])
+      authStore.user = buildUser([
+        'p4xView',
+        'systemAdmin',
+        'standesdbExport',
+        'keylist',
+        'publicContentEditor',
+      ])
       const { mainMenuItems } = useNavigation()
 
       const p4xGroup = mainMenuItems.value.find((item) => item.label === 'AH-Kassen')
       const systemGroup = mainMenuItems.value.find((item) => item.label === 'System')
+      const wwwGroup = mainMenuItems.value.find((item) => item.label === 'www-Administration')
       const standesdbGroup = mainMenuItems.value.find((item) => item.label === 'Standesdatenbank')
       const exportItem = standesdbGroup?.items?.find((item) => item.label === 'Export')
       const keylistItem = standesdbGroup?.items?.find((item) => item.label === 'Schlüsselliste')
 
       expect(p4xGroup?.visible).toBe(true)
       expect(systemGroup?.visible).toBe(true)
+      expect(wwwGroup?.visible).toBe(true)
       expect(exportItem?.visible).toBe(true)
       expect(keylistItem?.visible).toBe(true)
     })
