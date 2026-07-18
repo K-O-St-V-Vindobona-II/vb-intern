@@ -51,6 +51,7 @@ const categories: P4xCategory[] = [
 const stubs = {
   CategoryDirectEditor: { template: '<div />', methods: { open: vi.fn() } },
   TransactionEditor: { template: '<div />', methods: { open: vi.fn() } },
+  PartnerEditor: { template: '<div />', methods: { open: vi.fn() } },
 }
 
 const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.body }
@@ -219,24 +220,26 @@ describe('TransactionTable', () => {
     wrapper.unmount()
   })
 
-  it('does not show admin-only category edit icons or actions for non-admins', async () => {
+  it('does not show admin-only category/partner edit icons or actions for non-admins', async () => {
     const wrapper = mount(TransactionTable, {
       props: { transactions: [buildTransaction()], categories, admin: false },
       ...mountOpts,
     })
     await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
     expect(wrapper.find('.category-edit-icon').exists()).toBe(false)
+    expect(wrapper.find('.partner-edit-icon').exists()).toBe(false)
     expect(wrapper.find('.admin-action').exists()).toBe(false)
     wrapper.unmount()
   })
 
-  it('shows admin-only category edit icons and comment/attachment action for admins', async () => {
+  it('shows admin-only category/partner edit icons and comment/attachment action for admins', async () => {
     const wrapper = mount(TransactionTable, {
       props: { transactions: [buildTransaction()], categories, admin: true },
       ...mountOpts,
     })
     await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
     expect(wrapper.find('.category-edit-icon').exists()).toBe(true)
+    expect(wrapper.find('.partner-edit-icon').exists()).toBe(true)
     expect(wrapper.find('.admin-action').exists()).toBe(true)
     wrapper.unmount()
   })

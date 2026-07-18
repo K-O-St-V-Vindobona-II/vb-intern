@@ -8,6 +8,7 @@ import PartnerLabel from './PartnerLabel.vue'
 import WarningLabel from './WarningLabel.vue'
 import TransactionEditor from './TransactionEditor.vue'
 import CategoryDirectEditor from './CategoryDirectEditor.vue'
+import PartnerEditor from './PartnerEditor.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
@@ -34,6 +35,7 @@ const rawData = ref<object | null>(null)
 
 const txEditorRef = ref<InstanceType<typeof TransactionEditor> | null>(null)
 const catEditorRef = ref<InstanceType<typeof CategoryDirectEditor> | null>(null)
+const partnerEditorRef = ref<InstanceType<typeof PartnerEditor> | null>(null)
 const editingTx = ref<P4xTransaction | null>(null)
 
 const findCategory = (id: number): P4xCategory | undefined =>
@@ -90,6 +92,12 @@ const openCatEditor = async (tx: P4xTransaction) => {
   editingTx.value = tx
   await nextTick()
   catEditorRef.value?.open()
+}
+
+const openPartnerEditor = async (tx: P4xTransaction) => {
+  editingTx.value = tx
+  await nextTick()
+  partnerEditorRef.value?.open()
 }
 
 const onTxChanged = () => {
@@ -174,13 +182,26 @@ const onTxChanged = () => {
 
         <Column header="Partner">
           <template #body="{ data }">
-            <small :class="directionLabel(data.amount).cls">
-              {{ directionLabel(data.amount).text }}
-            </small>
-            <div v-if="data.partner">
-              <PartnerLabel :partner="data.partner" :delegating-partner="data.delegating_partner" />
+            <div class="partner-cell">
+              <i
+                v-if="admin"
+                v-tooltip="'Partner bearbeiten'"
+                class="pi pi-pencil clickable partner-edit-icon"
+                @click="openPartnerEditor(data)"
+              />
+              <div class="partner-content">
+                <small :class="directionLabel(data.amount).cls">
+                  {{ directionLabel(data.amount).text }}
+                </small>
+                <div v-if="data.partner">
+                  <PartnerLabel
+                    :partner="data.partner"
+                    :delegating-partner="data.delegating_partner"
+                  />
+                </div>
+                <WarningLabel v-else label="Kein Partner gesetzt!" />
+              </div>
             </div>
-            <WarningLabel v-else label="Kein Partner gesetzt!" />
           </template>
         </Column>
 
@@ -292,6 +313,13 @@ const onTxChanged = () => {
       :categories="categories"
       @changed="onTxChanged"
     />
+
+    <PartnerEditor
+      v-if="editingTx && admin"
+      ref="partnerEditorRef"
+      :transaction="editingTx"
+      @changed="onTxChanged"
+    />
   </div>
 </template>
 
@@ -365,6 +393,22 @@ const onTxChanged = () => {
   margin-top: 0.15rem;
   color: var(--p-text-muted-color);
   font-size: 0.85rem;
+}
+.partner-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+}
+.partner-edit-icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+.partner-content {
+  flex: 1;
+  min-width: 0;
 }
 .category-badges {
   display: flex;
