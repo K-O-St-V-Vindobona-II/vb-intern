@@ -158,7 +158,7 @@ const doUpload = async () => {
 const openEdit = (img: StandesdbImage) => {
   editImageId.value = img.id
   editDescription.value = img.description
-  editDefault.value = img.default === 1
+  editDefault.value = img.default
   editDialogVisible.value = true
 }
 
@@ -295,7 +295,7 @@ onMounted(loadGallery)
             <div class="image-meta">
               <span v-if="img.width && img.height">{{ img.width }} × {{ img.height }} px</span>
               <span v-if="img.size">{{ formatSize(img.size) }}</span>
-              <Tag v-if="img.default === 1" value="Standard" severity="success" />
+              <Tag v-if="img.default" value="Standard" severity="success" />
             </div>
             <div class="image-desc">
               {{ img.description || 'Keine Beschreibung' }}

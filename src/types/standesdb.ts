@@ -182,7 +182,7 @@ export interface StandesdbImage {
   width: number | null
   size: number | null
   description: string | null
-  default: number
+  default: boolean
 }
 
 export interface ImageOwnerRef {

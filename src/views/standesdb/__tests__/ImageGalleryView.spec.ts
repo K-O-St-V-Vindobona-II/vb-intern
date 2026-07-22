@@ -19,7 +19,7 @@ vi.mock('@/services/standesdbService', () => ({
             width: 150,
             size: 45000,
             description: 'Profilbild',
-            default: 1,
+            default: true,
           },
           {
             id: 2,
@@ -28,7 +28,7 @@ vi.mock('@/services/standesdbService', () => ({
             width: 100,
             size: 12000,
             description: null,
-            default: 0,
+            default: false,
           },
         ],
       },
