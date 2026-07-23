@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, formatSize, getApiErrorStatus } from '@/utils/formatters'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -18,7 +18,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const ownerType = computed(() => (String(route.name).includes('member') ? 'member' : 'contact'))
-const ownerId = computed(() => Number(route.params.id))
+const ownerId = computed(() => Number(route.params['id']))
 const backRoute = computed(() =>
   ownerType.value === 'member'
     ? { name: 'standesdb-member-show', params: { id: ownerId.value } }
@@ -64,7 +64,7 @@ const loadGallery = async () => {
     images.value = resp.data.images
     await loadPreviews()
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
+    const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
@@ -84,13 +84,6 @@ const loadPreviews = async () => {
       /* ignore */
     }
   }
-}
-
-const formatSize = (bytes: number | null) => {
-  if (!bytes) return '–'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const onFileSelect = (event: Event) => {

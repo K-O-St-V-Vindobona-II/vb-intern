@@ -47,25 +47,20 @@ const doSearch = async () => {
   }
 }
 
-const fileIcon = (ext: string | null | undefined): string => {
-  switch ((ext || '').toLowerCase()) {
-    case 'jpg':
-    case 'jpeg':
-    case 'png':
-    case 'gif':
-      return 'pi pi-image'
-    case 'pdf':
-      return 'pi pi-file-pdf'
-    case 'doc':
-    case 'docx':
-      return 'pi pi-file-word'
-    case 'xls':
-    case 'xlsx':
-      return 'pi pi-file-excel'
-    default:
-      return 'pi pi-file'
-  }
+const SEARCH_RESULT_ICONS: Record<string, string> = {
+  jpg: 'pi pi-image',
+  jpeg: 'pi pi-image',
+  png: 'pi pi-image',
+  gif: 'pi pi-image',
+  pdf: 'pi pi-file-pdf',
+  doc: 'pi pi-file-word',
+  docx: 'pi pi-file-word',
+  xls: 'pi pi-file-excel',
+  xlsx: 'pi pi-file-excel',
 }
+
+const fileIcon = (ext: string | null | undefined): string =>
+  SEARCH_RESULT_ICONS[(ext || '').toLowerCase()] ?? 'pi pi-file'
 
 const clearSearch = () => {
   searchQuery.value = ''
@@ -100,7 +95,7 @@ const onPreview = async (id: number | null) => {
 const loadDir = async () => {
   loading.value = true
   try {
-    const id = route.params.id ? Number(route.params.id) : null
+    const id = route.params['id'] ? Number(route.params['id']) : null
     const resp = id ? await archiveService.getDirDetail(id) : await archiveService.getDirRoot()
     dir.value = resp.data
   } catch (err: unknown) {
@@ -115,7 +110,7 @@ const loadDir = async () => {
 }
 
 watch(
-  () => route.params.id,
+  () => route.params['id'],
   () => {
     clearSearch()
     loadDir()

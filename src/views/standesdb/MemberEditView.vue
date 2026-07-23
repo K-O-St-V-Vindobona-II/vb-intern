@@ -33,7 +33,7 @@ const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
 
 const isNew = computed(() => route.name === 'standesdb-member-new')
-const memberId = computed(() => (isNew.value ? null : Number(route.params.id)))
+const memberId = computed(() => (isNew.value ? null : Number(route.params['id'])))
 
 const form = ref<MemberFormData>({
   vortitel: null,
@@ -297,7 +297,7 @@ const save = async () => {
             <div class="field">
               <label>Nachname</label>
               <InputText v-model="form.nachname" class="w-full" />
-              <small v-if="errors.nachname" class="p-error">{{ errors.nachname }}</small>
+              <small v-if="errors['nachname']" class="p-error">{{ errors['nachname'] }}</small>
             </div>
             <div class="field">
               <label>Nachtitel</label>
@@ -409,7 +409,7 @@ const save = async () => {
           <div class="field">
             <label>E-Mail</label>
             <InputText v-model="form.email" type="email" class="w-full" />
-            <small v-if="errors.email" class="p-error">{{ errors.email }}</small>
+            <small v-if="errors['email']" class="p-error">{{ errors['email'] }}</small>
           </div>
 
           <div class="field">

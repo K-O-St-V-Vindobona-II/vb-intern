@@ -15,7 +15,7 @@ import Column from 'primevue/column'
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const filterId = Number(route.params.id)
+const filterId = Number(route.params['id'])
 
 const loading = ref(true)
 const processing = ref(false)

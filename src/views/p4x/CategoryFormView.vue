@@ -12,7 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const isEdit = computed(() => !!route.params.id)
+const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
 const saving = ref(false)
 
@@ -41,7 +41,7 @@ onMounted(async () => {
   if (isEdit.value) {
     try {
       const resp = await p4xService.getCategories()
-      const cat = resp.data.find((c) => c.id === Number(route.params.id))
+      const cat = resp.data.find((c) => c.id === Number(route.params['id']))
       if (cat) {
         form.value = {
           name: cat.name,
@@ -61,7 +61,7 @@ const save = async () => {
   saving.value = true
   try {
     if (isEdit.value) {
-      await p4xService.updateCategory(Number(route.params.id), form.value)
+      await p4xService.updateCategory(Number(route.params['id']), form.value)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createCategory(form.value)
@@ -78,7 +78,7 @@ const save = async () => {
 
 const deleteCategory = async () => {
   try {
-    await p4xService.deleteCategory(Number(route.params.id))
+    await p4xService.deleteCategory(Number(route.params['id']))
     toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
     router.push({ name: 'p4x-categories' })
   } catch (e: unknown) {

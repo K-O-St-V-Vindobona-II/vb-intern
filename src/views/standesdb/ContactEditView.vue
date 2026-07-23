@@ -28,7 +28,7 @@ const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
 
 const isNew = computed(() => route.name === 'standesdb-contact-new')
-const contactId = computed(() => (isNew.value ? null : Number(route.params.id)))
+const contactId = computed(() => (isNew.value ? null : Number(route.params['id'])))
 
 const form = ref<ContactFormData>({
   kontakttyp: 'person',
@@ -201,7 +201,7 @@ const save = async () => {
           <div class="field">
             <label>Name</label>
             <InputText v-model="form.name" class="w-full" />
-            <small v-if="errors.name" class="p-error">{{ errors.name }}</small>
+            <small v-if="errors['name']" class="p-error">{{ errors['name'] }}</small>
           </div>
 
           <div class="field">

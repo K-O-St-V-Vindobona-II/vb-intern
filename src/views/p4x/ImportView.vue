@@ -11,7 +11,7 @@ import Button from 'primevue/button'
 
 const route = useRoute()
 const toast = useToast()
-const accountId = Number(route.params.accountId)
+const accountId = Number(route.params['accountId'])
 
 const loading = ref(true)
 const importing = ref(false)

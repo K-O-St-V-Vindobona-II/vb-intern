@@ -34,7 +34,7 @@ const formatDate = (d: string | null): string => {
 }
 
 onMounted(async () => {
-  const id = route.params.id ? Number(route.params.id) : null
+  const id = route.params['id'] ? Number(route.params['id']) : null
   if (id) {
     loading.value = true
     try {

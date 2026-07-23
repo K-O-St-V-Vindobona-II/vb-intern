@@ -248,6 +248,145 @@ describe('CategoryDirectEditor', () => {
     wrapper.unmount()
   })
 
+  it('disables save when slot 2 has an amount but no category', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction({ amount: 10 }), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const form = (
+      wrapper.vm as unknown as {
+        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+      }
+    ).form
+    form.cat0 = 1
+    form.amt0 = 5
+    form.cat1 = null
+    form.amt1 = 5
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    expect(saveBtn.hasAttribute('disabled')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('disables save when slot 3 has an amount but no category', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction({ amount: 10 }), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const form = (
+      wrapper.vm as unknown as {
+        form: { cat0: number | null; amt0: number; cat2: number | null; amt2: number }
+      }
+    ).form
+    form.cat0 = 1
+    form.amt0 = 5
+    form.cat2 = null
+    form.amt2 = 5
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    expect(saveBtn.hasAttribute('disabled')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('disables save when a positive transaction has a negative slot amount', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction({ amount: 10 }), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const form = (
+      wrapper.vm as unknown as {
+        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+      }
+    ).form
+    form.cat0 = 1
+    form.amt0 = 15
+    form.cat1 = 2
+    form.amt1 = -5
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    expect(saveBtn.hasAttribute('disabled')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('disables save when a negative transaction has a positive slot amount', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction({ amount: -10 }), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const form = (
+      wrapper.vm as unknown as {
+        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+      }
+    ).form
+    form.cat0 = 1
+    form.amt0 = -15
+    form.cat1 = 2
+    form.amt1 = 5
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    expect(saveBtn.hasAttribute('disabled')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('enables save when the split across all three slots is valid', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction({ amount: 10 }), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const form = (
+      wrapper.vm as unknown as {
+        form: {
+          cat0: number | null
+          amt0: number
+          cat1: number | null
+          amt1: number
+          cat2: number | null
+          amt2: number
+        }
+      }
+    ).form
+    form.cat0 = 1
+    form.amt0 = 5
+    form.cat1 = 2
+    form.amt1 = 3
+    form.cat2 = 1
+    form.amt2 = 2
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    expect(saveBtn.hasAttribute('disabled')).toBe(false)
+    wrapper.unmount()
+  })
+
   it('closes the dialog without saving', async () => {
     const wrapper = mount(CategoryDirectEditor, {
       props: { transaction: buildTransaction(), categories },

@@ -1,5 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import {
+  ensureSessionRestored,
+  ensureUserLoaded,
+  checkAuthRequirement,
+  checkPermissions,
+} from './guards'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
@@ -391,54 +397,17 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
-  if (
-    !authStore.token &&
-    !authStore.isRestoringSession &&
-    to.matched.some((r) => r.meta.requiresAuth)
-  ) {
-    const restored = await authStore.restoreSession()
-    if (!restored) {
-      return {
-        name: 'login',
-        query: { redirect: to.fullPath },
-      }
-    }
-  }
+  const sessionRedirect = await ensureSessionRestored(authStore, to)
+  if (sessionRedirect) return sessionRedirect
 
-  if (authStore.token && !authStore.user) {
-    try {
-      await authStore.fetchUser()
-    } catch {
-      if (to.name !== 'login') {
-        return {
-          name: 'login',
-          query: { redirect: to.fullPath },
-        }
-      }
-    }
-  }
+  const userRedirect = await ensureUserLoaded(authStore, to)
+  if (userRedirect) return userRedirect
 
-  const isAuthenticated = !!authStore.token
+  const authRedirect = checkAuthRequirement(authStore, to)
+  if (authRedirect) return authRedirect
 
-  if (to.matched.some((r) => r.meta.requiresAuth) && !isAuthenticated) {
-    return {
-      name: 'login',
-      query: { redirect: to.fullPath },
-    }
-  }
-
-  if (to.matched.some((r) => r.meta.requiresGuest) && isAuthenticated) {
-    return { name: 'home' }
-  }
-
-  if (to.meta.requiredPermissions) {
-    const required = to.meta.requiredPermissions as string[]
-    const userPerms = authStore.user?.permissions || []
-    const hasAccess = required.some((p) => userPerms.includes(p))
-    if (!hasAccess) {
-      return { name: 'unauthorized' }
-    }
-  }
+  const permissionRedirect = checkPermissions(authStore, to)
+  if (permissionRedirect) return permissionRedirect
 
   return true
 })

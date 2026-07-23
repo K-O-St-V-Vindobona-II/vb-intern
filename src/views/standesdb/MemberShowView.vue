@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { usePermission } from '@/composables/usePermission'
 import standesdbService from '@/services/standesdbService'
-import { formatDateTime } from '@/utils/formatters'
+import { formatDateTime, formatFullDate, fuzzyDisplay, getApiErrorStatus } from '@/utils/formatters'
 import type { MemberDetail, MemberDismissed } from '@/types/standesdb'
 import ImagePreview from '@/components/standesdb/ImagePreview.vue'
 import FamilyTreeModal from '@/components/standesdb/FamilyTreeModal.vue'
@@ -15,7 +15,7 @@ import Tag from 'primevue/tag'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
+const { hasPermission } = usePermission()
 
 const loading = ref(true)
 const treeDialogVisible = ref(false)
@@ -23,14 +23,14 @@ const member = ref<MemberDetail | null>(null)
 const isDismissed = ref(false)
 const dismissedData = ref<MemberDismissed | null>(null)
 
-const canEdit = () => {
-  if (!member.value || !authStore.user) return false
+const canEdit = computed(() => {
+  if (!member.value) return false
   const orgId = member.value.org_id ?? ''
   const orgPerm = `standesdb${orgId.charAt(0).toUpperCase() + orgId.slice(1)}Admin`
-  return authStore.user.permissions?.includes(orgPerm) ?? false
-}
+  return hasPermission(orgPerm)
+})
 
-const isSystemAdmin = () => authStore.user?.permissions?.includes('systemAdmin') ?? false
+const isSystemAdmin = computed(() => hasPermission('systemAdmin'))
 
 const authActivity = ref<{
   auth_lastlogin: string | null
@@ -39,7 +39,7 @@ const authActivity = ref<{
 } | null>(null)
 
 const loadAuthActivity = async (memberId: number) => {
-  if (!isSystemAdmin()) return
+  if (!isSystemAdmin.value) return
   try {
     const resp = await standesdbService.getMemberAuthActivity(memberId)
     authActivity.value = resp.data
@@ -103,7 +103,7 @@ const loadMember = async (id: number) => {
       loadAuthActivity(id)
     }
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
+    const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
@@ -114,59 +114,10 @@ const loadMember = async (id: number) => {
 }
 
 watch(
-  () => route.params.id,
+  () => route.params['id'],
   (id) => loadMember(Number(id)),
   { immediate: true },
 )
-
-const formatFullDate = (d: string | null | undefined) => {
-  if (!d) return '–'
-  const [y = '', m = '', day = ''] = d.split('-')
-  const months = [
-    '',
-    'Jänner',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ]
-  return `${parseInt(day)}. ${months[parseInt(m)] ?? ''} ${y}`
-}
-
-const fuzzyDisplay = (date: string | null | undefined, accuracy: number) => {
-  if (!date || accuracy === 0) return 'unbekannt'
-  const [y = '', m = '', day = ''] = date.split('-')
-  const months = [
-    '',
-    'Jänner',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ]
-  switch (accuracy) {
-    case 1:
-      return y
-    case 2:
-      return `${months[parseInt(m)] ?? ''} ${y}`
-    default:
-      return `${parseInt(day)}. ${months[parseInt(m)] ?? ''} ${y}`
-  }
-}
 
 const orgLabel = (orgId: string | null, label: string | null | undefined) =>
   label ?? (orgId ? orgId.toUpperCase() : '–')
@@ -249,7 +200,7 @@ const capitalize = (s: string | null | undefined) =>
             @click="router.push({ name: 'standesdb-member-images', params: { id: member!.id } })"
           />
           <Button
-            v-if="canEdit()"
+            v-if="canEdit"
             label="Bearbeiten"
             icon="pi pi-pencil"
             severity="danger"
@@ -680,7 +631,7 @@ const capitalize = (s: string | null | undefined) =>
           @click="router.push({ name: 'standesdb-member-images', params: { id: member!.id } })"
         />
         <Button
-          v-if="canEdit()"
+          v-if="canEdit"
           label="Bearbeiten"
           icon="pi pi-pencil"
           severity="danger"
@@ -697,7 +648,7 @@ const capitalize = (s: string | null | undefined) =>
         :member-id="member.id"
       />
 
-      <div v-if="isSystemAdmin() && authActivity" class="auth-activity-section">
+      <div v-if="isSystemAdmin && authActivity" class="auth-activity-section">
         <label class="section-label">Letzte Aktivität</label>
         <div class="auth-activity-grid">
           <div class="auth-activity-item">
@@ -724,7 +675,7 @@ const capitalize = (s: string | null | undefined) =>
         </div>
       </div>
 
-      <div v-if="isSystemAdmin()" class="changelog-section">
+      <div v-if="isSystemAdmin" class="changelog-section">
         <div class="changelog-header" @click="toggleChangelog">
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />

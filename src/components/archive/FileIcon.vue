@@ -16,28 +16,23 @@ const rootEl = ref<HTMLElement | null>(null)
 const wasVisible = ref(false)
 const observer = ref<IntersectionObserver | null>(null)
 
+const EXTENSION_ICONS: Record<string, string> = {
+  jpg: 'pi pi-image',
+  jpeg: 'pi pi-image',
+  gif: 'pi pi-image',
+  png: 'pi pi-image',
+  doc: 'pi pi-file-word',
+  docx: 'pi pi-file-word',
+  xls: 'pi pi-file-excel',
+  xlsx: 'pi pi-file-excel',
+  pdf: 'pi pi-file-pdf',
+  mp4: 'pi pi-play',
+  avi: 'pi pi-play',
+}
+
 const iconClass = computed(() => {
   const ext = (props.extension || '').toLowerCase()
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'png':
-      return 'pi pi-image'
-    case 'doc':
-    case 'docx':
-      return 'pi pi-file-word'
-    case 'xls':
-    case 'xlsx':
-      return 'pi pi-file-excel'
-    case 'pdf':
-      return 'pi pi-file-pdf'
-    case 'mp4':
-    case 'avi':
-      return 'pi pi-play'
-    default:
-      return 'pi pi-file'
-  }
+  return EXTENSION_ICONS[ext] ?? 'pi pi-file'
 })
 
 const loadThumb = async () => {

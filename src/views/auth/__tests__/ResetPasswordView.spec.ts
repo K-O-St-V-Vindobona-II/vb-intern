@@ -3,11 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ResetPasswordView from '../ResetPasswordView.vue'
 import PrimeVue from 'primevue/config'
 import authService from '@/services/authService'
+import type * as VueRouter from 'vue-router'
 
 const mockPush = vi.fn()
 
 vi.mock('vue-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('vue-router')>()
+  const actual = await importOriginal<typeof VueRouter>()
   return {
     ...actual,
     useRouter: vi.fn(() => ({ push: mockPush })),

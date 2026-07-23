@@ -24,8 +24,13 @@ const isLoading = ref(false)
 const needsLinking = ref(false)
 const tempGoogleToken = ref('')
 
+// Prevent Open Redirect via protocol-relative URLs
+function isSafeRedirectPath(path: unknown): path is string {
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')
+}
+
 const executeRedirect = () => {
-  let redirectParam = router.currentRoute.value.query?.redirect
+  let redirectParam = router.currentRoute.value.query?.['redirect']
 
   if (!redirectParam) {
     const urlParams = new URLSearchParams(window.location.search)
@@ -34,8 +39,7 @@ const executeRedirect = () => {
 
   const path = Array.isArray(redirectParam) ? redirectParam[0] : redirectParam
 
-  // Prevent Open Redirect via protocol-relative URLs
-  if (path && typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) {
+  if (isSafeRedirectPath(path)) {
     router.push(path)
   } else {
     router.push({ name: 'home' })

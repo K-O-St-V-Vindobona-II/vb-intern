@@ -13,14 +13,14 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const accountId = Number(route.params.accountId)
+const accountId = Number(route.params['accountId'])
 const loading = ref(true)
 const categories = ref<P4xCategory[]>([])
 const result = ref<PaginatedTransactions | null>(null)
-const selectedDate = ref(new Date(Number(route.params.year), Number(route.params.month) - 1))
+const selectedDate = ref(new Date(Number(route.params['year']), Number(route.params['month']) - 1))
 
-const year = ref(Number(route.params.year))
-const month = ref(Number(route.params.month))
+const year = ref(Number(route.params['year']))
+const month = ref(Number(route.params['month']))
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
@@ -58,9 +58,9 @@ onMounted(() => load())
 watch(
   () => route.params,
   () => {
-    if (route.params.year && route.params.month) {
-      year.value = Number(route.params.year)
-      month.value = Number(route.params.month)
+    if (route.params['year'] && route.params['month']) {
+      year.value = Number(route.params['year'])
+      month.value = Number(route.params['month'])
       selectedDate.value = new Date(year.value, month.value - 1)
       load()
     }

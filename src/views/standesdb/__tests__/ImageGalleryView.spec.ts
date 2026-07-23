@@ -111,7 +111,7 @@ describe('ImageGalleryView', () => {
   it('shows image metadata', async () => {
     const w = await mountMemberGallery()
     expect(w.text()).toContain('150 × 200')
-    expect(w.text()).toContain('43.9 KB')
+    expect(w.text()).toContain('44 KB')
   })
 
   it('shows Standard badge for default image', async () => {
