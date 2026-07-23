@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { usePermission } from '@/composables/usePermission'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { formatApiError, formatDateTime } from '@/utils/formatters'
+import { formatApiError, formatDateTime, fuzzyDisplay, getApiErrorStatus } from '@/utils/formatters'
 import standesdbService from '@/services/standesdbService'
 import type { ContactDetail } from '@/types/standesdb'
 import ImagePreview from '@/components/standesdb/ImagePreview.vue'
@@ -15,16 +15,16 @@ import Tag from 'primevue/tag'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
+const { hasPermission } = usePermission()
 const confirm = useConfirm()
 const toast = useToast()
 
 const loading = ref(true)
 const contact = ref<ContactDetail | null>(null)
 
-const canEdit = () => authStore.user?.permissions?.includes('standesdbContactAdmin') ?? false
+const canEdit = computed(() => hasPermission('standesdbContactAdmin'))
 
-const isSystemAdmin = () => authStore.user?.permissions?.includes('systemAdmin') ?? false
+const isSystemAdmin = computed(() => hasPermission('systemAdmin'))
 
 const changelog = ref<
   {
@@ -95,7 +95,7 @@ const loadContact = async (id: number) => {
     const resp = await standesdbService.getContact(id)
     contact.value = resp.data
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
+    const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
@@ -106,38 +106,10 @@ const loadContact = async (id: number) => {
 }
 
 watch(
-  () => route.params.id,
+  () => route.params['id'],
   (id) => loadContact(Number(id)),
   { immediate: true },
 )
-
-const fuzzyDisplay = (date: string | null | undefined, accuracy: number) => {
-  if (!date || accuracy === 0) return 'unbekannt'
-  const [y = '', m = '', day = ''] = date.split('-')
-  const months = [
-    '',
-    'Jänner',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ]
-  switch (accuracy) {
-    case 1:
-      return y
-    case 2:
-      return `${months[parseInt(m)] ?? ''} ${y}`
-    default:
-      return `${parseInt(day)}. ${months[parseInt(m)] ?? ''} ${y}`
-  }
-}
 
 const orgLabel = (orgId: string | null | undefined, label: string | null | undefined) =>
   label ?? (orgId ? orgId.toUpperCase() : '')
@@ -176,7 +148,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
             @click="router.push({ name: 'standesdb-contact-images', params: { id: contact!.id } })"
           />
           <Button
-            v-if="canEdit()"
+            v-if="canEdit"
             label="Bearbeiten"
             icon="pi pi-pencil"
             severity="danger"
@@ -184,7 +156,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
             @click="router.push({ name: 'standesdb-contact-edit', params: { id: contact!.id } })"
           />
           <Button
-            v-if="canEdit()"
+            v-if="canEdit"
             label="Löschen"
             icon="pi pi-trash"
             severity="danger"
@@ -319,7 +291,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           @click="router.push({ name: 'standesdb-contact-images', params: { id: contact!.id } })"
         />
         <Button
-          v-if="canEdit()"
+          v-if="canEdit"
           label="Bearbeiten"
           icon="pi pi-pencil"
           severity="danger"
@@ -327,7 +299,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           @click="router.push({ name: 'standesdb-contact-edit', params: { id: contact!.id } })"
         />
         <Button
-          v-if="canEdit()"
+          v-if="canEdit"
           label="Löschen"
           icon="pi pi-trash"
           severity="danger"
@@ -337,7 +309,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
         />
       </div>
 
-      <div v-if="isSystemAdmin()" class="changelog-section">
+      <div v-if="isSystemAdmin" class="changelog-section">
         <div class="changelog-header" @click="toggleChangelog">
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />

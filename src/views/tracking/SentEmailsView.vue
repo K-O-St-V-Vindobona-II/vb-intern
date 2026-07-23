@@ -82,9 +82,9 @@ const fetchData = async () => {
       page: page.value,
       page_size: pageSize,
     }
-    if (selectedYear.value) params.year = selectedYear.value
-    if (selectedMonth.value) params.month = selectedMonth.value
-    if (search.value.trim()) params.search = search.value.trim()
+    if (selectedYear.value) params['year'] = selectedYear.value
+    if (selectedMonth.value) params['month'] = selectedMonth.value
+    if (search.value.trim()) params['search'] = search.value.trim()
 
     const result = await trackingService.getSentEmails(params)
     items.value = result.items

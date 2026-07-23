@@ -32,6 +32,12 @@ export default tseslint.config(
       'vue/multi-word-component-names': 'off',
       'vue/no-unused-vars': 'error',
 
+      // --- DEAD CODE & UNREACHABLE ---
+      'no-unreachable': 'error', // Prevents code after return, throw, etc.
+      'no-constant-condition': 'error', // Prevents always-true/false conditions
+      'vue/no-unused-components': 'error', // Finds registered but unused components
+      'vue/no-unused-refs': 'error', // Finds template refs that are never used in script
+
       // --- SECURITY & ARCHITECTURE ---
       // Prevent XSS via v-html
       'vue/no-v-html': 'error',

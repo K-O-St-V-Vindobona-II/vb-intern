@@ -11,7 +11,7 @@ import Card from 'primevue/card'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const accountId = Number(route.params.accountId)
+const accountId = Number(route.params['accountId'])
 
 const loading = ref(false)
 const categories = ref<P4xCategory[]>([])

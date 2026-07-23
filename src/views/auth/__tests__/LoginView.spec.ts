@@ -101,6 +101,44 @@ describe('LoginView.vue', () => {
     expect(mockPush).toHaveBeenCalledWith('/profile')
   })
 
+  it('falls back to home instead of a protocol-relative open-redirect target', async () => {
+    mockRouteState.query = { redirect: '//evil.example.com/phish' }
+    Object.defineProperty(window, 'location', {
+      value: { search: '?redirect=//evil.example.com/phish' },
+      writable: true,
+    })
+
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockLogin.mockResolvedValueOnce(undefined)
+
+    await wrapper.find('input#email').setValue('test@verein.at')
+    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
+  })
+
+  it('falls back to home instead of an absolute-URL open-redirect target', async () => {
+    mockRouteState.query = { redirect: 'https://evil.example.com/phish' }
+    Object.defineProperty(window, 'location', {
+      value: { search: '?redirect=https://evil.example.com/phish' },
+      writable: true,
+    })
+
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockLogin.mockResolvedValueOnce(undefined)
+
+    await wrapper.find('input#email').setValue('test@verein.at')
+    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
+  })
+
   // --- GOOGLE LOGIN & LINKING TESTS ---
 
   it('should process a successful Google login', async () => {

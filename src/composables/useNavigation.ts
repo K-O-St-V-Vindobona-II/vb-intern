@@ -1,14 +1,10 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { usePermission } from '@/composables/usePermission'
 
 export function useNavigation() {
   const router = useRouter()
-  const authStore = useAuthStore()
-
-  const hasPermission = (perm: string): boolean => {
-    return authStore.user?.permissions?.includes(perm) ?? false
-  }
+  const { hasPermission } = usePermission()
 
   const mainMenuItems = computed(() => [
     {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import type { P4xTransaction, P4xCategory } from '@/types/p4x'
+import type { P4xTransaction, P4xCategory, CategoryDirect } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
 import CategoryLabel from './CategoryLabel.vue'
 import FormAmount from './FormAmount.vue'
@@ -36,30 +36,63 @@ const categoryOptions = computed(() =>
     .map((c) => ({ label: `${c.name} (${c.label})`, value: c.id })),
 )
 
-const formSum = computed(() => form.value.amt0 + form.value.amt1 + form.value.amt2)
+interface SplitForm {
+  cat0: number | null
+  amt0: number
+  cat1: number | null
+  amt1: number
+  cat2: number | null
+  amt2: number
+}
 
-const isValid = computed(() => {
-  const tx = props.transaction
-  if (form.value.amt0 !== 0 && !form.value.cat0) return false
-  if (form.value.amt1 !== 0 && !form.value.cat1) return false
-  if (form.value.amt2 !== 0 && !form.value.cat2) return false
-  if (tx.amount > 0 && (form.value.amt0 < 0 || form.value.amt1 < 0 || form.value.amt2 < 0))
-    return false
-  if (tx.amount < 0 && (form.value.amt0 > 0 || form.value.amt1 > 0 || form.value.amt2 > 0))
-    return false
-  return Number(formSum.value) === Number(tx.amount)
-})
+function isSplitValid(txAmount: number, form: SplitForm): boolean {
+  const slots = [
+    { cat: form.cat0, amt: form.amt0 },
+    { cat: form.cat1, amt: form.amt1 },
+    { cat: form.cat2, amt: form.amt2 },
+  ]
+
+  for (const slot of slots) {
+    if (slot.amt !== 0 && !slot.cat) return false
+    if (txAmount > 0 && slot.amt < 0) return false
+    if (txAmount < 0 && slot.amt > 0) return false
+  }
+
+  const sum = slots.reduce((total, slot) => total + slot.amt, 0)
+  return sum === txAmount
+}
+
+function slotFromDirect(
+  direct: CategoryDirect | undefined,
+  defaultAmount: number,
+): { cat: number | null; amt: number } {
+  if (!direct) {
+    return { cat: null, amt: defaultAmount }
+  }
+  return { cat: direct.p4x_category_id, amt: Number(direct.amount) }
+}
+
+function buildSlotsFromDirects(directs: CategoryDirect[], txAmount: number): SplitForm {
+  const slot0 = slotFromDirect(directs[0], txAmount)
+  const slot1 = slotFromDirect(directs[1], 0)
+  const slot2 = slotFromDirect(directs[2], 0)
+  return {
+    cat0: slot0.cat,
+    amt0: slot0.amt,
+    cat1: slot1.cat,
+    amt1: slot1.amt,
+    cat2: slot2.cat,
+    amt2: slot2.amt,
+  }
+}
+
+const isValid = computed(() => isSplitValid(props.transaction.amount, form.value))
 
 const open = () => {
-  const d = props.transaction.p4x_category_directs
-  form.value = {
-    cat0: d[0]?.p4x_category_id ?? null,
-    amt0: d[0] ? Number(d[0].amount) : props.transaction.amount,
-    cat1: d[1]?.p4x_category_id ?? null,
-    amt1: d[1] ? Number(d[1].amount) : 0,
-    cat2: d[2]?.p4x_category_id ?? null,
-    amt2: d[2] ? Number(d[2].amount) : 0,
-  }
+  form.value = buildSlotsFromDirects(
+    props.transaction.p4x_category_directs,
+    props.transaction.amount,
+  )
   expandedFilters.value.clear()
   visible.value = true
 }

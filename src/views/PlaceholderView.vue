@@ -3,7 +3,7 @@ import { useRoute } from 'vue-router'
 import Card from 'primevue/card'
 
 const route = useRoute()
-const moduleName = (route.meta.moduleName as string) ?? 'Dieses Modul'
+const moduleName = (route.meta['moduleName'] as string) ?? 'Dieses Modul'
 </script>
 
 <template>

@@ -29,15 +29,6 @@ export function useSessionManager() {
     }
   }
 
-  const formatDt = (epoch: number): string =>
-    new Date(epoch * 1000).toLocaleString('de-AT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-
   const performLogout = async () => {
     stopAll()
     await authStore.logout()
@@ -108,7 +99,15 @@ export function useSessionManager() {
 
   onMounted(() => {
     const { iat } = parseTokenPayload()
-    loginTime.value = iat ? formatDt(iat) : ''
+    loginTime.value = iat
+      ? new Date(iat * 1000).toLocaleString('de-AT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : ''
 
     expiryCheckTimer = setInterval(checkExpiryFallback, EXPIRY_CHECK_INTERVAL_MS)
 

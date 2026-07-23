@@ -96,15 +96,26 @@ const onDrop = (e: DragEvent) => {
 
 const openFilePicker = () => fileInputRef.value?.click()
 
+const UPLOAD_FILE_ICONS: Record<string, string> = {
+  jpg: 'pi-image',
+  jpeg: 'pi-image',
+  png: 'pi-image',
+  gif: 'pi-image',
+  pdf: 'pi-file-pdf',
+  doc: 'pi-file-word',
+  docx: 'pi-file-word',
+  txt: 'pi-file-word',
+  xls: 'pi-file-excel',
+  xlsx: 'pi-file-excel',
+  mp3: 'pi-volume-up',
+  mpga: 'pi-volume-up',
+  mp4: 'pi-video',
+  avi: 'pi-video',
+}
+
 const fileIcon = (name: string): string => {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'pi-image'
-  if (ext === 'pdf') return 'pi-file-pdf'
-  if (['doc', 'docx', 'txt'].includes(ext)) return 'pi-file-word'
-  if (['xls', 'xlsx'].includes(ext)) return 'pi-file-excel'
-  if (['mp3', 'mpga'].includes(ext)) return 'pi-volume-up'
-  if (['mp4', 'avi'].includes(ext)) return 'pi-video'
-  return 'pi-file'
+  return UPLOAD_FILE_ICONS[ext] ?? 'pi-file'
 }
 
 const startUpload = async () => {

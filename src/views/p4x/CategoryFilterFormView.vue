@@ -2,6 +2,7 @@
 import { formatApiError } from '@/utils/formatters'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { LocationQuery } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import type { P4xAccount, P4xCategory } from '@/types/p4x'
@@ -15,7 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const isEdit = computed(() => !!route.params.id)
+const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
 const saving = ref(false)
 const accounts = ref<P4xAccount[]>([])
@@ -55,6 +56,49 @@ const categoryOptions = computed(() =>
   })),
 )
 
+function buildFormFromQuery(
+  query: LocationQuery,
+  accounts: P4xAccount[],
+  categories: P4xCategory[],
+): { form: typeof form.value; useMin: boolean; useMax: boolean } {
+  const firstAccount = accounts[0]
+  const defaultAccountId = firstAccount ? firstAccount.id : null
+  const firstCategory = categories[0]
+  const defaultCategoryId = firstCategory ? firstCategory.id : null
+
+  const result = {
+    form: {
+      name: '',
+      p4x_account_id: query['accountId'] ? Number(query['accountId']) : defaultAccountId,
+      iban: '',
+      min_amount: 0,
+      max_amount: 0,
+      subject_mode: 'equals',
+      subject: '',
+      p4x_category_id: defaultCategoryId,
+    },
+    useMin: false,
+    useMax: false,
+  }
+
+  if (query['iban']) {
+    result.form.iban = String(query['iban'])
+  }
+  if (query['amount']) {
+    const amount = Number(query['amount'])
+    result.form.min_amount = amount
+    result.form.max_amount = amount
+    result.useMin = true
+    result.useMax = true
+  }
+  if (query['subject']) {
+    result.form.subject = String(query['subject'])
+    result.form.subject_mode = 'equals'
+  }
+
+  return result
+}
+
 onMounted(async () => {
   try {
     const [dashResp] = await Promise.all([p4xService.getDashboard()])
@@ -63,7 +107,7 @@ onMounted(async () => {
 
     if (isEdit.value) {
       const fResp = await p4xService.getCategoryFilters()
-      const filter = fResp.data.find((f) => f.id === Number(route.params.id))
+      const filter = fResp.data.find((f) => f.id === Number(route.params['id']))
       if (filter) {
         form.value = {
           name: filter.name,
@@ -79,27 +123,10 @@ onMounted(async () => {
         useMax.value = filter.max_amount !== null
       }
     } else {
-      const q = route.query
-      if (q.accountId) {
-        form.value.p4x_account_id = Number(q.accountId)
-      } else {
-        form.value.p4x_account_id = accounts.value[0]?.id ?? null
-      }
-      form.value.p4x_category_id = categories.value[0]?.id ?? null
-      if (q.iban) {
-        form.value.iban = String(q.iban)
-      }
-      if (q.amount) {
-        const amount = Number(q.amount)
-        form.value.min_amount = amount
-        form.value.max_amount = amount
-        useMin.value = true
-        useMax.value = true
-      }
-      if (q.subject) {
-        form.value.subject = String(q.subject)
-        form.value.subject_mode = 'equals'
-      }
+      const prefill = buildFormFromQuery(route.query, accounts.value, categories.value)
+      form.value = prefill.form
+      useMin.value = prefill.useMin
+      useMax.value = prefill.useMax
     }
   } finally {
     loading.value = false
@@ -118,7 +145,7 @@ const save = async () => {
     }
 
     if (isEdit.value) {
-      await p4xService.updateCategoryFilter(Number(route.params.id), data)
+      await p4xService.updateCategoryFilter(Number(route.params['id']), data)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createCategoryFilter(data)
@@ -135,7 +162,7 @@ const save = async () => {
 
 const deleteFilter = async () => {
   try {
-    await p4xService.deleteCategoryFilter(Number(route.params.id))
+    await p4xService.deleteCategoryFilter(Number(route.params['id']))
     toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
     router.push({ name: 'p4x-filters' })
   } catch (e: unknown) {

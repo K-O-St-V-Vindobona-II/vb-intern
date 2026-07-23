@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { fuzzyDisplay } from '@/utils/formatters'
 import FuzzyDatePicker from './FuzzyDatePicker.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -53,37 +54,6 @@ const itemName = (id: number) => props.availableItems.find((i) => i.id === id)?.
 const itemGroup = (id: number) => props.availableItems.find((i) => i.id === id)?.group ?? ''
 
 const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
-
-const fuzzyDisplay = (date: string | null, accuracy: number) => {
-  if (!date || accuracy === 0) return 'unbekannt'
-  const parts = date.split('-')
-  const y = parts[0]
-  const months = [
-    '',
-    'Jänner',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ]
-  const m = parseInt(parts[1] ?? '0')
-  const d = parseInt(parts[2] ?? '0')
-  switch (accuracy) {
-    case 1:
-      return y
-    case 2:
-      return `${months[m] ?? ''} ${y}`
-    default:
-      return `${d}. ${months[m] ?? ''} ${y}`
-  }
-}
 
 const openAdd = () => {
   editingEntry.value = null

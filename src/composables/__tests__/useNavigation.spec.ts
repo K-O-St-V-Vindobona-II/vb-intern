@@ -28,6 +28,17 @@ function buildUser(permissions: string[]): User {
   }
 }
 
+type MenuItems = ReturnType<typeof useNavigation>['mainMenuItems']['value']
+
+function findItem(items: MenuItems, label: string) {
+  return items.find((item) => item.label === label)
+}
+
+function findChildItem(group: MenuItems[number] | undefined, label: string) {
+  const items = (group?.items ?? []) as MenuItems
+  return findItem(items, label)
+}
+
 describe('useNavigation', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -74,11 +85,11 @@ describe('useNavigation', () => {
       authStore.user = buildUser([])
       const { mainMenuItems } = useNavigation()
 
-      const p4xGroup = mainMenuItems.value.find((item) => item.label === 'AH-Kassen')
-      const systemGroup = mainMenuItems.value.find((item) => item.label === 'System')
-      const wwwGroup = mainMenuItems.value.find((item) => item.label === 'www-Administration')
-      const standesdbGroup = mainMenuItems.value.find((item) => item.label === 'Standesdatenbank')
-      const exportItem = standesdbGroup?.items?.find((item) => item.label === 'Export')
+      const p4xGroup = findItem(mainMenuItems.value, 'AH-Kassen')
+      const systemGroup = findItem(mainMenuItems.value, 'System')
+      const wwwGroup = findItem(mainMenuItems.value, 'www-Administration')
+      const standesdbGroup = findItem(mainMenuItems.value, 'Standesdatenbank')
+      const exportItem = findChildItem(standesdbGroup, 'Export')
 
       expect(p4xGroup?.visible).toBe(false)
       expect(systemGroup?.visible).toBe(false)
@@ -97,12 +108,12 @@ describe('useNavigation', () => {
       ])
       const { mainMenuItems } = useNavigation()
 
-      const p4xGroup = mainMenuItems.value.find((item) => item.label === 'AH-Kassen')
-      const systemGroup = mainMenuItems.value.find((item) => item.label === 'System')
-      const wwwGroup = mainMenuItems.value.find((item) => item.label === 'www-Administration')
-      const standesdbGroup = mainMenuItems.value.find((item) => item.label === 'Standesdatenbank')
-      const exportItem = standesdbGroup?.items?.find((item) => item.label === 'Export')
-      const keylistItem = standesdbGroup?.items?.find((item) => item.label === 'Schlüsselliste')
+      const p4xGroup = findItem(mainMenuItems.value, 'AH-Kassen')
+      const systemGroup = findItem(mainMenuItems.value, 'System')
+      const wwwGroup = findItem(mainMenuItems.value, 'www-Administration')
+      const standesdbGroup = findItem(mainMenuItems.value, 'Standesdatenbank')
+      const exportItem = findChildItem(standesdbGroup, 'Export')
+      const keylistItem = findChildItem(standesdbGroup, 'Schlüsselliste')
 
       expect(p4xGroup?.visible).toBe(true)
       expect(systemGroup?.visible).toBe(true)
@@ -113,8 +124,8 @@ describe('useNavigation', () => {
 
     it('navigates via router.push when a command is invoked', () => {
       const { mainMenuItems } = useNavigation()
-      const standesdbGroup = mainMenuItems.value.find((item) => item.label === 'Standesdatenbank')
-      const dashboardItem = standesdbGroup?.items?.find((item) => item.label === 'Einsicht')
+      const standesdbGroup = findItem(mainMenuItems.value, 'Standesdatenbank')
+      const dashboardItem = findChildItem(standesdbGroup, 'Einsicht')
 
       dashboardItem?.command?.()
 

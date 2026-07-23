@@ -14,7 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const isEdit = computed(() => !!route.params.id)
+const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
 const saving = ref(false)
 
@@ -30,7 +30,9 @@ onMounted(async () => {
   if (isEdit.value) {
     try {
       const resp = await p4xService.getDashboard()
-      const account = resp.data.accounts.find((a: P4xAccount) => a.id === Number(route.params.id))
+      const account = resp.data.accounts.find(
+        (a: P4xAccount) => a.id === Number(route.params['id']),
+      )
       if (account) {
         form.value = {
           iban: account.iban,
@@ -59,7 +61,7 @@ const save = async () => {
     }
 
     if (isEdit.value) {
-      await p4xService.updateAccount(Number(route.params.id), data)
+      await p4xService.updateAccount(Number(route.params['id']), data)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createAccount(data)

@@ -23,8 +23,8 @@ const isSuccess = ref(false)
 const errorMessage = ref('')
 
 onMounted(() => {
-  email.value = (route.query.email as string) || ''
-  token.value = (route.query.token as string) || ''
+  email.value = (route.query['email'] as string) || ''
+  token.value = (route.query['token'] as string) || ''
 
   if (!email.value || !token.value) {
     errorMessage.value =
@@ -32,25 +32,37 @@ onMounted(() => {
   }
 })
 
-const handleReset = async () => {
-  if (!email.value || !token.value) {
-    errorMessage.value = 'Ungültige Anfrage. Es fehlen Parameter.'
-    return
+function validateResetForm(
+  emailValue: string,
+  tokenValue: string,
+  passwordValue: string,
+  passwordConfirmValue: string,
+): string | null {
+  if (!emailValue || !tokenValue) {
+    return 'Ungültige Anfrage. Es fehlen Parameter.'
   }
-
-  if (!password.value || !passwordConfirm.value) {
-    errorMessage.value = 'Bitte fülle beide Passwort-Felder aus.'
-    return
+  if (!passwordValue || !passwordConfirmValue) {
+    return 'Bitte fülle beide Passwort-Felder aus.'
   }
-
   const minLength = passwordMinLength()
-  if (password.value.length < minLength) {
-    errorMessage.value = `Das Passwort muss mindestens ${minLength} Zeichen lang sein.`
-    return
+  if (passwordValue.length < minLength) {
+    return `Das Passwort muss mindestens ${minLength} Zeichen lang sein.`
   }
+  if (passwordValue !== passwordConfirmValue) {
+    return 'Die Passwörter stimmen nicht überein.'
+  }
+  return null
+}
 
-  if (password.value !== passwordConfirm.value) {
-    errorMessage.value = 'Die Passwörter stimmen nicht überein.'
+const handleReset = async () => {
+  const validationError = validateResetForm(
+    email.value,
+    token.value,
+    password.value,
+    passwordConfirm.value,
+  )
+  if (validationError) {
+    errorMessage.value = validationError
     return
   }
 

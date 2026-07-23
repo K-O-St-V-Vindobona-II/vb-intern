@@ -120,8 +120,8 @@ const fetchRawData = async () => {
       page: rawPage.value,
       page_size: rawPageSize,
     }
-    if (rawDateFrom.value) params.date_from = toDateStr(rawDateFrom.value)
-    if (rawDateTo.value) params.date_to = toDateStr(rawDateTo.value)
+    if (rawDateFrom.value) params['date_from'] = toDateStr(rawDateFrom.value)
+    if (rawDateTo.value) params['date_to'] = toDateStr(rawDateTo.value)
     const result = await trackingService.getActivity(params)
     rawItems.value = result.items
     rawTotal.value = result.total

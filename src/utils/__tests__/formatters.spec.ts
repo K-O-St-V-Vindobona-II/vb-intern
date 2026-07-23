@@ -6,6 +6,8 @@ import {
   getApiErrorStatus,
   getApiErrorDetail,
   formatSize,
+  fuzzyDisplay,
+  formatFullDate,
 } from '@/utils/formatters'
 
 describe('formatDate', () => {
@@ -106,5 +108,53 @@ describe('formatSize', () => {
 
   it('formats sizes at or above 1 MB as MB', () => {
     expect(formatSize(5 * 1024 * 1024)).toBe('5.0 MB')
+  })
+})
+
+describe('fuzzyDisplay', () => {
+  it('returns "unbekannt" for a null date', () => {
+    expect(fuzzyDisplay(null, 3)).toBe('unbekannt')
+  })
+
+  it('returns "unbekannt" for an undefined date', () => {
+    expect(fuzzyDisplay(undefined, 3)).toBe('unbekannt')
+  })
+
+  it('returns "unbekannt" for accuracy 0, regardless of the date', () => {
+    expect(fuzzyDisplay('2024-03-05', 0)).toBe('unbekannt')
+  })
+
+  it('shows only the year at accuracy 1', () => {
+    expect(fuzzyDisplay('2024-03-05', 1)).toBe('2024')
+  })
+
+  it('shows month and year at accuracy 2', () => {
+    expect(fuzzyDisplay('2024-03-05', 2)).toBe('März 2024')
+  })
+
+  it('shows the full date with a zero-padded day at accuracy 3', () => {
+    expect(fuzzyDisplay('2024-03-05', 3)).toBe('05. März 2024')
+  })
+
+  it('does not pad a two-digit day', () => {
+    expect(fuzzyDisplay('2024-03-17', 3)).toBe('17. März 2024')
+  })
+})
+
+describe('formatFullDate', () => {
+  it('returns an en-dash for a null date', () => {
+    expect(formatFullDate(null)).toBe('–')
+  })
+
+  it('returns an en-dash for an undefined date', () => {
+    expect(formatFullDate(undefined)).toBe('–')
+  })
+
+  it('shows a zero-padded day, spelled-out month and year', () => {
+    expect(formatFullDate('2024-03-05')).toBe('05. März 2024')
+  })
+
+  it('does not pad a two-digit day', () => {
+    expect(formatFullDate('2024-03-17')).toBe('17. März 2024')
   })
 })

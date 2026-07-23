@@ -3,12 +3,25 @@
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
+    // --- BASE STRICTNESS ---
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
+
+    // --- ARRAY & INDEX SAFETY ---
     "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // --- CONTROL FLOW & DEAD CODE ---
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // --- ADVANCED TYPE SAFETY ---
+    "noImplicitOverride": true,
+
+    // --- SYSTEM & RESOLUTION ---
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "paths": {
