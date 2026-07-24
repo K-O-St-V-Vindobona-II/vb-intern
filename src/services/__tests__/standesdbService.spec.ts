@@ -123,12 +123,19 @@ describe('standesdbService', () => {
 
   it('getChangelog builds the members segment', () => {
     standesdbService.getChangelog('member', 1)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/changelog')
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/changelog', { params: {} })
   })
 
   it('getChangelog builds the contacts segment', () => {
     standesdbService.getChangelog('contact', 2)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/changelog')
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/changelog', { params: {} })
+  })
+
+  it('getChangelog forwards pagination params', () => {
+    standesdbService.getChangelog('member', 1, { page: 2, page_size: 10 })
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/changelog', {
+      params: { page: 2, page_size: 10 },
+    })
   })
 
   it('getMemberImages fetches the member image gallery', () => {

@@ -95,9 +95,12 @@ const toggleSession = (index: number) => {
 const fetchSessions = async () => {
   loading.value = true
   try {
-    sessions.value = await trackingService.getActivitySessions({
+    const result = await trackingService.getActivitySessions({
       date_str: toDateStr(sessionsDate.value),
+      page: 1,
+      page_size: 100,
     })
+    sessions.value = result.items
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   } finally {
