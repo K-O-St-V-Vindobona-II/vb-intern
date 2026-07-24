@@ -167,7 +167,7 @@ describe('api (axios interceptors)', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it('fetches the current user and redirects home on a 403', async () => {
+  it('refreshes the cached user but does not navigate away on a 403', async () => {
     const authStore = useAuthStore()
     authStore.setToken('valid-token')
 
@@ -178,7 +178,7 @@ describe('api (axios interceptors)', () => {
     await expect(api.get('/forbidden')).rejects.toBeTruthy()
 
     expect(memberService.getCurrentUser).toHaveBeenCalledOnce()
-    expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('clears auth and redirects to login on a network error while authenticated', async () => {

@@ -689,7 +689,7 @@ const capitalize = (s: string | null | undefined) =>
         </div>
       </div>
 
-      <div v-if="isSystemAdmin" class="changelog-section">
+      <div v-if="canEdit" class="changelog-section">
         <div class="changelog-header" @click="toggleChangelog">
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />

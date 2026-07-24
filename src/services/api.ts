@@ -70,10 +70,14 @@ function queueForRefresh(originalRequest: any) {
   })
 }
 
+// Refreshes the cached permission set in case it was revoked server-side,
+// but leaves navigation to the calling view — a 403 is often a request-scoped
+// business rule (e.g. cross-org write) rather than a stale global permission,
+// and checkPermissions() in router/guards.ts already re-validates on the next
+// navigation regardless.
 async function handleForbidden(error: unknown) {
   const authStore = useAuthStore()
   await authStore.fetchUser()
-  router.push({ name: 'home' }).catch(() => {})
   return Promise.reject(error)
 }
 

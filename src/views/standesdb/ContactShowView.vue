@@ -24,8 +24,6 @@ const contact = ref<ContactDetail | null>(null)
 
 const canEdit = computed(() => hasPermission('standesdbContactAdmin'))
 
-const isSystemAdmin = computed(() => hasPermission('systemAdmin'))
-
 const changelog = ref<
   {
     id: number
@@ -323,7 +321,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
         />
       </div>
 
-      <div v-if="isSystemAdmin" class="changelog-section">
+      <div v-if="canEdit" class="changelog-section">
         <div class="changelog-header" @click="toggleChangelog">
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />

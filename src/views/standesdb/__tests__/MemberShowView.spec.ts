@@ -213,4 +213,20 @@ describe('MemberShowView', () => {
     expect(w.text()).toContain('Entlassene Personen werden aus Datenschutzgründen nicht angezeigt.')
     expect(w.text()).toContain('Entlassener Test')
   })
+
+  it('shows changelog section for a matching standesdb org admin', async () => {
+    const w = await mountView()
+    expect(w.text()).toContain('Änderungshistorie')
+  })
+
+  it('hides changelog section for systemAdmin without a standesdb admin role', async () => {
+    const original = mockAuthStore.user.permissions
+    mockAuthStore.user.permissions = ['systemAdmin']
+    try {
+      const w = await mountView()
+      expect(w.text()).not.toContain('Änderungshistorie')
+    } finally {
+      mockAuthStore.user.permissions = original
+    }
+  })
 })
