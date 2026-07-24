@@ -90,7 +90,7 @@ const doExport = async () => {
   try {
     const payload: Record<string, unknown> = {
       module: selectedModule.value,
-      ...matrixState.value,
+      selections: matrixState.value,
       ...flags.value,
     }
     const resp = await standesdbService.downloadExport(payload)

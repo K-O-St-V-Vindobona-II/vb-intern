@@ -40,10 +40,11 @@ vi.mock('@/services/api', () => ({
   default: { get: vi.fn().mockRejectedValue(new Error('no image')) },
 }))
 
+const mockAuthStore = {
+  user: { permissions: ['standesdbContactAdmin'] },
+}
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: vi.fn(() => ({
-    user: { permissions: ['standesdbContactAdmin'] },
-  })),
+  useAuthStore: vi.fn(() => mockAuthStore),
 }))
 
 const mockConfirmRequire = vi.fn()
@@ -167,5 +168,21 @@ describe('ContactShowView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Kontakt gelöscht' }),
     )
+  })
+
+  it('shows changelog section for standesdbContactAdmin', async () => {
+    const w = await mountView()
+    expect(w.text()).toContain('Änderungshistorie')
+  })
+
+  it('hides changelog section for systemAdmin without standesdbContactAdmin', async () => {
+    const original = mockAuthStore.user.permissions
+    mockAuthStore.user.permissions = ['systemAdmin']
+    try {
+      const w = await mountView()
+      expect(w.text()).not.toContain('Änderungshistorie')
+    } finally {
+      mockAuthStore.user.permissions = original
+    }
   })
 })

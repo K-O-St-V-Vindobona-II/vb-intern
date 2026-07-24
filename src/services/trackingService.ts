@@ -60,7 +60,9 @@ export default {
   async getActivitySessions(params: {
     date_str?: string
     member_id?: number
-  }): Promise<ActivitySession[]> {
+    page?: number
+    page_size?: number
+  }): Promise<PaginatedResponse<ActivitySession>> {
     const { data } = await api.get('/tracking/activity/sessions', { params })
     return data
   },

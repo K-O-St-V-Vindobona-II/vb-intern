@@ -24,8 +24,6 @@ const contact = ref<ContactDetail | null>(null)
 
 const canEdit = computed(() => hasPermission('standesdbContactAdmin'))
 
-const isSystemAdmin = computed(() => hasPermission('systemAdmin'))
-
 const changelog = ref<
   {
     id: number
@@ -37,25 +35,39 @@ const changelog = ref<
     new: string | null
   }[]
 >([])
+const changelogTotal = ref(0)
+const changelogRows = 25
+const changelogLoading = ref(false)
 const changelogLoaded = ref(false)
 const changelogVisible = ref(false)
 
 const toggleChangelog = () => {
   changelogVisible.value = !changelogVisible.value
   if (changelogVisible.value && !changelogLoaded.value) {
-    loadChangelog()
+    loadChangelog(1)
   }
 }
 
-const loadChangelog = async () => {
-  if (changelogLoaded.value || !contact.value) return
+const loadChangelog = async (page: number) => {
+  if (!contact.value) return
+  changelogLoading.value = true
   try {
-    const resp = await standesdbService.getChangelog('contact', contact.value.id)
-    changelog.value = resp.data
+    const resp = await standesdbService.getChangelog('contact', contact.value.id, {
+      page,
+      page_size: changelogRows,
+    })
+    changelog.value = resp.data.items
+    changelogTotal.value = resp.data.total
   } catch {
     /* permission denied or error */
+  } finally {
+    changelogLoading.value = false
+    changelogLoaded.value = true
   }
-  changelogLoaded.value = true
+}
+
+const onChangelogPage = (event: { page: number }) => {
+  loadChangelog(event.page + 1)
 }
 
 const actionSeverity = (action: string) => {
@@ -309,7 +321,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
         />
       </div>
 
-      <div v-if="isSystemAdmin" class="changelog-section">
+      <div v-if="canEdit" class="changelog-section">
         <div class="changelog-header" @click="toggleChangelog">
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />
@@ -320,8 +332,12 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           striped-rows
           size="small"
           scrollable
-          :paginator="changelog.length > 25"
-          :rows="25"
+          lazy
+          :loading="changelogLoading"
+          :paginator="changelogTotal > changelogRows"
+          :rows="changelogRows"
+          :total-records="changelogTotal"
+          @page="onChangelogPage"
         >
           <Column field="modified_at" header="Datum" style="min-width: 9rem">
             <template #body="{ data }">

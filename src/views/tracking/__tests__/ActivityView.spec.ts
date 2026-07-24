@@ -38,7 +38,7 @@ vi.mock('@/services/trackingService', () => ({
 describe('ActivityView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSessions.mockResolvedValue([])
+    mockGetSessions.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 100 })
     mockGetStats.mockResolvedValue({
       active_users_today: 2,
       total_actions_today: 15,

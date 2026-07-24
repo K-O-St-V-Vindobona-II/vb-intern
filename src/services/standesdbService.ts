@@ -94,10 +94,14 @@ export default {
     }>(`/standesdb/members/${memberId}/auth-activity`)
   },
 
-  getChangelog(type: 'member' | 'contact', id: number) {
+  getChangelog(
+    type: 'member' | 'contact',
+    id: number,
+    params: { page?: number; page_size?: number } = {},
+  ) {
     const segment = type === 'member' ? 'members' : 'contacts'
-    return api.get<
-      {
+    return api.get<{
+      items: {
         id: number
         modified_at: string | null
         modified_by_name: string | null
@@ -106,7 +110,10 @@ export default {
         old: string | null
         new: string | null
       }[]
-    >(`/standesdb/${segment}/${id}/changelog`)
+      total: number
+      page: number
+      page_size: number
+    }>(`/standesdb/${segment}/${id}/changelog`, { params })
   },
 
   getMemberImages(memberId: number) {
