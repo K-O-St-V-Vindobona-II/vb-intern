@@ -49,9 +49,18 @@ const categories: P4xCategory[] = [
 // tests; stub them here as thin fakes exposing the same open() API so
 // TransactionTable's own wiring (refs, click handlers) can still be verified.
 const stubs = {
-  CategoryDirectEditor: { template: '<div />', methods: { open: vi.fn() } },
-  TransactionEditor: { template: '<div />', methods: { open: vi.fn() } },
-  PartnerEditor: { template: '<div />', methods: { open: vi.fn() } },
+  CategoryDirectEditor: {
+    name: 'CategoryDirectEditor',
+    template: '<div />',
+    methods: { open: vi.fn() },
+  },
+  TransactionEditor: {
+    name: 'TransactionEditor',
+    emits: ['changed'],
+    template: '<div />',
+    methods: { open: vi.fn() },
+  },
+  PartnerEditor: { name: 'PartnerEditor', template: '<div />', methods: { open: vi.fn() } },
 }
 
 const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.body }
@@ -241,6 +250,144 @@ describe('TransactionTable', () => {
     expect(wrapper.find('.category-edit-icon').exists()).toBe(true)
     expect(wrapper.find('.partner-edit-icon').exists()).toBe(true)
     expect(wrapper.find('.admin-action').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows "intern" for a zero-amount transaction', () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ amount: 0 })], categories },
+      ...mountOpts,
+    })
+    expect(wrapper.text()).toContain('intern')
+    wrapper.unmount()
+  })
+
+  it('shows "Empfänger" for a negative-amount transaction', () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ amount: -5 })], categories },
+      ...mountOpts,
+    })
+    expect(wrapper.text()).toContain('Empfänger')
+    wrapper.unmount()
+  })
+
+  it('shows the single matching category filter without a warning', () => {
+    const tx = buildTransaction({ p4x_category_filters: [{ id: 1, p4x_category_id: 1 }] })
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [tx], categories },
+      ...mountOpts,
+    })
+    expect(wrapper.text()).toContain('Spende')
+    expect(wrapper.text()).not.toContain('Uneindeutige')
+    wrapper.unmount()
+  })
+
+  it('shows the comment in the expanded row when set', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ comment: 'Bitte prüfen' })], categories },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    expect(wrapper.text()).toContain('Bitte prüfen')
+    wrapper.unmount()
+  })
+
+  it('opens the partner editor for admins', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction()], categories, admin: true },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    await wrapper.find('.partner-edit-icon').trigger('click')
+    await flushPromises()
+
+    expect(stubs.PartnerEditor.methods.open).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens the category editor for admins', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction()], categories, admin: true },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    await wrapper.find('.category-edit-icon').trigger('click')
+    await flushPromises()
+
+    expect(stubs.CategoryDirectEditor.methods.open).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens the transaction editor via the admin-action link', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction()], categories, admin: true },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    await wrapper.find('.admin-action').trigger('click')
+    await flushPromises()
+
+    expect(stubs.TransactionEditor.methods.open).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('emits refresh when a sub-editor reports a change', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction()], categories, admin: true },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    await wrapper.find('.admin-action').trigger('click')
+    await flushPromises()
+
+    await wrapper.findComponent({ name: 'TransactionEditor' }).vm.$emit('changed')
+
+    expect(wrapper.emitted('refresh')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('clears the raw data when fetching it fails', async () => {
+    mockGetTransactionRaw.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ id: 4, p4x_account_id: 2 })], categories },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+    await wrapper.find('.pi-search').trigger('click')
+    await flushPromises()
+
+    expect(document.querySelector('.raw-json')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('silently ignores a failed attachment download', async () => {
+    mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(TransactionTable, {
+      props: {
+        transactions: [buildTransaction({ id: 4, p4x_account_id: 2, has_attachment: true })],
+        categories,
+      },
+      ...mountOpts,
+    })
+
+    await expect(async () => {
+      await wrapper.find('.pi-paperclip').trigger('click')
+      await flushPromises()
+    }).not.toThrow()
+    wrapper.unmount()
+  })
+
+  it('jumps to the first and last page', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction()], categories, total: 30, perPage: 10, page: 2 },
+      ...mountOpts,
+    })
+    const buttons = wrapper.findAll('.tx-pager button')
+    await buttons[0]!.trigger('click') // first
+    expect(wrapper.emitted('pageChange')?.[0]).toEqual([1])
+
+    await buttons[3]!.trigger('click') // last
+    expect(wrapper.emitted('pageChange')?.[1]).toEqual([3])
     wrapper.unmount()
   })
 })

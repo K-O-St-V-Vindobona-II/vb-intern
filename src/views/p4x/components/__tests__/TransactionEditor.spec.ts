@@ -111,4 +111,89 @@ describe('TransactionEditor', () => {
     expect(wrapper.emitted('changed')).toEqual([[updated]])
     wrapper.unmount()
   })
+
+  it('pre-fills an empty comment when the transaction has none', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ comment: null }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    expect(textarea.value).toBe('')
+    wrapper.unmount()
+  })
+
+  it('toggles the delete-attachment flag and includes it when saving', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: true }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const toggleBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Anhang löschen',
+    )!
+    toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(
+      Array.from(document.querySelectorAll('button')).some(
+        (b) => b.textContent === 'Löschen rückgängig',
+      ),
+    ).toBe(true)
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    const [, formData] = mockUpdateTransaction.mock.calls[0]!
+    expect((formData as FormData).get('delete_attachment')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('includes a selected file when saving', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: false }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const file = new File(['%PDF-1.4'], 'beleg.pdf', { type: 'application/pdf' })
+    await wrapper.findComponent({ name: 'FileUpload' }).vm.$emit('select', { files: [file] })
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    const [, formData] = mockUpdateTransaction.mock.calls[0]!
+    expect((formData as FormData).get('file')).toBe(file)
+    wrapper.unmount()
+  })
+
+  it('closes the dialog without saving on cancel', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction() },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const cancelBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Abbrechen',
+    )!
+    cancelBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockUpdateTransaction).not.toHaveBeenCalled()
+    expect(document.querySelector('.p-dialog')).toBeNull()
+    wrapper.unmount()
+  })
 })

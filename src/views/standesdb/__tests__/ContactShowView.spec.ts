@@ -7,32 +7,39 @@ import ConfirmationService from 'primevue/confirmationservice'
 import ToastService from 'primevue/toastservice'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
+function buildContact(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    cn: 'Peter Fiala v/o Nepomuk',
+    kontakttyp: 'person',
+    anrede: 'Herrn',
+    name: 'Peter Fiala',
+    couleurname: 'Nepomuk',
+    org_id: 'vbn',
+    org_label: 'K.Ö.St.V. Vindobona nova',
+    adresse_anschrift: 'Teststr. 1',
+    adresse_plz: '1070',
+    adresse_ort: 'Wien',
+    adresse_land: null,
+    zustellungen: true,
+    email: 'peter@test.at',
+    rufnummer: '+43699123456',
+    datum: '1970-03-05',
+    datum_accuracy: 3,
+    default_image: null,
+    anmerkungen: 'Testanmerkung',
+    ...overrides,
+  }
+}
+
+const mockGetContact = vi.fn()
+const mockDeleteContact = vi.fn()
+const mockGetChangelog = vi.fn()
 vi.mock('@/services/standesdbService', () => ({
   default: {
-    getContact: vi.fn().mockResolvedValue({
-      data: {
-        id: 1,
-        cn: 'Peter Fiala v/o Nepomuk',
-        kontakttyp: 'person',
-        anrede: 'Herrn',
-        name: 'Peter Fiala',
-        couleurname: 'Nepomuk',
-        org_id: 'vbn',
-        org_label: 'K.Ö.St.V. Vindobona nova',
-        adresse_anschrift: 'Teststr. 1',
-        adresse_plz: '1070',
-        adresse_ort: 'Wien',
-        adresse_land: null,
-        zustellungen: true,
-        email: 'peter@test.at',
-        rufnummer: '+43699123456',
-        datum: '1970-03-05',
-        datum_accuracy: 3,
-        default_image: null,
-        anmerkungen: 'Testanmerkung',
-      },
-    }),
-    deleteContact: vi.fn().mockResolvedValue({}),
+    getContact: (...args: unknown[]) => mockGetContact(...args),
+    deleteContact: (...args: unknown[]) => mockDeleteContact(...args),
+    getChangelog: (...args: unknown[]) => mockGetChangelog(...args),
   },
 }))
 
@@ -72,6 +79,7 @@ const router = createRouter({
       component: { template: '<div />' },
     },
     { path: '/standesdb', name: 'standesdb-dashboard', component: { template: '<div />' } },
+    { path: '/not-found', name: 'not-found', component: { template: '<div />' } },
   ],
 })
 
@@ -79,6 +87,10 @@ describe('ContactShowView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    mockAuthStore.user.permissions = ['standesdbContactAdmin']
+    mockGetContact.mockResolvedValue({ data: buildContact() })
+    mockDeleteContact.mockResolvedValue({})
+    mockGetChangelog.mockResolvedValue({ data: { items: [], total: 0 } })
   })
 
   const mountView = async () => {
@@ -157,14 +169,13 @@ describe('ContactShowView', () => {
   })
 
   it('calls deleteContact on confirm accept', async () => {
-    const standesdbService = await import('@/services/standesdbService')
     const w = await mountView()
     const deleteBtn = w.findAll('button').find((b) => b.text().includes('Löschen'))
     await deleteBtn!.trigger('click')
 
     const acceptFn = mockConfirmRequire.mock.calls[0][0].accept
     await acceptFn()
-    expect(standesdbService.default.deleteContact).toHaveBeenCalledWith(1)
+    expect(mockDeleteContact).toHaveBeenCalledWith(1)
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Kontakt gelöscht' }),
     )
@@ -184,5 +195,124 @@ describe('ContactShowView', () => {
     } finally {
       mockAuthStore.user.permissions = original
     }
+  })
+
+  it('loads the changelog on first toggle and shows action severities', async () => {
+    mockGetChangelog.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: 1,
+            modified_at: '2026-01-01T10:00:00Z',
+            modified_by_name: 'Admin',
+            action: 'store',
+            key: 'name',
+            old: 'Alt',
+            new: 'Neu',
+          },
+          {
+            id: 2,
+            modified_at: null,
+            modified_by_name: null,
+            action: 'delete',
+            key: 'zustellungen',
+            old: null,
+            new: null,
+          },
+        ],
+        total: 2,
+      },
+    })
+    const w = await mountView()
+
+    await w.find('.changelog-header').trigger('click')
+    await flushPromises()
+
+    expect(mockGetChangelog).toHaveBeenCalledWith('contact', 1, { page: 1, page_size: 25 })
+    expect(w.text()).toContain('Admin')
+    const tags = w.findAllComponents({ name: 'Tag' })
+    const actionTags = tags.filter((t) => ['store', 'delete'].includes(t.props('value')))
+    expect(actionTags.find((t) => t.props('value') === 'store')?.props('severity')).toBe('success')
+    expect(actionTags.find((t) => t.props('value') === 'delete')?.props('severity')).toBe('danger')
+  })
+
+  it('does not reload the changelog on a second toggle', async () => {
+    const w = await mountView()
+
+    await w.find('.changelog-header').trigger('click')
+    await flushPromises()
+    await w.find('.changelog-header').trigger('click')
+    await w.find('.changelog-header').trigger('click')
+    await flushPromises()
+
+    expect(mockGetChangelog).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests the next page of the changelog', async () => {
+    mockGetChangelog.mockResolvedValue({ data: { items: [], total: 60 } })
+    const w = await mountView()
+    await w.find('.changelog-header').trigger('click')
+    await flushPromises()
+
+    const table = w.findComponent({ name: 'DataTable' })
+    await table.vm.$emit('page', { page: 1 })
+    await flushPromises()
+
+    expect(mockGetChangelog).toHaveBeenLastCalledWith('contact', 1, { page: 2, page_size: 25 })
+  })
+
+  it('silently ignores a changelog load failure', async () => {
+    mockGetChangelog.mockRejectedValue({ response: { status: 403 } })
+    const w = await mountView()
+
+    await w.find('.changelog-header').trigger('click')
+    await flushPromises()
+
+    expect(w.find('.changelog-header').exists()).toBe(true)
+  })
+
+  it('shows an error toast when deleting fails', async () => {
+    mockDeleteContact.mockRejectedValue({ response: { data: { detail: 'Verknüpft.' } } })
+    const w = await mountView()
+    const deleteBtn = w.findAll('button').find((b) => b.text().includes('Löschen'))
+    await deleteBtn!.trigger('click')
+
+    const acceptFn = mockConfirmRequire.mock.calls[0][0].accept
+    await acceptFn()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Verknüpft.' }),
+    )
+  })
+
+  it('redirects to not-found on a 404', async () => {
+    mockGetContact.mockRejectedValueOnce({ response: { status: 404 } })
+    const w = await mountView()
+    expect(w).toBeTruthy()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('redirects to not-found on a 403', async () => {
+    mockGetContact.mockRejectedValueOnce({ response: { status: 403 } })
+    await mountView()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('falls back to the uppercased org id when no org label is set', async () => {
+    mockGetContact.mockResolvedValue({ data: buildContact({ org_label: null, org_id: 'vbn' }) })
+    const w = await mountView()
+    expect(w.text()).toContain('VBN')
+  })
+
+  it('reloads the contact when the route id changes', async () => {
+    const w = await mountView()
+    expect(mockGetContact).toHaveBeenCalledWith(1)
+
+    mockGetContact.mockResolvedValue({ data: buildContact({ id: 2, cn: 'Andere Person' }) })
+    await router.push('/standesdb/contacts/2')
+    await flushPromises()
+
+    expect(mockGetContact).toHaveBeenCalledWith(2)
+    expect(w.text()).toContain('Andere Person')
   })
 })

@@ -71,6 +71,20 @@ describe('formatApiError', () => {
     const error = { response: { data: { detail: 42 } } }
     expect(formatApiError(error, 'Unbekannt')).toBe('Unbekannt')
   })
+
+  it('omits the "field: " prefix when a validation error has no field location', () => {
+    const error = {
+      response: { data: { detail: [{ loc: [], msg: 'Allgemeiner Fehler' }] } },
+    }
+    expect(formatApiError(error)).toBe('Allgemeiner Fehler')
+  })
+
+  it('omits the "field: " prefix when loc is entirely "body"', () => {
+    const error = {
+      response: { data: { detail: [{ loc: ['body'], msg: 'Allgemeiner Fehler' }] } },
+    }
+    expect(formatApiError(error)).toBe('Allgemeiner Fehler')
+  })
 })
 
 describe('getApiErrorStatus', () => {
@@ -84,6 +98,11 @@ describe('getApiErrorStatus', () => {
 
   it('returns undefined for non-object input', () => {
     expect(getApiErrorStatus('plain string')).toBeUndefined()
+  })
+
+  it('returns undefined for null/undefined input', () => {
+    expect(getApiErrorStatus(null)).toBeUndefined()
+    expect(getApiErrorStatus(undefined)).toBeUndefined()
   })
 })
 
@@ -108,6 +127,18 @@ describe('formatSize', () => {
 
   it('formats sizes at or above 1 MB as MB', () => {
     expect(formatSize(5 * 1024 * 1024)).toBe('5.0 MB')
+  })
+
+  it('formats 0 bytes as B', () => {
+    expect(formatSize(0)).toBe('0 B')
+  })
+
+  it('switches to KB exactly at the 1024-byte boundary', () => {
+    expect(formatSize(1024)).toBe('1 KB')
+  })
+
+  it('switches to MB exactly at the 1 MB boundary', () => {
+    expect(formatSize(1024 * 1024)).toBe('1.0 MB')
   })
 })
 
@@ -139,6 +170,14 @@ describe('fuzzyDisplay', () => {
   it('does not pad a two-digit day', () => {
     expect(fuzzyDisplay('2024-03-17', 3)).toBe('17. März 2024')
   })
+
+  it('shows an empty month label for an out-of-range month', () => {
+    expect(fuzzyDisplay('2024-13-05', 2)).toBe(' 2024')
+  })
+
+  it('shows an empty month label when the month part is missing', () => {
+    expect(fuzzyDisplay('2024', 2)).toBe(' 2024')
+  })
 })
 
 describe('formatFullDate', () => {
@@ -156,5 +195,9 @@ describe('formatFullDate', () => {
 
   it('does not pad a two-digit day', () => {
     expect(formatFullDate('2024-03-17')).toBe('17. März 2024')
+  })
+
+  it('shows an empty month label for an out-of-range month', () => {
+    expect(formatFullDate('2024-13-05')).toBe('05.  2024')
   })
 })
