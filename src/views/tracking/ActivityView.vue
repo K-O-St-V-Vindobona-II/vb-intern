@@ -7,7 +7,10 @@ import type {
   ActivitySession,
   ActivityStats,
 } from '@/types/tracking'
-import TabView from 'primevue/tabview'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -35,6 +38,8 @@ const today = new Date()
 const minDate = computed(
   () => new Date(today.getFullYear(), today.getMonth() - retentionMonths.value, today.getDate()),
 )
+
+const activeTab = ref('timeline')
 
 const detailVisible = ref(false)
 const selectedDetail = ref<ActivityLogDetail | null>(null)
@@ -176,152 +181,159 @@ onMounted(async () => {
       Es werden nur Daten der letzten {{ retentionMonths }} Monate angezeigt.
     </p>
 
-    <TabView>
-      <TabPanel header="Timeline" value="timeline">
-        <div class="timeline-controls">
-          <DatePicker
-            v-model="sessionsDate"
-            date-format="dd.mm.yy"
-            :manual-input="false"
-            :min-date="minDate"
-            :max-date="today"
-            show-icon
-          />
-        </div>
+    <Tabs v-model:value="activeTab">
+      <TabList>
+        <Tab value="timeline">Timeline</Tab>
+        <Tab value="stats">Statistiken</Tab>
+        <Tab value="raw">Rohansicht</Tab>
+      </TabList>
+      <TabPanels>
+        <TabPanel value="timeline">
+          <div class="timeline-controls">
+            <DatePicker
+              v-model="sessionsDate"
+              date-format="dd.mm.yy"
+              :manual-input="false"
+              :min-date="minDate"
+              :max-date="today"
+              show-icon
+            />
+          </div>
 
-        <div v-if="sessions.length === 0 && !loading" class="empty-state">
-          Keine Aktivität an diesem Tag.
-        </div>
+          <div v-if="sessions.length === 0 && !loading" class="empty-state">
+            Keine Aktivität an diesem Tag.
+          </div>
 
-        <div class="sessions-list">
-          <div v-for="(session, idx) in sessions" :key="idx" class="session-card">
-            <div class="session-header" @click="toggleSession(idx)">
-              <div class="session-user">
-                <i class="pi pi-user session-avatar" />
-                <strong>{{ session.member_name }}</strong>
+          <div class="sessions-list">
+            <div v-for="(session, idx) in sessions" :key="idx" class="session-card">
+              <div class="session-header" @click="toggleSession(idx)">
+                <div class="session-user">
+                  <i class="pi pi-user session-avatar" />
+                  <strong>{{ session.member_name }}</strong>
+                </div>
+                <div class="session-meta">
+                  <span class="session-time">
+                    {{ formatTime(session.started_at) }} — {{ formatTime(session.ended_at) }}
+                  </span>
+                  <Tag :value="`${session.action_count} Aktionen`" severity="info" />
+                  <i
+                    :class="expandedSessions.has(idx) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                    class="expand-icon"
+                  />
+                </div>
               </div>
-              <div class="session-meta">
-                <span class="session-time">
-                  {{ formatTime(session.started_at) }} — {{ formatTime(session.ended_at) }}
-                </span>
-                <Tag :value="`${session.action_count} Aktionen`" severity="info" />
-                <i
-                  :class="expandedSessions.has(idx) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-                  class="expand-icon"
-                />
+
+              <div v-if="expandedSessions.has(idx)" class="session-actions">
+                <div
+                  v-for="action in session.actions"
+                  :key="action.id"
+                  class="action-item"
+                  @click="showDetail(action)"
+                >
+                  <Tag
+                    :value="action.request_method"
+                    :severity="methodSeverity(action.request_method)"
+                    class="method-tag"
+                  />
+                  <span class="action-label">{{ action.action_label }}</span>
+                  <Tag
+                    :value="String(action.response_status)"
+                    :severity="statusSeverity(action.response_status)"
+                    class="status-tag"
+                  />
+                  <span class="action-time">{{ formatTime(action.created_at) }}</span>
+                </div>
               </div>
             </div>
+          </div>
+        </TabPanel>
 
-            <div v-if="expandedSessions.has(idx)" class="session-actions">
-              <div
-                v-for="action in session.actions"
-                :key="action.id"
-                class="action-item"
-                @click="showDetail(action)"
-              >
+        <TabPanel value="stats">
+          <div v-if="stats" class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-value">{{ stats.active_users_today }}</span>
+              <span class="stat-label">Aktive User heute</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ stats.total_actions_today }}</span>
+              <span class="stat-label">Aktionen heute</span>
+            </div>
+          </div>
+
+          <h3 v-if="sortedActionTypes.length">Top-Aktionen heute</h3>
+          <div class="action-bars">
+            <div v-for="[label, count] in sortedActionTypes" :key="label" class="action-bar-row">
+              <span class="action-bar-label">{{ label }}</span>
+              <div class="action-bar-track">
+                <div
+                  class="action-bar-fill"
+                  :style="{ width: `${(count / stats!.total_actions_today) * 100}%` }"
+                />
+              </div>
+              <span class="action-bar-count">{{ count }}</span>
+            </div>
+          </div>
+        </TabPanel>
+
+        <TabPanel value="raw">
+          <div class="raw-filters">
+            <DatePicker
+              v-model="rawDateFrom"
+              date-format="dd.mm.yy"
+              :manual-input="false"
+              :min-date="minDate"
+              :max-date="today"
+              show-icon
+              placeholder="Von"
+            />
+            <DatePicker
+              v-model="rawDateTo"
+              date-format="dd.mm.yy"
+              :manual-input="false"
+              :min-date="minDate"
+              :max-date="today"
+              show-icon
+              placeholder="Bis"
+            />
+          </div>
+
+          <DataTable
+            :value="rawItems"
+            :loading="loading"
+            :lazy="true"
+            :paginator="true"
+            :rows="rawPageSize"
+            :total-records="rawTotal"
+            data-key="id"
+            striped-rows
+            scrollable
+            @page="onRawPage"
+            @row-click="(e: { data: ActivityLogItem }) => showDetail(e.data)"
+          >
+            <Column field="created_at" header="Datum">
+              <template #body="{ data }">
+                {{ data.created_at ? formatDateTime(data.created_at) : '-' }}
+              </template>
+            </Column>
+            <Column field="member_name" header="User" />
+            <Column field="action_label" header="Aktion" />
+            <Column field="request_method" header="Methode">
+              <template #body="{ data }">
+                <Tag :value="data.request_method" :severity="methodSeverity(data.request_method)" />
+              </template>
+            </Column>
+            <Column field="response_status" header="Status">
+              <template #body="{ data }">
                 <Tag
-                  :value="action.request_method"
-                  :severity="methodSeverity(action.request_method)"
-                  class="method-tag"
+                  :value="String(data.response_status)"
+                  :severity="statusSeverity(data.response_status)"
                 />
-                <span class="action-label">{{ action.action_label }}</span>
-                <Tag
-                  :value="String(action.response_status)"
-                  :severity="statusSeverity(action.response_status)"
-                  class="status-tag"
-                />
-                <span class="action-time">{{ formatTime(action.created_at) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </TabPanel>
-
-      <TabPanel header="Statistiken" value="stats">
-        <div v-if="stats" class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-value">{{ stats.active_users_today }}</span>
-            <span class="stat-label">Aktive User heute</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-value">{{ stats.total_actions_today }}</span>
-            <span class="stat-label">Aktionen heute</span>
-          </div>
-        </div>
-
-        <h3 v-if="sortedActionTypes.length">Top-Aktionen heute</h3>
-        <div class="action-bars">
-          <div v-for="[label, count] in sortedActionTypes" :key="label" class="action-bar-row">
-            <span class="action-bar-label">{{ label }}</span>
-            <div class="action-bar-track">
-              <div
-                class="action-bar-fill"
-                :style="{ width: `${(count / stats!.total_actions_today) * 100}%` }"
-              />
-            </div>
-            <span class="action-bar-count">{{ count }}</span>
-          </div>
-        </div>
-      </TabPanel>
-
-      <TabPanel header="Rohansicht" value="raw">
-        <div class="raw-filters">
-          <DatePicker
-            v-model="rawDateFrom"
-            date-format="dd.mm.yy"
-            :manual-input="false"
-            :min-date="minDate"
-            :max-date="today"
-            show-icon
-            placeholder="Von"
-          />
-          <DatePicker
-            v-model="rawDateTo"
-            date-format="dd.mm.yy"
-            :manual-input="false"
-            :min-date="minDate"
-            :max-date="today"
-            show-icon
-            placeholder="Bis"
-          />
-        </div>
-
-        <DataTable
-          :value="rawItems"
-          :loading="loading"
-          :lazy="true"
-          :paginator="true"
-          :rows="rawPageSize"
-          :total-records="rawTotal"
-          data-key="id"
-          striped-rows
-          scrollable
-          @page="onRawPage"
-          @row-click="(e: { data: ActivityLogItem }) => showDetail(e.data)"
-        >
-          <Column field="created_at" header="Datum">
-            <template #body="{ data }">
-              {{ data.created_at ? formatDateTime(data.created_at) : '-' }}
-            </template>
-          </Column>
-          <Column field="member_name" header="User" />
-          <Column field="action_label" header="Aktion" />
-          <Column field="request_method" header="Methode">
-            <template #body="{ data }">
-              <Tag :value="data.request_method" :severity="methodSeverity(data.request_method)" />
-            </template>
-          </Column>
-          <Column field="response_status" header="Status">
-            <template #body="{ data }">
-              <Tag
-                :value="String(data.response_status)"
-                :severity="statusSeverity(data.response_status)"
-              />
-            </template>
-          </Column>
-        </DataTable>
-      </TabPanel>
-    </TabView>
+              </template>
+            </Column>
+          </DataTable>
+        </TabPanel>
+      </TabPanels>
+    </Tabs>
 
     <Dialog
       v-model:visible="detailVisible"

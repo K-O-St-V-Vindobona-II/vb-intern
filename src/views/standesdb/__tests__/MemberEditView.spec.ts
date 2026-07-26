@@ -276,4 +276,75 @@ describe('MemberEditView', () => {
     expect(wrapper.text()).toContain('nachname:')
     expect(wrapper.text()).toContain('field required')
   })
+
+  it('shows plain string entries from an array error detail', async () => {
+    mockUpdateMember.mockRejectedValueOnce({
+      response: { data: { detail: ['Rollenverlauf überschneidet sich.'] } },
+    })
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        summary: 'Validierungsfehler',
+        detail: 'Rollenverlauf überschneidet sich.',
+      }),
+    )
+  })
+
+  it('shows both plain string and field validation errors from a mixed array detail', async () => {
+    mockUpdateMember.mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: ['Allgemeiner Konflikt.', { loc: ['body', 'email'], msg: 'invalid format' }],
+        },
+      },
+    })
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Allgemeiner Konflikt.')
+    expect(wrapper.text()).toContain('email:')
+    expect(wrapper.text()).toContain('invalid format')
+  })
+
+  it('falls back to a generic error toast when the API sends no detail', async () => {
+    mockUpdateMember.mockRejectedValueOnce(new Error('network failure'))
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', detail: 'Fehler' }),
+    )
+  })
+
+  it('redirects to not-found on a 403', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 403 } })
+    await mountAt('/standesdb/members/999/edit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('does not redirect and still renders the form on an unrelated load error', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('standesdb-member-edit')
+    expect(wrapper.text()).toContain('Mitglied bearbeiten')
+  })
 })
