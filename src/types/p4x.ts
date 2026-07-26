@@ -126,6 +126,7 @@ export interface FeeProgressEntry {
   type: 'fee' | 'payment'
   booking: string
   amount: number
+  balance: number
 }
 
 export interface FeeBalance {

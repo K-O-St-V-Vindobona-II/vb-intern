@@ -5,18 +5,35 @@ import PrimeVue from 'primevue/config'
 import type { FeeMember } from '@/types/p4x'
 
 const mockRoute: { params: Record<string, string> } = { params: {} }
+const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(() => mockRoute),
+  useRouter: vi.fn(() => ({ push: mockPush })),
 }))
 
 const mockSearchFeeMembers = vi.fn()
 const mockGetFeeMember = vi.fn()
+const mockExportFeeMember = vi.fn()
 vi.mock('@/services/p4xService', () => ({
   default: {
     searchFeeMembers: (...args: unknown[]) => mockSearchFeeMembers(...args),
     getFeeMember: (...args: unknown[]) => mockGetFeeMember(...args),
+    exportFeeMember: (...args: unknown[]) => mockExportFeeMember(...args),
   },
 }))
+
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
+const mockCreateObjectURL = vi.fn(() => 'blob:mock-url')
+const mockRevokeObjectURL = vi.fn()
+vi.stubGlobal('URL', {
+  ...URL,
+  createObjectURL: mockCreateObjectURL,
+  revokeObjectURL: mockRevokeObjectURL,
+})
 
 function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
   return {
@@ -34,8 +51,8 @@ function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
       end_date: '2026-06-01',
       end_balance: 20,
       progress: [
-        { type: 'fee', booking: '2026-01-01', amount: 10 },
-        { type: 'payment', booking: '2026-02-01', amount: -10 },
+        { type: 'fee', booking: '2026-01-01', amount: 10, balance: 20 },
+        { type: 'payment', booking: '2026-02-01', amount: -10, balance: 10 },
       ],
     },
     ...overrides,
@@ -43,6 +60,12 @@ function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
 }
 
 const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
+
+function findButtonByText(wrapper: ReturnType<typeof mount>, text: string) {
+  const button = wrapper.findAll('button').find((b) => b.text().includes(text))
+  if (!button) throw new Error(`No button with text "${text}" found`)
+  return button
+}
 
 describe('FeeMemberView', () => {
   beforeEach(() => {
@@ -136,6 +159,177 @@ describe('FeeMemberView', () => {
 
     await wrapper.find('.progress-toggle').trigger('click')
     expect(wrapper.find('.progress-list').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the running balance in a 4-column progress table', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    await wrapper.find('.progress-toggle').trigger('click')
+
+    const header = wrapper.find('.progress-header')
+    expect(header.text()).toContain('Datum')
+    expect(header.text()).toContain('Transaktionsart')
+    expect(header.text()).toContain('Betrag')
+    expect(header.text()).toContain('Saldo')
+
+    const rows = wrapper.findAll('.progress-entry')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.text()).toContain('Fälligkeit')
+    expect(rows[1]?.text()).toContain('Zahlung')
+    wrapper.unmount()
+  })
+
+  it('exports the fee member using the filename from the content-disposition header', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    mockExportFeeMember.mockResolvedValue({
+      data: new Blob(['x']),
+      headers: { 'content-disposition': 'attachment; filename="Beitragskonto_Test.xlsx"' },
+    })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Export Excel').trigger('click')
+    await flushPromises()
+
+    expect(mockExportFeeMember).toHaveBeenCalledWith(1)
+    expect(mockCreateObjectURL).toHaveBeenCalled()
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
+    wrapper.unmount()
+  })
+
+  it('shows an error toast when the export fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    mockExportFeeMember.mockRejectedValue(new Error('failed'))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Export Excel').trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    wrapper.unmount()
+  })
+
+  it('shows a hint instead of the overview when no init date is set', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_init_date: null }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.no-setup-hint').exists()).toBe(true)
+    expect(wrapper.find('.balance-grid').exists()).toBe(false)
+    expect(wrapper.find('.progress-section').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Export Excel'))).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a hint instead of the overview when no init balance is set', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_init_balance: null }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.no-setup-hint').exists()).toBe(true)
+    expect(wrapper.find('.balance-grid').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('always shows an edit button that navigates to the edit route', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_init_date: null }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Bearbeiten').trigger('click')
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member-edit', params: { id: 1 } })
+    wrapper.unmount()
+  })
+
+  it('shows a freed indicator between the name and the comment when freed', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({
+      data: buildMember({ p4x_freed: true, p4x_comment: 'Sonderfall' }),
+    })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.member-freed').text()).toBe('Vom Mitgliedsbeitrag befreit')
+
+    const detail = wrapper.get('.member-detail')
+    const freedIndex = detail.html().indexOf('member-freed')
+    const commentIndex = detail.html().indexOf('member-comment')
+    expect(freedIndex).toBeLessThan(commentIndex)
+    wrapper.unmount()
+  })
+
+  it('shows no freed indicator when not freed', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_freed: false }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.member-freed').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows only the freed fact and comment, no summary or history, when freed', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({
+      data: buildMember({ p4x_freed: true, p4x_comment: 'Sonderfall' }),
+    })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.member-freed').exists()).toBe(true)
+    expect(wrapper.find('.member-comment').exists()).toBe(true)
+    expect(wrapper.find('.balance-grid').exists()).toBe(false)
+    expect(wrapper.find('.no-setup-hint').exists()).toBe(false)
+    expect(wrapper.find('.progress-section').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Export Excel'))).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Bearbeiten'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows the comment between the name and the summary when set', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_comment: 'Sonderfall' }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.member-comment').text()).toBe('Sonderfall')
+    wrapper.unmount()
+  })
+
+  it('shows no comment element when no comment is set', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_comment: null }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.member-comment').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('places the button row before the transaction history', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    const detail = wrapper.get('.member-detail')
+    const actionsIndex = detail.html().indexOf('member-actions')
+    const progressIndex = detail.html().indexOf('progress-section')
+
+    expect(actionsIndex).toBeGreaterThan(-1)
+    expect(progressIndex).toBeGreaterThan(-1)
+    expect(actionsIndex).toBeLessThan(progressIndex)
     wrapper.unmount()
   })
 })
