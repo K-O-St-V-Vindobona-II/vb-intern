@@ -207,6 +207,14 @@ const router = createRouter({
           },
         },
         {
+          path: 'p4x/fee-members/:id(\\d+)/edit',
+          name: 'p4x-fee-member-edit',
+          component: () => import('../views/p4x/FeeMemberFormView.vue'),
+          meta: {
+            requiredPermissions: ['p4xAdmin'],
+          },
+        },
+        {
           path: 'p4x/fee-debtors',
           name: 'p4x-debtors',
           component: () => import('../views/p4x/DebtorsView.vue'),

@@ -185,6 +185,10 @@ export default {
     return api.get<FeeMember>(`/p4x/fee-members/${id}`)
   },
 
+  exportFeeMember(id: number) {
+    return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
+  },
+
   updateFeeMember(id: number, data: object) {
     return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
   },
