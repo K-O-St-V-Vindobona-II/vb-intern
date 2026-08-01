@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import memberService from '@/services/memberService'
+import systemService from '@/services/systemService'
 import { appEnvironment } from '@/runtimeConfig'
 
 import Card from 'primevue/card'
@@ -15,6 +16,17 @@ const toast = useToast()
 
 const unlinkLoading = ref(false)
 const chronicleLoading = ref(false)
+const backendEnvironment = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const resp = await systemService.getEnvironment()
+    backendEnvironment.value = resp.data.environment
+  } catch {
+    // Unobtrusive footer info only — omit silently rather than interrupting
+    // the profile page with a toast over a failed background fetch.
+  }
+})
 
 const executeUnlink = async () => {
   unlinkLoading.value = true
@@ -175,7 +187,8 @@ const toggleChronicle = async () => {
       </template>
     </Card>
 
-    <p v-if="appEnvironment()" class="env-footer">{{ appEnvironment() }}</p>
+    <p v-if="backendEnvironment" class="env-footer">Backend: {{ backendEnvironment }}</p>
+    <p v-if="appEnvironment()" class="env-footer">Frontend: {{ appEnvironment() }}</p>
   </div>
 </template>
 
@@ -300,6 +313,10 @@ const toggleChronicle = async () => {
   opacity: 0.6;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.env-footer + .env-footer {
+  margin-top: 0.15rem;
 }
 
 @media (min-width: 600px) {

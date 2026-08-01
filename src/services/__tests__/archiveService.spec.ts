@@ -62,6 +62,11 @@ describe('archiveService', () => {
     expect(mockPatch).toHaveBeenCalledWith('/archive/dirs/7/restore')
   })
 
+  it('purgeDir deletes the purge endpoint', () => {
+    archiveService.purgeDir(7)
+    expect(mockDelete).toHaveBeenCalledWith('/archive/dirs/7/purge')
+  })
+
   it('receiveItems posts to the dir-scoped receive endpoint', () => {
     const data = { type: 'file', ids: [1, 2], action: 'move' }
     archiveService.receiveItems(7, data)

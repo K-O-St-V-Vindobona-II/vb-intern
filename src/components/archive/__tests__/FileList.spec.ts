@@ -129,15 +129,16 @@ describe('FileList', () => {
     expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: 7 } })
   })
 
-  it('renders a plain name without a link or download icon in trash mode', () => {
+  it('still navigates to the file when its name link is clicked in trash mode, but hides the download icon', async () => {
     const wrapper = mountFileList({
-      items: [buildFile({ name: 'Bericht', extension: 'pdf' })],
+      items: [buildFile({ id: 7, name: 'Bericht', extension: 'pdf' })],
       title: 'Papierkorb',
       trash: true,
     })
-    expect(wrapper.find('.file-link').exists()).toBe(false)
     expect(wrapper.find('.download-icon').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Bericht.pdf')
+
+    await wrapper.find('.file-link').trigger('click')
+    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: 7 } })
   })
 
   it('triggers a download when the download icon is clicked', async () => {
@@ -260,7 +261,7 @@ describe('FileList', () => {
     expect(wrapper.emitted('preview')).toBeUndefined()
   })
 
-  it('does not start a preview for trashed files', async () => {
+  it('also starts a preview for trashed image files', async () => {
     vi.useFakeTimers()
     const wrapper = mountFileList({
       items: [buildFile({ id: 9, is_image: true })],
@@ -272,6 +273,6 @@ describe('FileList', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
 
-    expect(wrapper.emitted('preview')).toBeUndefined()
+    expect(wrapper.emitted('preview')).toEqual([[null], [9]])
   })
 })

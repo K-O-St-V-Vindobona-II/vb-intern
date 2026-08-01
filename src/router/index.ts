@@ -50,6 +50,11 @@ const router = createRouter({
           component: () => import('../views/ProfileView.vue'),
         },
         {
+          path: 'permission-setup',
+          name: 'permission-setup',
+          component: () => import('../views/PermissionSetupView.vue'),
+        },
+        {
           path: 'unauthorized',
           name: 'unauthorized',
           component: () => import('../views/UnauthorizedView.vue'),
@@ -372,12 +377,6 @@ const router = createRouter({
           path: 'system/sql-browser',
           name: 'system-sql-browser',
           component: () => import('../views/system/SqlBrowserView.vue'),
-          meta: { requiredPermissions: ['systemAdmin'] },
-        },
-        {
-          path: 'system/permission-setup',
-          name: 'system-permission-setup',
-          component: () => import('../views/system/PermissionSetupView.vue'),
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {

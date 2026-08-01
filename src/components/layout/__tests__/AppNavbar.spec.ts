@@ -184,6 +184,24 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
+  it('navigates to the permission-setup page and closes the drawer', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const permissionsBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Berechtigungen'),
+    )!
+    permissionsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'permission-setup' })
+    wrapper.unmount()
+  })
+
   it('falls back through vorname/nachname when cn is missing', async () => {
     mockAuthStore.user = { vorname: 'Maria', nachname: 'Muster', default_image: null }
     const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })

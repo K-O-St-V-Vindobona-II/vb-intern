@@ -160,11 +160,6 @@ export function useNavigation() {
           command: () => router.push({ name: 'system-sql-browser' }),
         },
         {
-          label: 'Berechtigungen',
-          icon: 'pi pi-shield',
-          command: () => router.push({ name: 'system-permission-setup' }),
-        },
-        {
           label: 'Scheduler',
           icon: 'pi pi-clock',
           command: () => router.push({ name: 'system-scheduler' }),

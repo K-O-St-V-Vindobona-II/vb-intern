@@ -19,6 +19,16 @@ export interface TableDataResponse {
 export interface PermissionRuleResponse {
   permission: string
   description: string
+  cns: string[]
+}
+
+export interface PermissionRulesResponse {
+  rules: PermissionRuleResponse[]
+  dev_superuser_cn: string | null
+}
+
+export interface EnvironmentResponse {
+  environment: string
 }
 
 export interface ScheduledJobResponse {
@@ -35,8 +45,12 @@ export interface BackupTriggerResponse {
 }
 
 export default {
+  getEnvironment() {
+    return api.get<EnvironmentResponse>('/system/environment')
+  },
+
   getPermissionRules() {
-    return api.get<PermissionRuleResponse[]>('/system/permission-rules')
+    return api.get<PermissionRulesResponse>('/system/permission-rules')
   },
 
   getScheduledJobs() {

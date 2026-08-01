@@ -16,6 +16,11 @@ describe('systemService', () => {
     mockPost.mockReset()
   })
 
+  it('getEnvironment fetches /system/environment', () => {
+    systemService.getEnvironment()
+    expect(mockGet).toHaveBeenCalledWith('/system/environment')
+  })
+
   it('getPermissionRules fetches /system/permission-rules', () => {
     systemService.getPermissionRules()
     expect(mockGet).toHaveBeenCalledWith('/system/permission-rules')

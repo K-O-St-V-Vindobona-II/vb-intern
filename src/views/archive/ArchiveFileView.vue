@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
-import { formatSize, formatDateTime } from '@/utils/formatters'
+import { formatSize, formatDateTime, formatApiError } from '@/utils/formatters'
 import type { FileDetail } from '@/types/archive'
 import DirPath from '@/components/archive/DirPath.vue'
 import FileIcon from '@/components/archive/FileIcon.vue'
@@ -23,6 +23,7 @@ const { triggerDownload } = useArchiveDownload()
 
 const loading = ref(true)
 const file = ref<FileDetail | null>(null)
+const loadError = ref(false)
 
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
 
@@ -36,6 +37,7 @@ const doDownload = () => {
 
 const loadFile = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const id = Number(route.params['id'])
     const resp = await archiveService.getFileDetail(id)
@@ -46,6 +48,13 @@ const loadFile = async () => {
       router.replace({ name: 'not-found' })
       return
     }
+    loadError.value = true
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Datei konnte nicht geladen werden.'),
+      life: 5000,
+    })
   } finally {
     loading.value = false
   }
@@ -181,6 +190,10 @@ watch(
       </template>
     </Dialog>
   </div>
+  <div v-else-if="!loading && loadError" class="archive-error">
+    <p>Datei konnte nicht geladen werden.</p>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadFile" />
+  </div>
 </template>
 
 <style scoped>
@@ -244,5 +257,11 @@ watch(
 .back-row {
   text-align: center;
   margin: 1.5rem 0 2rem;
+}
+.archive-error {
+  max-width: 800px;
+  margin: 3rem auto;
+  text-align: center;
+  color: var(--p-text-muted-color);
 }
 </style>
