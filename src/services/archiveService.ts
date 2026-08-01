@@ -54,6 +54,10 @@ export default {
     return api.patch(`/archive/dirs/${id}/restore`)
   },
 
+  purgeDir(id: number) {
+    return api.delete(`/archive/dirs/${id}/purge`)
+  },
+
   receiveItems(
     dirId: number,
     data: {

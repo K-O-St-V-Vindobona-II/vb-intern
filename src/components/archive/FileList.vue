@@ -140,20 +140,14 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
           <span class="file-name-cell">
             <span
               class="file-icon-wrap"
-              @mouseenter="!touchDevice && data.is_image && !trash && startPreview(data.id)"
+              @mouseenter="!touchDevice && data.is_image && startPreview(data.id)"
               @mouseleave="cancelPreview()"
             >
-              <FileIcon
-                :extension="data.extension"
-                :is-image="data.is_image"
-                :file-id="data.id"
-                :trash="trash"
-              />
+              <FileIcon :extension="data.extension" :is-image="data.is_image" :file-id="data.id" />
             </span>
-            <a v-if="!trash" class="file-link" @click.prevent="goToFile(data.id)">
+            <a class="file-link" @click.prevent="goToFile(data.id)">
               {{ data.name }}.{{ data.extension }}
             </a>
-            <span v-else> {{ data.name }}.{{ data.extension }} </span>
             <small class="file-size"> ({{ formatSize(data.size) }}) </small>
           </span>
         </template>

@@ -6,7 +6,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useArchiveStore } from '@/stores/archive'
 import { useShiftSelect } from '@/composables/useShiftSelect'
 import type { DirShort } from '@/types/archive'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, formatApiError } from '@/utils/formatters'
 import archiveService from '@/services/archiveService'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -75,6 +75,35 @@ const toggleTrash = (dir: DirShort, isTrash: boolean) => {
     },
   })
 }
+
+const purgeTrashedDir = (dir: DirShort) => {
+  confirm.require({
+    message: `Verzeichnis "${dir.name}" endgültig löschen? Dies kann nicht rückgängig gemacht werden.`,
+    header: 'Endgültig löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Abbrechen',
+      severity: 'secondary',
+    },
+    acceptProps: {
+      label: 'Endgültig löschen',
+      severity: 'danger',
+    },
+    accept: async () => {
+      try {
+        await archiveService.purgeDir(dir.id)
+        emit('changed')
+      } catch (err) {
+        toast.add({
+          severity: 'error',
+          summary: 'Fehler',
+          detail: formatApiError(err, 'Verzeichnis konnte nicht endgültig gelöscht werden.'),
+          life: 4000,
+        })
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -109,14 +138,10 @@ const toggleTrash = (dir: DirShort, isTrash: boolean) => {
       </Column>
       <Column field="name" header="Name" sortable>
         <template #body="{ data }">
-          <a v-if="!trash" class="dir-link" @click.prevent="goToDir(data.id)">
+          <a class="dir-link" @click.prevent="goToDir(data.id)">
             <i class="pi pi-folder folder-icon" />
             {{ data.name }}
           </a>
-          <span v-else>
-            <i class="pi pi-folder folder-icon" />
-            {{ data.name }}
-          </span>
         </template>
       </Column>
       <Column field="description" header="Beschreibung" sortable />
@@ -130,15 +155,26 @@ const toggleTrash = (dir: DirShort, isTrash: boolean) => {
           {{ formatDate(trash ? data.deleted_at : data.created_at) }}
         </template>
       </Column>
-      <Column v-if="admin" style="width: 60px">
+      <Column v-if="admin" :style="trash ? 'width: 100px' : 'width: 60px'">
         <template #body="{ data }">
           <Button
             v-tooltip="trash ? 'Wiederherstellen' : 'Löschen'"
+            :aria-label="trash ? 'Wiederherstellen' : 'Löschen'"
             :icon="trash ? 'pi pi-replay' : 'pi pi-trash'"
             severity="secondary"
             text
             size="small"
             @click="toggleTrash(data, !!trash)"
+          />
+          <Button
+            v-if="trash"
+            v-tooltip="'Endgültig löschen'"
+            aria-label="Endgültig löschen"
+            icon="pi pi-trash"
+            severity="danger"
+            text
+            size="small"
+            @click="purgeTrashedDir(data)"
           />
         </template>
       </Column>

@@ -23,10 +23,12 @@ vi.mock('primevue/usetoast', () => ({
 
 const mockRestoreDir = vi.fn()
 const mockDeleteDir = vi.fn()
+const mockPurgeDir = vi.fn()
 vi.mock('@/services/archiveService', () => ({
   default: {
     restoreDir: (...args: unknown[]) => mockRestoreDir(...args),
     deleteDir: (...args: unknown[]) => mockDeleteDir(...args),
+    purgeDir: (...args: unknown[]) => mockPurgeDir(...args),
   },
 }))
 
@@ -61,6 +63,7 @@ describe('DirList', () => {
     sessionStorage.clear()
     mockRestoreDir.mockResolvedValue({})
     mockDeleteDir.mockResolvedValue({})
+    mockPurgeDir.mockResolvedValue({})
   })
 
   afterEach(() => {
@@ -89,14 +92,14 @@ describe('DirList', () => {
     expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
   })
 
-  it('renders a plain name without a link in trash mode', () => {
+  it('navigates into a trashed directory too, so its remaining content can be managed', async () => {
     const wrapper = mountDirList({
       items: [buildDir({ id: 5, name: 'Fotos' })],
       title: 'Papierkorb',
       trash: true,
     })
-    expect(wrapper.find('.dir-link').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Fotos')
+    await wrapper.find('.dir-link').trigger('click')
+    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
   })
 
   it('does not show selection checkboxes or the clipboard button for non-admins', () => {
@@ -145,7 +148,7 @@ describe('DirList', () => {
       trash: true,
     })
 
-    await wrapper.find('tbody button').trigger('click')
+    await wrapper.find('[aria-label="Wiederherstellen"]').trigger('click')
     expect(mockConfirmRequire.mock.calls[0]![0].message).toBe('Verzeichnis wiederherstellen?')
 
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -163,5 +166,98 @@ describe('DirList', () => {
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+  })
+
+  it('shows the purge button only when admin and trash are both true', () => {
+    const trashedAdmin = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+    expect(trashedAdmin.find('[aria-label="Endgültig löschen"]').exists()).toBe(true)
+    trashedAdmin.unmount()
+
+    const trashedNonAdmin = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      trash: true,
+    })
+    expect(trashedNonAdmin.find('[aria-label="Endgültig löschen"]').exists()).toBe(false)
+    trashedNonAdmin.unmount()
+
+    const adminNotTrashed = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Einsicht',
+      admin: true,
+    })
+    expect(adminNotTrashed.find('[aria-label="Endgültig löschen"]').exists()).toBe(false)
+  })
+
+  it('asks for confirmation before permanently deleting a directory and emits changed on accept', async () => {
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 5, name: 'Fotos' })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+
+    await wrapper.find('[aria-label="Endgültig löschen"]').trigger('click')
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toBe(
+      'Verzeichnis "Fotos" endgültig löschen? Dies kann nicht rückgängig gemacht werden.',
+    )
+
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockPurgeDir).toHaveBeenCalledWith(5)
+    expect(wrapper.emitted('changed')).toHaveLength(1)
+  })
+
+  it('shows the backend detail message in the toast when purge fails with 409', async () => {
+    mockPurgeDir.mockRejectedValueOnce({
+      response: {
+        data: { detail: 'Verzeichnis ist nicht leer und kann nicht endgültig gelöscht werden.' },
+      },
+    })
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+
+    await wrapper.find('[aria-label="Endgültig löschen"]').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Verzeichnis ist nicht leer und kann nicht endgültig gelöscht werden.',
+      }),
+    )
+  })
+
+  it('shows a fallback error message when purge fails without a response body', async () => {
+    mockPurgeDir.mockRejectedValueOnce(new Error('network error'))
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+
+    await wrapper.find('[aria-label="Endgültig löschen"]').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Verzeichnis konnte nicht endgültig gelöscht werden.',
+      }),
+    )
   })
 })

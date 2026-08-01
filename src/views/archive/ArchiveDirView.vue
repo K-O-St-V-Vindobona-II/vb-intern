@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
 import { useArchiveStore } from '@/stores/archive'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
 import type { ArchiveSearchResult } from '@/services/archiveService'
 import type { DirDetail } from '@/types/archive'
+import { formatApiError } from '@/utils/formatters'
+import Button from 'primevue/button'
 import DirPath from '@/components/archive/DirPath.vue'
 import DirList from '@/components/archive/DirList.vue'
 import FileList from '@/components/archive/FileList.vue'
@@ -77,9 +80,11 @@ const onResultClick = (result: ArchiveSearchResult) => {
 const authStore = useAuthStore()
 const archiveStore = useArchiveStore()
 const { loadPresignedUrl } = useArchiveDownload()
+const toast = useToast()
 
 const loading = ref(true)
 const dir = ref<DirDetail | null>(null)
+const loadError = ref(false)
 const previewUrl = ref<string | null>(null)
 
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
@@ -94,6 +99,7 @@ const onPreview = async (id: number | null) => {
 
 const loadDir = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const id = route.params['id'] ? Number(route.params['id']) : null
     const resp = id ? await archiveService.getDirDetail(id) : await archiveService.getDirRoot()
@@ -104,6 +110,13 @@ const loadDir = async () => {
       router.replace({ name: 'not-found' })
       return
     }
+    loadError.value = true
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Verzeichnis konnte nicht geladen werden.'),
+      life: 5000,
+    })
   } finally {
     loading.value = false
   }
@@ -296,6 +309,10 @@ watch(
       </div>
     </div>
   </div>
+  <div v-else-if="!loading && loadError" class="archive-error">
+    <p>Verzeichnis konnte nicht geladen werden.</p>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadDir" />
+  </div>
 </template>
 
 <style scoped>
@@ -461,5 +478,11 @@ watch(
 .create-dir-row {
   margin: 1.5rem 0;
   text-align: center;
+}
+.archive-error {
+  max-width: 900px;
+  margin: 3rem auto;
+  text-align: center;
+  color: var(--p-text-muted-color);
 }
 </style>

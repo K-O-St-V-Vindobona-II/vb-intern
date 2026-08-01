@@ -71,11 +71,6 @@ describe('FileIcon', () => {
     expect(observe).not.toHaveBeenCalled()
   })
 
-  it('does not observe or load a thumbnail when trashed', () => {
-    mount(FileIcon, { props: { extension: 'png', isImage: true, fileId: 1, trash: true } })
-    expect(observe).not.toHaveBeenCalled()
-  })
-
   it('does not observe when there is no fileId', () => {
     mount(FileIcon, { props: { extension: 'png', isImage: true } })
     expect(observe).not.toHaveBeenCalled()

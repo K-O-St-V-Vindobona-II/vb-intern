@@ -114,6 +114,24 @@ describe('ArchiveFileView', () => {
     expect(router.currentRoute.value.name).toBe('not-found')
   })
 
+  it('shows an error state with a retry button on a non-404/403 failure', async () => {
+    mockGetFileDetail.mockRejectedValueOnce({ response: { status: 500 } })
+    const wrapper = await mountAt('/archive/files/1')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).not.toBe('not-found')
+    expect(wrapper.find('.archive-error').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Datei konnte nicht geladen werden.')
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+
+    mockGetFileDetail.mockResolvedValueOnce({ data: buildFile() })
+    await wrapper.find('.archive-error button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.archive-error').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Bericht.pdf')
+  })
+
   it('triggers a download with the file name and extension when the card is clicked', async () => {
     const wrapper = await mountAt('/archive/files/1')
     await flushPromises()

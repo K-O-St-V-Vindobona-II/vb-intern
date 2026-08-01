@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ArchiveDirView from '../ArchiveDirView.vue'
@@ -44,6 +44,11 @@ vi.mock('@/composables/useArchiveDownload', () => ({
   useArchiveDownload: () => ({ loadPresignedUrl: mockLoadPresignedUrl }),
 }))
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 const mockAuthStore: { user: { permissions: string[] } | null } = {
   user: { permissions: [] },
 }
@@ -71,13 +76,17 @@ const stubs = {
   ClipboardBar: true,
 }
 
+let activeWrapper: VueWrapper | null = null
+
 async function mountAt(path: string) {
   await router.push(path)
   await router.isReady()
   setActivePinia(createPinia())
-  return mount(ArchiveDirView, {
+  const wrapper = mount(ArchiveDirView, {
     global: { plugins: [PrimeVue, router], stubs },
   })
+  activeWrapper = wrapper
+  return wrapper
 }
 
 describe('ArchiveDirView', () => {
@@ -87,6 +96,15 @@ describe('ArchiveDirView', () => {
     mockGetDirRoot.mockResolvedValue({ data: buildDir({ id: 0, name: 'Archiv' }) })
     mockGetDirDetail.mockResolvedValue({ data: buildDir({ id: 5, name: 'Fotos' }) })
     mockSearchArchive.mockResolvedValue({ data: [] })
+  })
+
+  afterEach(() => {
+    // Without this, a previous test's still-mounted component keeps its
+    // route watcher active, so a later router.push() makes it re-fetch too
+    // — stealing mockRejectedValueOnce/mockResolvedValueOnce entries meant
+    // for the new test's instance and causing order-dependent flakiness.
+    activeWrapper?.unmount()
+    activeWrapper = null
   })
 
   it('loads the archive root when there is no id param', async () => {
@@ -119,6 +137,24 @@ describe('ArchiveDirView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('shows an error state with a retry button on a non-404/403 failure', async () => {
+    mockGetDirDetail.mockRejectedValueOnce({ response: { status: 500 } })
+    const wrapper = await mountAt('/archive/dirs/5')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).not.toBe('not-found')
+    expect(wrapper.find('.archive-error').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Verzeichnis konnte nicht geladen werden.')
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+
+    mockGetDirDetail.mockResolvedValueOnce({ data: buildDir({ id: 5, name: 'Fotos' }) })
+    await wrapper.find('.archive-error button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.archive-error').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Fotos')
   })
 
   it('does not search for queries shorter than 3 characters', async () => {
