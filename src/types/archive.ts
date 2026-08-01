@@ -104,7 +104,7 @@ export interface FileDetail {
   is_image: boolean
   mime_type: string | null
   path: PathEntry[]
-  active_version: StoreItem | null
+  active_version: StoreItem
   comments: Comment[]
   trashed_comments: Comment[]
   created_at: string | null

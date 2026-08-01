@@ -17,7 +17,17 @@ function buildFile(overrides: Partial<FileDetail> = {}): FileDetail {
     is_image: false,
     mime_type: 'application/pdf',
     path: [],
-    active_version: null,
+    active_version: {
+      id: 1,
+      name: 'Bericht',
+      description: null,
+      extension: 'pdf',
+      mime_type: 'application/pdf',
+      size: 2048,
+      is_image: false,
+      created_by: 'Max Mustermann',
+      created_at: '2026-06-01T00:00:00Z',
+    },
     comments: [],
     trashed_comments: [],
     created_at: '2026-06-01T00:00:00Z',
@@ -154,22 +164,7 @@ describe('ArchiveFileView', () => {
     expect(wrapper.find('.file-path-row').exists()).toBe(true)
   })
 
-  it('shows the creator only when an active version exists', async () => {
-    mockGetFileDetail.mockResolvedValue({
-      data: buildFile({
-        active_version: {
-          id: 1,
-          name: 'Bericht',
-          description: null,
-          extension: 'pdf',
-          mime_type: 'application/pdf',
-          size: 2048,
-          is_image: false,
-          created_by: 'Max Mustermann',
-          created_at: '2026-06-01T00:00:00Z',
-        },
-      }),
-    })
+  it('shows the creator of the active version', async () => {
     const wrapper = await mountAt('/archive/files/1')
     await flushPromises()
     expect(wrapper.text()).toContain('Erstellt von')
