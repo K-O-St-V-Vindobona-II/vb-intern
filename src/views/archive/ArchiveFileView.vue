@@ -148,7 +148,7 @@ watch(
           <strong>Erstellt am:</strong>
           <span>{{ formatDateTime(file.created_at) }}</span>
         </div>
-        <div v-if="file.active_version" class="info-row">
+        <div class="info-row">
           <strong>Erstellt von:</strong>
           <span>{{ file.active_version.created_by }}</span>
         </div>
