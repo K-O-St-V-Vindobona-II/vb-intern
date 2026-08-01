@@ -53,6 +53,11 @@ const goToProfile = () => {
   router.push({ name: 'profile' })
 }
 
+const goToPermissions = () => {
+  profileDrawerVisible.value = false
+  router.push({ name: 'permission-setup' })
+}
+
 const toggleUserMenu = () => {
   profileDrawerVisible.value = true
 }
@@ -103,6 +108,10 @@ const toggleUserMenu = () => {
           <button class="user-card-action" @click="goToProfile">
             <i class="pi pi-user-edit" />
             Mein Benutzerkonto
+          </button>
+          <button class="user-card-action" @click="goToPermissions">
+            <i class="pi pi-shield" />
+            Berechtigungen
           </button>
           <button class="user-card-action action-logout" @click="handleLogout">
             <i class="pi pi-sign-out" />

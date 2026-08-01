@@ -38,6 +38,11 @@ vi.mock('@/services/memberService', () => ({
   default: { toggleChronicleMail: vi.fn(() => Promise.resolve(true)) },
 }))
 
+const mockGetEnvironment = vi.fn()
+vi.mock('@/services/systemService', () => ({
+  default: { getEnvironment: (...args: unknown[]) => mockGetEnvironment(...args) },
+}))
+
 vi.mock('@/runtimeConfig', () => ({
   appEnvironment: vi.fn(() => 'qa'),
 }))
@@ -54,6 +59,7 @@ describe('ProfileView.vue', () => {
     vi.clearAllMocks()
     mockAuthStore.user.google_linked = true
     mockAuthStore.user.chroniclemail = false
+    mockGetEnvironment.mockResolvedValue({ data: { environment: 'production' } })
   })
 
   it('should display user profile data', () => {
@@ -103,8 +109,18 @@ describe('ProfileView.vue', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
   })
 
-  it('shows the current app environment discreetly at the bottom of the page', () => {
+  it('shows the frontend and backend stage discreetly at the bottom of the page', async () => {
     const wrapper = mount(ProfileView, mountOpts)
-    expect(wrapper.text()).toContain('qa')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Frontend: qa')
+    expect(wrapper.text()).toContain('Backend: production')
+  })
+
+  it('omits the backend stage line if the fetch fails', async () => {
+    mockGetEnvironment.mockRejectedValueOnce(new Error('network error'))
+    const wrapper = mount(ProfileView, mountOpts)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Frontend: qa')
+    expect(wrapper.text()).not.toContain('Backend:')
   })
 })
