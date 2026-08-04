@@ -31,12 +31,33 @@ export interface EnvironmentResponse {
   environment: string
 }
 
+export interface ScheduledJobRunSummary {
+  exit_code: number
+  output: string | null
+  started_at: string
+  finished_at: string
+  duration_seconds: number
+}
+
+export interface ScheduledJobRunListItem extends ScheduledJobRunSummary {
+  id: string
+  job_id: string
+}
+
+export interface ScheduledJobRunHistoryResponse {
+  items: ScheduledJobRunListItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
 export interface ScheduledJobResponse {
   id: string
   name: string
   trigger: string
   next_run: string | null
   description: string | null
+  last_run: ScheduledJobRunSummary | null
 }
 
 export interface BackupTriggerResponse {
@@ -55,6 +76,12 @@ export default {
 
   getScheduledJobs() {
     return api.get<ScheduledJobResponse[]>('/system/scheduled-jobs')
+  },
+
+  getJobRunHistory(jobId: string, params: { page?: number; page_size?: number }) {
+    return api.get<ScheduledJobRunHistoryResponse>(`/system/scheduled-jobs/${jobId}/history`, {
+      params,
+    })
   },
 
   triggerBackup() {
