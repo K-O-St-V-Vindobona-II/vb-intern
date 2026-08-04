@@ -78,10 +78,18 @@ const fullMemberData = {
 }
 
 const mockGetMember = vi.fn().mockResolvedValue({ data: fullMemberData })
+const mockGetMemberAuthActivity = vi.fn().mockResolvedValue({
+  data: {
+    auth_lastlogin: '2026-08-01T10:00:00Z',
+    auth_lastsignal: '2026-08-02T11:00:00Z',
+    auth_lastlogout: '2026-08-02T11:05:00Z',
+  },
+})
 
 vi.mock('@/services/standesdbService', () => ({
   default: {
     getMember: (...args: unknown[]) => mockGetMember(...args),
+    getMemberAuthActivity: (...args: unknown[]) => mockGetMemberAuthActivity(...args),
   },
 }))
 
@@ -118,6 +126,7 @@ describe('MemberShowView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     mockGetMember.mockResolvedValue({ data: fullMemberData })
+    mockGetMemberAuthActivity.mockClear()
   })
 
   const mountView = async () => {
@@ -225,6 +234,27 @@ describe('MemberShowView', () => {
     try {
       const w = await mountView()
       expect(w.text()).not.toContain('Änderungshistorie')
+    } finally {
+      mockAuthStore.user.permissions = original
+    }
+  })
+
+  it('shows the auth-activity section for a matching standesdb org admin', async () => {
+    const w = await mountView()
+    expect(mockGetMemberAuthActivity).toHaveBeenCalledWith(1)
+    expect(w.text()).toContain('Letzte Aktivität')
+    expect(w.text()).toContain('Letzter Login')
+    expect(w.text()).toContain('Letztes Signal')
+    expect(w.text()).toContain('Letzter Logout')
+  })
+
+  it('hides the auth-activity section and never fetches it for systemAdmin without a standesdb admin role', async () => {
+    const original = mockAuthStore.user.permissions
+    mockAuthStore.user.permissions = ['systemAdmin']
+    try {
+      const w = await mountView()
+      expect(mockGetMemberAuthActivity).not.toHaveBeenCalled()
+      expect(w.text()).not.toContain('Letzte Aktivität')
     } finally {
       mockAuthStore.user.permissions = original
     }

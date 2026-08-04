@@ -30,8 +30,6 @@ const canEdit = computed(() => {
   return hasPermission(orgPerm)
 })
 
-const isSystemAdmin = computed(() => hasPermission('systemAdmin'))
-
 const authActivity = ref<{
   auth_lastlogin: string | null
   auth_lastsignal: string | null
@@ -39,7 +37,7 @@ const authActivity = ref<{
 } | null>(null)
 
 const loadAuthActivity = async (memberId: number) => {
-  if (!isSystemAdmin.value) return
+  if (!canEdit.value) return
   try {
     const resp = await standesdbService.getMemberAuthActivity(memberId)
     authActivity.value = resp.data
@@ -662,7 +660,7 @@ const capitalize = (s: string | null | undefined) =>
         :member-id="member.id"
       />
 
-      <div v-if="isSystemAdmin && authActivity" class="auth-activity-section">
+      <div v-if="canEdit && authActivity" class="auth-activity-section">
         <label class="section-label">Letzte Aktivität</label>
         <div class="auth-activity-grid">
           <div class="auth-activity-item">
