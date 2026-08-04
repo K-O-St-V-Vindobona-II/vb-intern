@@ -5,8 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 import p4xService from '@/services/p4xService'
 import type { P4xCategory, PaginatedTransactions, PartnerSearchResult } from '@/types/p4x'
 import TransactionTable from './components/TransactionTable.vue'
-import PersonSearchField from '@/components/PersonSearchField.vue'
-import type { SearchResult } from '@/components/PersonSearchField.vue'
+import SearchField from '@/components/SearchField.vue'
+import type { SearchResult } from '@/components/SearchField.vue'
 import Card from 'primevue/card'
 
 const route = useRoute()
@@ -73,7 +73,7 @@ onMounted(async () => {
 
     <div class="center-block">
       <div class="search-container">
-        <PersonSearchField
+        <SearchField
           :search-fn="searchPartners"
           placeholder="Partner suchen..."
           @select="onPartnerSelect"

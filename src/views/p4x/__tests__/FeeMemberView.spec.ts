@@ -121,7 +121,7 @@ describe('FeeMemberView', () => {
     await flushPromises()
     mockGetFeeMember.mockResolvedValue({ data: buildMember({ id: 5, cn: 'Erika Beispiel' }) })
 
-    const search = wrapper.findComponent({ name: 'PersonSearchField' })
+    const search = wrapper.findComponent({ name: 'SearchField' })
     await search.vm.$emit('select', { id: 5, label: 'Erika Beispiel', type: 'member' })
     await flushPromises()
 
@@ -137,7 +137,7 @@ describe('FeeMemberView', () => {
     const wrapper = mount(FeeMemberView, mountOpts)
     await flushPromises()
 
-    const search = wrapper.findComponent({ name: 'PersonSearchField' })
+    const search = wrapper.findComponent({ name: 'SearchField' })
     const found = await (search.props('searchFn') as (q: string) => Promise<unknown>)('Max')
 
     expect(mockSearchFeeMembers).toHaveBeenCalledWith('Max')

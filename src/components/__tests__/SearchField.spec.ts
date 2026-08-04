@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import PersonSearchField from '../PersonSearchField.vue'
-import type { SearchResult } from '../PersonSearchField.vue'
+import SearchField from '../SearchField.vue'
+import type { SearchResult } from '../SearchField.vue'
 import PrimeVue from 'primevue/config'
 
 function buildResult(overrides: Partial<SearchResult> = {}): SearchResult {
@@ -10,10 +10,10 @@ function buildResult(overrides: Partial<SearchResult> = {}): SearchResult {
 
 const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 
-describe('PersonSearchField', () => {
+describe('SearchField', () => {
   it('does not search below the default minimum length', async () => {
     const searchFn = vi.fn()
-    const wrapper = mount(PersonSearchField, { props: { searchFn }, ...mountOpts })
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
 
     const ac = wrapper.findComponent({ name: 'AutoComplete' })
     await ac.vm.$emit('complete', { query: 'Ma' })
@@ -27,7 +27,7 @@ describe('PersonSearchField', () => {
   it('searches and shows suggestions once the minimum length is reached', async () => {
     const results = [buildResult()]
     const searchFn = vi.fn().mockResolvedValue(results)
-    const wrapper = mount(PersonSearchField, { props: { searchFn }, ...mountOpts })
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
 
     const ac = wrapper.findComponent({ name: 'AutoComplete' })
     await ac.vm.$emit('complete', { query: 'Max' })
@@ -40,7 +40,7 @@ describe('PersonSearchField', () => {
 
   it('respects a custom minLength prop', async () => {
     const searchFn = vi.fn().mockResolvedValue([])
-    const wrapper = mount(PersonSearchField, {
+    const wrapper = mount(SearchField, {
       props: { searchFn, minLength: 1 },
       ...mountOpts,
     })
@@ -57,7 +57,7 @@ describe('PersonSearchField', () => {
 
   it('clears suggestions when the search fails', async () => {
     const searchFn = vi.fn().mockRejectedValue(new Error('boom'))
-    const wrapper = mount(PersonSearchField, { props: { searchFn }, ...mountOpts })
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
 
     const ac = wrapper.findComponent({ name: 'AutoComplete' })
     await ac.vm.$emit('complete', { query: 'Max' })
@@ -69,7 +69,7 @@ describe('PersonSearchField', () => {
 
   it('emits select and resets the query when an item is chosen', async () => {
     const searchFn = vi.fn().mockResolvedValue([buildResult()])
-    const wrapper = mount(PersonSearchField, { props: { searchFn }, ...mountOpts })
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
 
     const ac = wrapper.findComponent({ name: 'AutoComplete' })
     await ac.vm.$emit('complete', { query: 'Max' })
@@ -82,7 +82,7 @@ describe('PersonSearchField', () => {
   })
 
   it('uses the default placeholder and minLength when none are given', () => {
-    const wrapper = mount(PersonSearchField, {
+    const wrapper = mount(SearchField, {
       props: { searchFn: vi.fn() },
       ...mountOpts,
     })
@@ -94,7 +94,7 @@ describe('PersonSearchField', () => {
   })
 
   it('uses a custom placeholder when given', () => {
-    const wrapper = mount(PersonSearchField, {
+    const wrapper = mount(SearchField, {
       props: { searchFn: vi.fn(), placeholder: 'Mitglied suchen...' },
       ...mountOpts,
     })
@@ -106,7 +106,7 @@ describe('PersonSearchField', () => {
   })
 
   it('focuses the input on mount', async () => {
-    const wrapper = mount(PersonSearchField, {
+    const wrapper = mount(SearchField, {
       props: { searchFn: vi.fn() },
       ...mountOpts,
     })

@@ -157,72 +157,58 @@ describe('ArchiveDirView', () => {
     expect(wrapper.text()).toContain('Fotos')
   })
 
+  it('uses the shared SearchField component, like the other searches in the app', async () => {
+    const wrapper = await mountAt('/archive')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'SearchField' }).exists()).toBe(true)
+  })
+
   it('does not search for queries shorter than 3 characters', async () => {
     const wrapper = await mountAt('/archive')
     await flushPromises()
 
-    await wrapper.find('.search-input').setValue('ab')
-    await wrapper.find('.search-input').trigger('input')
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+    await ac.vm.$emit('complete', { query: 'ab' })
     await flushPromises()
 
     expect(mockSearchArchive).not.toHaveBeenCalled()
   })
 
-  it('searches after a debounce once the query reaches 3 characters', async () => {
-    vi.useFakeTimers()
+  it('searches once the query reaches 3 characters and maps results to labeled suggestions', async () => {
     mockSearchArchive.mockResolvedValue({
       data: [{ type: 'dir', id: 9, name: 'Treffer', description: null, path: '/Archiv' }],
     })
     const wrapper = await mountAt('/archive')
     await flushPromises()
 
-    await wrapper.find('.search-input').setValue('Foto')
-    await wrapper.find('.search-input').trigger('input')
-
-    expect(mockSearchArchive).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(300)
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+    await ac.vm.$emit('complete', { query: 'Foto' })
+    await flushPromises()
 
     expect(mockSearchArchive).toHaveBeenCalledWith('Foto')
-    expect(wrapper.text()).toContain('Treffer')
-    vi.useRealTimers()
+    expect(ac.props('suggestions')).toEqual([
+      { id: 9, type: 'dir', label: 'Verzeichnis: Treffer (/Archiv)' },
+    ])
   })
 
-  it('navigates to the result and clears the search when a search result is clicked', async () => {
-    vi.useFakeTimers()
+  it('navigates to the result when a search result is selected', async () => {
     mockSearchArchive.mockResolvedValue({
       data: [{ type: 'file', id: 9, name: 'Treffer', description: null, path: '/Archiv' }],
     })
     const wrapper = await mountAt('/archive')
     await flushPromises()
 
-    await wrapper.find('.search-input').setValue('Foto')
-    await wrapper.find('.search-input').trigger('input')
-    await vi.advanceTimersByTimeAsync(300)
-    vi.useRealTimers()
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+    await ac.vm.$emit('complete', { query: 'Foto' })
+    await flushPromises()
 
-    // Using a native dispatchEvent here (instead of VTU's trigger helper)
-    // because trigger's internal nextTick await gets orphaned by the
-    // preceding fake-timers -> real-timers switch in this test.
-    wrapper
-      .find('.search-result')
-      .element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    const suggestion = ac.props('suggestions')[0]
+    await ac.vm.$emit('item-select', { value: suggestion })
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('archive-file')
     expect(router.currentRoute.value.params.id).toBe('9')
-    expect((wrapper.find('.search-input').element as HTMLInputElement).value).toBe('')
-  })
-
-  it('clears the search query via the clear icon', async () => {
-    const wrapper = await mountAt('/archive')
-    await flushPromises()
-
-    await wrapper.find('.search-input').setValue('Foto')
-    expect(wrapper.find('.search-clear').exists()).toBe(true)
-
-    await wrapper.find('.search-clear').trigger('click')
-
-    expect((wrapper.find('.search-input').element as HTMLInputElement).value).toBe('')
   })
 
   it('does not show the clipboard bar or admin section for non-admins', async () => {

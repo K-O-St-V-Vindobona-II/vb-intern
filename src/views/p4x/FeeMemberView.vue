@@ -6,8 +6,8 @@ import p4xService from '@/services/p4xService'
 import type { FeeMember } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import Button from 'primevue/button'
-import PersonSearchField from '@/components/PersonSearchField.vue'
-import type { SearchResult } from '@/components/PersonSearchField.vue'
+import SearchField from '@/components/SearchField.vue'
+import type { SearchResult } from '@/components/SearchField.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -104,7 +104,7 @@ onMounted(async () => {
     <p class="subtitle">Beitragskonten</p>
 
     <div class="search-box">
-      <PersonSearchField
+      <SearchField
         :search-fn="searchFeeMembers"
         placeholder="Mitglied suchen..."
         @select="onMemberSelect"

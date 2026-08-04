@@ -31,6 +31,13 @@ describe('systemService', () => {
     expect(mockGet).toHaveBeenCalledWith('/system/scheduled-jobs')
   })
 
+  it('getJobRunHistory fetches a job history with pagination params', () => {
+    systemService.getJobRunHistory('cleanup', { page: 2, page_size: 10 })
+    expect(mockGet).toHaveBeenCalledWith('/system/scheduled-jobs/cleanup/history', {
+      params: { page: 2, page_size: 10 },
+    })
+  })
+
   it('getTables fetches /system/tables', () => {
     systemService.getTables()
     expect(mockGet).toHaveBeenCalledWith('/system/tables')

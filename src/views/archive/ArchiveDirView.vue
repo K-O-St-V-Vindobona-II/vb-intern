@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useArchiveStore } from '@/stores/archive'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
-import type { ArchiveSearchResult } from '@/services/archiveService'
 import type { DirDetail } from '@/types/archive'
 import { formatApiError } from '@/utils/formatters'
 import Button from 'primevue/button'
@@ -18,65 +17,35 @@ import DirEditor from '@/components/archive/DirEditor.vue'
 import PermissionViewer from '@/components/archive/PermissionViewer.vue'
 import ClipboardBar from '@/components/archive/ClipboardBar.vue'
 import Card from 'primevue/card'
-import InputText from 'primevue/inputtext'
+import SearchField from '@/components/SearchField.vue'
+import type { SearchResult } from '@/components/SearchField.vue'
 
 const route = useRoute()
 const router = useRouter()
 
-const searchQuery = ref('')
-const searchResults = ref<ArchiveSearchResult[]>([])
-const searching = ref(false)
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-
-const onSearchInput = () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  if (searchQuery.value.length < 3) {
-    searchResults.value = []
-    return
-  }
-  searchTimer = setTimeout(doSearch, 300)
+interface ArchiveSearchItem extends SearchResult {
+  type: 'file' | 'dir'
 }
 
-const doSearch = async () => {
-  if (searchQuery.value.length < 3) return
-  searching.value = true
-  try {
-    const resp = await archiveService.searchArchive(searchQuery.value)
-    searchResults.value = resp.data
-  } catch {
-    searchResults.value = []
-  } finally {
-    searching.value = false
-  }
+const searchArchive = async (query: string): Promise<SearchResult[]> => {
+  const resp = await archiveService.searchArchive(query)
+  return resp.data.map(
+    (r): ArchiveSearchItem => ({
+      id: r.id,
+      type: r.type,
+      label: `${r.type === 'dir' ? 'Verzeichnis' : 'Datei'}: ${r.name ?? '(unbenannt)'} (${r.path})`,
+    }),
+  )
 }
 
-const SEARCH_RESULT_ICONS: Record<string, string> = {
-  jpg: 'pi pi-image',
-  jpeg: 'pi pi-image',
-  png: 'pi pi-image',
-  gif: 'pi pi-image',
-  pdf: 'pi pi-file-pdf',
-  doc: 'pi pi-file-word',
-  docx: 'pi pi-file-word',
-  xls: 'pi pi-file-excel',
-  xlsx: 'pi pi-file-excel',
-}
-
-const fileIcon = (ext: string | null | undefined): string =>
-  SEARCH_RESULT_ICONS[(ext || '').toLowerCase()] ?? 'pi pi-file'
-
-const clearSearch = () => {
-  searchQuery.value = ''
-  searchResults.value = []
-}
-
-const onResultClick = (result: ArchiveSearchResult) => {
-  clearSearch()
+const onArchiveResultSelect = (item: SearchResult) => {
+  const typed = item as ArchiveSearchItem
   router.push({
-    name: result.type === 'dir' ? 'archive-dir' : 'archive-file',
-    params: { id: result.id },
+    name: typed.type === 'dir' ? 'archive-dir' : 'archive-file',
+    params: { id: typed.id },
   })
 }
+
 const authStore = useAuthStore()
 const archiveStore = useArchiveStore()
 const { loadPresignedUrl } = useArchiveDownload()
@@ -125,7 +94,6 @@ const loadDir = async () => {
 watch(
   () => route.params['id'],
   () => {
-    clearSearch()
     loadDir()
   },
   { immediate: true },
@@ -139,50 +107,18 @@ watch(
       <p class="dir-subtitle">Archiv-Verzeichnis</p>
     </div>
 
-    <div class="search-section">
-      <div class="search-input-row">
-        <i class="pi pi-search search-icon" />
-        <InputText
-          v-model="searchQuery"
-          placeholder="Archiv durchsuchen (mind. 3 Zeichen)..."
-          class="search-input"
-          @input="onSearchInput"
-        />
-        <i v-if="searchQuery" class="pi pi-times search-clear" @click="clearSearch" />
-      </div>
-      <p class="search-hint">Erste Version — die Suche wird schrittweise verbessert.</p>
-
-      <div v-if="searching" class="search-status">
-        <i class="pi pi-spin pi-spinner" />
-        Suche läuft...
-      </div>
-
-      <div v-if="searchResults.length && !searching" class="search-results">
-        <div
-          v-for="result in searchResults"
-          :key="`${result.type}-${result.id}`"
-          class="search-result"
-          @click="onResultClick(result)"
-        >
-          <i
-            :class="result.type === 'dir' ? 'pi pi-folder' : fileIcon(result.extension)"
-            class="result-icon"
+    <Card class="search-card">
+      <template #content>
+        <div class="search-row">
+          <SearchField
+            :search-fn="searchArchive"
+            placeholder="Archiv durchsuchen (mind. 3 Zeichen)..."
+            class="search-input"
+            @select="onArchiveResultSelect"
           />
-          <div class="result-body">
-            <span class="result-name">{{ result.name }}</span>
-            <span v-if="result.description" class="result-desc">{{ result.description }}</span>
-            <span class="result-path">{{ result.path }}</span>
-          </div>
         </div>
-      </div>
-
-      <div
-        v-if="searchQuery.length >= 3 && !searchResults.length && !searching"
-        class="search-empty"
-      >
-        Keine Ergebnisse für "{{ searchQuery }}".
-      </div>
-    </div>
+      </template>
+    </Card>
 
     <ClipboardBar v-if="admin" :target-dir-id="dir.id" @moved="loadDir" />
 
@@ -327,103 +263,20 @@ watch(
   color: var(--p-text-muted-color);
   margin: 0;
 }
-.search-section {
+.search-card {
   margin-bottom: 1rem;
 }
-.search-input-row {
+.search-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
-  gap: 0.5rem;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-}
-.search-icon {
-  color: var(--p-text-muted-color);
-  font-size: 0.9rem;
 }
 .search-input {
   flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 0.9rem;
 }
-.search-input:focus {
-  box-shadow: none;
-}
-.search-clear {
-  color: var(--p-text-muted-color);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.search-clear:hover {
-  color: var(--p-text-color);
-}
-.search-hint {
-  font-size: 0.75rem;
-  color: var(--p-surface-400);
-  margin: 0.3rem 0 0;
-  font-style: italic;
-}
-.search-status {
-  padding: 1rem 0;
-  text-align: center;
-  color: var(--p-text-muted-color);
-  font-size: 0.85rem;
-}
-.search-results {
-  margin-top: 0.5rem;
-  border: 1px solid var(--p-surface-200);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.search-result {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.6rem 0.75rem;
-  cursor: pointer;
-  transition: background-color 0.1s;
-}
-.search-result:hover {
-  background: var(--p-surface-50);
-}
-.search-result + .search-result {
-  border-top: 1px solid var(--p-surface-100);
-}
-.result-icon {
-  color: var(--p-primary-color);
-  font-size: 1rem;
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-}
-.result-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-.result-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  word-break: break-word;
-}
-.result-desc {
-  font-size: 0.8rem;
-  color: var(--p-text-muted-color);
-}
-.result-path {
-  font-size: 0.75rem;
-  color: var(--p-surface-400);
-}
-.search-empty {
-  padding: 1rem 0;
-  text-align: center;
-  color: var(--p-text-muted-color);
-  font-size: 0.85rem;
+.search-input :deep(input) {
+  width: 100%;
 }
 .dir-info-card {
   margin-bottom: 1rem;

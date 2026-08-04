@@ -22,7 +22,7 @@ describe('PartnerSearch', () => {
       props: { modelValue: null },
       global: { plugins: [PrimeVue] },
     })
-    const field = wrapper.findComponent({ name: 'PersonSearchField' })
+    const field = wrapper.findComponent({ name: 'SearchField' })
     const found = await (field.props('searchFn') as (q: string) => Promise<PartnerSearchResult[]>)(
       'Max',
     )
@@ -36,7 +36,7 @@ describe('PartnerSearch', () => {
       props: { modelValue: null },
       global: { plugins: [PrimeVue] },
     })
-    const field = wrapper.findComponent({ name: 'PersonSearchField' })
+    const field = wrapper.findComponent({ name: 'SearchField' })
     const selected = { id: 1, label: 'Max Mustermann', type: 'member' }
 
     await field.vm.$emit('select', selected)
