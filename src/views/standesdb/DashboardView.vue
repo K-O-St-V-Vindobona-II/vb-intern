@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import standesdbService from '@/services/standesdbService'
 import type { Stats, SearchResult } from '@/types/standesdb'
-import PersonSearchField from '@/components/PersonSearchField.vue'
-import type { SearchResult as GenericSearchResult } from '@/components/PersonSearchField.vue'
+import SearchField from '@/components/SearchField.vue'
+import type { SearchResult as GenericSearchResult } from '@/components/SearchField.vue'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -85,7 +85,7 @@ const memberRows = () => {
     <Card class="search-card">
       <template #content>
         <div class="search-row">
-          <PersonSearchField
+          <SearchField
             :search-fn="searchStandesdb"
             placeholder="Mitglied oder Kontakt suchen (mind. 3 Zeichen)..."
             class="search-input"

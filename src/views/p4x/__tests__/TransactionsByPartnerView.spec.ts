@@ -76,7 +76,7 @@ async function selectPartner(
   wrapper: ReturnType<typeof mount>,
   item: { type: string; id: number; label: string },
 ) {
-  const search = wrapper.findComponent({ name: 'PersonSearchField' })
+  const search = wrapper.findComponent({ name: 'SearchField' })
   await search.vm.$emit('select', item)
 }
 
@@ -111,7 +111,7 @@ describe('TransactionsByPartnerView', () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
 
-    const search = wrapper.findComponent({ name: 'PersonSearchField' })
+    const search = wrapper.findComponent({ name: 'SearchField' })
     const found = await (search.props('searchFn') as (q: string) => Promise<unknown>)('Max')
 
     expect(mockSearchPartners).toHaveBeenCalledWith('Max')
