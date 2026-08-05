@@ -21,6 +21,7 @@ function buildDir(overrides: Partial<DirDetail> = {}): DirDetail {
       files: { insight: [], admin: [], trashed: [] },
     },
     sets: { orgs: [], states: [] },
+    stats: null,
     created_at: null,
     updated_at: null,
     deleted_at: null,
@@ -123,6 +124,43 @@ describe('ArchiveDirView', () => {
     expect(mockGetDirDetail).toHaveBeenCalledWith(5)
   })
 
+  it('shows archive-wide stats at the root, with the by-extension table collapsed by default', async () => {
+    mockGetDirRoot.mockResolvedValue({
+      data: buildDir({
+        id: 0,
+        name: 'Archiv',
+        stats: {
+          file_count: 42,
+          unique_object_count: 30,
+          dir_count: 7,
+          total_size: 2 * 1024 * 1024,
+          by_extension: [{ extension: 'jpg', count: 20, size: 900000 }],
+        },
+      }),
+    })
+    const wrapper = await mountAt('/archive')
+    await flushPromises()
+
+    expect(wrapper.find('.archive-stats').exists()).toBe(true)
+    expect(wrapper.text()).toContain('42')
+    expect(wrapper.text()).toContain('30')
+    expect(wrapper.text()).toContain('7')
+    expect(wrapper.text()).toContain('2.0 MB')
+    expect(wrapper.text()).not.toContain('jpg')
+
+    await wrapper.find('.stats-toggle').trigger('click')
+
+    expect(wrapper.text()).toContain('jpg')
+  })
+
+  it('does not show archive-wide stats for a real subdirectory', async () => {
+    const wrapper = await mountAt('/archive/dirs/5')
+    await flushPromises()
+
+    expect(wrapper.find('.archive-stats').exists()).toBe(false)
+    expect(wrapper.find('.stats-by-extension').exists()).toBe(false)
+  })
+
   it('redirects to not-found on a 404', async () => {
     mockGetDirDetail.mockRejectedValueOnce({ response: { status: 404 } })
     await mountAt('/archive/dirs/999')
@@ -164,18 +202,32 @@ describe('ArchiveDirView', () => {
     expect(wrapper.findComponent({ name: 'SearchField' }).exists()).toBe(true)
   })
 
-  it('does not search for queries shorter than 3 characters', async () => {
+  it('does not search for queries shorter than 2 characters', async () => {
     const wrapper = await mountAt('/archive')
     await flushPromises()
 
     const ac = wrapper.findComponent({ name: 'AutoComplete' })
-    await ac.vm.$emit('complete', { query: 'ab' })
+    await ac.vm.$emit('complete', { query: 'a' })
     await flushPromises()
 
     expect(mockSearchArchive).not.toHaveBeenCalled()
   })
 
-  it('searches once the query reaches 3 characters and maps results to labeled suggestions', async () => {
+  it('searches once the query reaches the 2-character minimum (lower than the app default, since the archive has meaningful 2-letter abbreviations like "BC")', async () => {
+    mockSearchArchive.mockResolvedValue({
+      data: [{ type: 'dir', id: 9, name: 'BC-Protokolle', description: null, path: '/Archiv' }],
+    })
+    const wrapper = await mountAt('/archive')
+    await flushPromises()
+
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+    await ac.vm.$emit('complete', { query: 'BC' })
+    await flushPromises()
+
+    expect(mockSearchArchive).toHaveBeenCalledWith('BC')
+  })
+
+  it('searches and maps results to labeled suggestions', async () => {
     mockSearchArchive.mockResolvedValue({
       data: [{ type: 'dir', id: 9, name: 'Treffer', description: null, path: '/Archiv' }],
     })
