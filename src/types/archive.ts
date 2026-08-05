@@ -78,6 +78,20 @@ export interface Sets {
   states: StateRef[]
 }
 
+export interface ArchiveExtensionStat {
+  extension: string
+  count: number
+  size: number
+}
+
+export interface ArchiveStats {
+  file_count: number
+  unique_object_count: number
+  dir_count: number
+  total_size: number
+  by_extension: ArchiveExtensionStat[]
+}
+
 export interface DirDetail {
   type: 'dir'
   id: number
@@ -88,6 +102,7 @@ export interface DirDetail {
   recursive_permissions: boolean
   content: DirContent
   sets: Sets
+  stats: ArchiveStats | null
   created_at: string | null
   updated_at: string | null
   deleted_at: string | null

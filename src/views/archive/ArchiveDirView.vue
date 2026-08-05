@@ -7,7 +7,7 @@ import { useArchiveStore } from '@/stores/archive'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
 import type { DirDetail } from '@/types/archive'
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, formatSize } from '@/utils/formatters'
 import Button from 'primevue/button'
 import DirPath from '@/components/archive/DirPath.vue'
 import DirList from '@/components/archive/DirList.vue'
@@ -57,6 +57,7 @@ const loadError = ref(false)
 const previewUrl = ref<string | null>(null)
 
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
+const extensionStatsExpanded = ref(false)
 
 const onPreview = async (id: number | null) => {
   if (!id) {
@@ -112,7 +113,8 @@ watch(
         <div class="search-row">
           <SearchField
             :search-fn="searchArchive"
-            placeholder="Archiv durchsuchen (mind. 3 Zeichen)..."
+            :min-length="2"
+            placeholder="Archiv durchsuchen (mind. 2 Zeichen)..."
             class="search-input"
             @select="onArchiveResultSelect"
           />
@@ -136,6 +138,53 @@ watch(
         <div v-if="dir.id" class="dir-path-row">
           Pfad:
           <DirPath :path="dir.path" />
+        </div>
+
+        <div v-if="!dir.id && dir.stats" class="archive-stats">
+          <div class="stat-item">
+            <span class="stat-value">{{ dir.stats.file_count }}</span>
+            <span class="stat-label">Dateien</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ dir.stats.unique_object_count }}</span>
+            <span class="stat-label">Eindeutige Objekte</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ dir.stats.dir_count }}</span>
+            <span class="stat-label">Verzeichnisse</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ formatSize(dir.stats.total_size) }}</span>
+            <span class="stat-label">Speicherplatz</span>
+          </div>
+        </div>
+
+        <div v-if="!dir.id && dir.stats?.by_extension.length" class="stats-by-extension">
+          <div class="stats-toggle" @click="extensionStatsExpanded = !extensionStatsExpanded">
+            <i
+              :class="extensionStatsExpanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
+              class="stats-caret"
+            />
+            <span>Nach Dateityp</span>
+          </div>
+          <div v-if="extensionStatsExpanded" class="stats-by-extension-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Anzahl</th>
+                  <th>Größe</th>
+                  <th>Typ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in dir.stats.by_extension" :key="row.extension">
+                  <td>{{ row.count }}</td>
+                  <td>{{ formatSize(row.size) }}</td>
+                  <td>{{ row.extension }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div v-if="dir.id && admin">
@@ -290,6 +339,54 @@ watch(
 }
 .dir-path-row {
   margin: 0.5rem 0;
+}
+.archive-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin: 0.75rem 0;
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 5rem;
+}
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+  text-align: center;
+}
+.stats-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+.stats-caret {
+  font-size: 0.7rem;
+  margin-right: 0.4rem;
+  color: var(--p-text-muted-color);
+}
+.stats-by-extension-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.stats-by-extension-wrap table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.stats-by-extension-wrap th,
+.stats-by-extension-wrap td {
+  text-align: left;
+  padding: 0.25rem 0.75rem 0.25rem 0;
+  border-bottom: 1px solid var(--p-surface-200);
 }
 .hover-preview {
   position: fixed;
