@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import publicGalleryService from '@/services/publicGalleryService'
 import type { GalleryImageAdminResponse } from '@/services/publicGalleryService'
+import { siteSettingsService } from '@/services/publicContentService'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
@@ -15,6 +16,16 @@ const toast = useToast()
 const loading = ref(true)
 const uploading = ref(false)
 const images = ref<GalleryImageAdminResponse[]>([])
+
+// about_video_heading/youtube_url/calendar_id belong to the Video/Programm
+// admin views, but all live in the same settings resource on the backend -
+// fetched here and resent unchanged on save so we never accidentally
+// clear them.
+const sectionHeading = ref('')
+const videoHeading = ref('')
+const videoYoutubeUrl = ref('')
+const calendarId = ref('')
+const savingHeading = ref(false)
 
 const uploadFile = ref<File | null>(null)
 const uploadCaption = ref('')
@@ -30,8 +41,15 @@ const deleteImageId = ref('')
 const loadGallery = async () => {
   loading.value = true
   try {
-    const resp = await publicGalleryService.listImages()
-    images.value = resp.data
+    const [imagesResp, settingsResp] = await Promise.all([
+      publicGalleryService.listImages(),
+      siteSettingsService.getSettings(),
+    ])
+    images.value = imagesResp.data
+    sectionHeading.value = settingsResp.data.gallery_heading
+    videoHeading.value = settingsResp.data.about_video_heading
+    videoYoutubeUrl.value = `https://www.youtube.com/watch?v=${settingsResp.data.about_video_youtube_id}`
+    calendarId.value = settingsResp.data.programm_calendar_id
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -41,6 +59,34 @@ const loadGallery = async () => {
     })
   } finally {
     loading.value = false
+  }
+}
+
+const saveHeading = async () => {
+  savingHeading.value = true
+  try {
+    const resp = await siteSettingsService.updateSettings({
+      about_video_heading: videoHeading.value,
+      youtube_url: videoYoutubeUrl.value,
+      calendar_id: calendarId.value,
+      gallery_heading: sectionHeading.value,
+    })
+    sectionHeading.value = resp.data.gallery_heading
+    toast.add({
+      severity: 'success',
+      summary: 'Gespeichert',
+      detail: 'Titel wurde gespeichert.',
+      life: 3000,
+    })
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Speichern fehlgeschlagen.'),
+      life: 5000,
+    })
+  } finally {
+    savingHeading.value = false
   }
 }
 
@@ -189,6 +235,20 @@ onMounted(loadGallery)
         <h3 class="page-subtitle">Galerie</h3>
       </div>
 
+      <div class="field">
+        <label for="gallery-heading">Titel der Sektion</label>
+        <div class="heading-row">
+          <InputText id="gallery-heading" v-model="sectionHeading" maxlength="200" class="w-full" />
+          <Button
+            label="Speichern"
+            icon="pi pi-check"
+            size="small"
+            :loading="savingHeading"
+            @click="saveHeading"
+          />
+        </div>
+      </div>
+
       <p class="image-count">{{ images.length }} Bild{{ images.length !== 1 ? 'er' : '' }}</p>
 
       <div class="upload-section">
@@ -202,7 +262,7 @@ onMounted(loadGallery)
           />
           <InputText
             v-model="uploadCaption"
-            placeholder="Bildunterschrift (optional, max. 150 Zeichen)"
+            placeholder="Alt-Text für Screenreader (optional, max. 150 Zeichen)"
             maxlength="150"
             class="upload-caption"
           />
@@ -233,7 +293,7 @@ onMounted(loadGallery)
               />
             </div>
             <div class="image-desc">
-              {{ img.caption || 'Keine Bildunterschrift' }}
+              {{ img.caption || 'Kein Alt-Text hinterlegt' }}
             </div>
             <div class="image-actions">
               <Button
@@ -281,8 +341,12 @@ onMounted(loadGallery)
       >
         <div class="dialog-fields">
           <div class="field">
-            <label>Bildunterschrift</label>
+            <label>Alt-Text für Screenreader</label>
             <InputText v-model="editCaption" maxlength="150" class="w-full" />
+            <p class="field-hint">
+              Wird nicht sichtbar auf der Seite angezeigt, nur für Barrierefreiheit (Screenreader)
+              und als Fallback bei defekten Bildern.
+            </p>
           </div>
           <div class="field">
             <label>
@@ -337,6 +401,24 @@ onMounted(loadGallery)
   font-size: 1rem;
   font-weight: 600;
   color: var(--p-text-muted-color);
+}
+
+.field {
+  margin-bottom: 1.25rem;
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.heading-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .image-count {
@@ -449,6 +531,12 @@ onMounted(loadGallery)
   margin-bottom: 0.25rem;
 }
 
+.field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--p-text-muted-color);
+}
+
 .w-full {
   width: 100%;
 }
@@ -461,6 +549,10 @@ onMounted(loadGallery)
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
+  }
+  .heading-row {
+    flex-direction: row;
+    align-items: center;
   }
 }
 </style>

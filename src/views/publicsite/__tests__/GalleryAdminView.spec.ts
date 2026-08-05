@@ -30,11 +30,20 @@ const baseImages = [
   },
 ]
 
+const baseSettings = {
+  about_video_heading: 'Erfahre mehr über den MKV',
+  about_video_youtube_id: 'Sh51ebB2G8A',
+  programm_calendar_id: 'abc@group.calendar.google.com',
+  gallery_heading: 'Eindrücke',
+}
+
 const mockListImages = vi.fn()
 const mockUploadImage = vi.fn()
 const mockUpdateImage = vi.fn()
 const mockMoveImage = vi.fn()
 const mockDeleteImage = vi.fn()
+const mockGetSettings = vi.fn()
+const mockUpdateSettings = vi.fn()
 
 function setInputFiles(input: HTMLInputElement, files: File[]) {
   Object.defineProperty(input, 'files', { value: files, configurable: true })
@@ -50,6 +59,13 @@ vi.mock('@/services/publicGalleryService', () => ({
   },
 }))
 
+vi.mock('@/services/publicContentService', () => ({
+  siteSettingsService: {
+    getSettings: (...args: unknown[]) => mockGetSettings(...args),
+    updateSettings: (...args: unknown[]) => mockUpdateSettings(...args),
+  },
+}))
+
 describe('GalleryAdminView', () => {
   let wrapper: VueWrapper | undefined
 
@@ -60,6 +76,8 @@ describe('GalleryAdminView', () => {
     mockUpdateImage.mockReset().mockResolvedValue({ data: baseImages[0] })
     mockMoveImage.mockReset().mockResolvedValue({ data: { status: 'ok' } })
     mockDeleteImage.mockReset().mockResolvedValue({ data: { status: 'ok' } })
+    mockGetSettings.mockReset().mockResolvedValue({ data: { ...baseSettings } })
+    mockUpdateSettings.mockReset().mockResolvedValue({ data: { ...baseSettings } })
   })
 
   afterEach(() => {
@@ -83,10 +101,31 @@ describe('GalleryAdminView', () => {
     expect(w.text()).toContain('2 Bilder')
   })
 
+  it('renders the current section heading', async () => {
+    const w = await mountView()
+    expect((w.find('#gallery-heading').element as HTMLInputElement).value).toBe('Eindrücke')
+  })
+
+  it('saves an edited heading, preserving video/programm settings', async () => {
+    const w = await mountView()
+    await w.find('#gallery-heading').setValue('Bildergalerie')
+
+    const saveButtons = w.findAll('button').filter((b) => b.text() === 'Speichern')
+    await saveButtons[0]?.trigger('click')
+    await flushPromises()
+
+    expect(mockUpdateSettings).toHaveBeenCalledWith({
+      about_video_heading: 'Erfahre mehr über den MKV',
+      youtube_url: 'https://www.youtube.com/watch?v=Sh51ebB2G8A',
+      calendar_id: 'abc@group.calendar.google.com',
+      gallery_heading: 'Bildergalerie',
+    })
+  })
+
   it('shows caption or fallback text', async () => {
     const w = await mountView()
     expect(w.text()).toContain('Ostermesse')
-    expect(w.text()).toContain('Keine Bildunterschrift')
+    expect(w.text()).toContain('Kein Alt-Text hinterlegt')
   })
 
   it('shows publish state as a tag', async () => {
@@ -232,7 +271,7 @@ describe('GalleryAdminView', () => {
       captionInput.dispatchEvent(new Event('input'))
     }
 
-    const saveButton = Array.from(document.querySelectorAll('button')).find(
+    const saveButton = Array.from(document.querySelectorAll('.p-dialog button')).find(
       (b) => b.textContent === 'Speichern',
     )
     saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -251,7 +290,7 @@ describe('GalleryAdminView', () => {
     await editButtons[0]?.trigger('click')
     await flushPromises()
 
-    const saveButton = Array.from(document.querySelectorAll('button')).find(
+    const saveButton = Array.from(document.querySelectorAll('.p-dialog button')).find(
       (b) => b.textContent === 'Speichern',
     )
     saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))

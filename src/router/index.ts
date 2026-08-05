@@ -386,9 +386,39 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
+          path: 'public-site/texts',
+          name: 'public-site-texts',
+          component: () => import('../views/publicsite/TextsAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
+          path: 'public-site/video',
+          name: 'public-site-video',
+          component: () => import('../views/publicsite/VideoAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
           path: 'public-site/gallery',
           name: 'public-site-gallery',
           component: () => import('../views/publicsite/GalleryAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
+          path: 'public-site/programm',
+          name: 'public-site-programm',
+          component: () => import('../views/publicsite/ProgrammAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
+          path: 'public-site/quotes',
+          name: 'public-site-quotes',
+          component: () => import('../views/publicsite/QuotesAdminView.vue'),
+          meta: { requiredPermissions: ['publicContentEditor'] },
+        },
+        {
+          path: 'public-site/social-links',
+          name: 'public-site-social-links',
+          component: () => import('../views/publicsite/SocialLinksAdminView.vue'),
           meta: { requiredPermissions: ['publicContentEditor'] },
         },
         {
