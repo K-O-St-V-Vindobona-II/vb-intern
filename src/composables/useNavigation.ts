@@ -127,9 +127,34 @@ export function useNavigation() {
       visible: hasPermission('publicContentEditor'),
       items: [
         {
+          label: 'Texte',
+          icon: 'pi pi-align-left',
+          command: () => router.push({ name: 'public-site-texts' }),
+        },
+        {
+          label: 'Video',
+          icon: 'pi pi-video',
+          command: () => router.push({ name: 'public-site-video' }),
+        },
+        {
           label: 'Galerie',
           icon: 'pi pi-images',
           command: () => router.push({ name: 'public-site-gallery' }),
+        },
+        {
+          label: 'Programm',
+          icon: 'pi pi-calendar',
+          command: () => router.push({ name: 'public-site-programm' }),
+        },
+        {
+          label: 'Zitate',
+          icon: 'pi pi-comment',
+          command: () => router.push({ name: 'public-site-quotes' }),
+        },
+        {
+          label: 'Social Media Verweise',
+          icon: 'pi pi-share-alt',
+          command: () => router.push({ name: 'public-site-social-links' }),
         },
       ],
     },
