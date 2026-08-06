@@ -144,6 +144,27 @@ const router = createRouter({
           },
         },
         {
+          path: 'standesdb/my-stammdaten',
+          name: 'standesdb-my-stammdaten',
+          component: () => import('../views/standesdb/MyStammdatenView.vue'),
+        },
+        {
+          path: 'standesdb/change-requests',
+          name: 'standesdb-change-requests',
+          component: () => import('../views/standesdb/ChangeRequestsListView.vue'),
+          meta: {
+            requiredPermissions: ['standesdbVbwAdmin', 'standesdbVbnAdmin'],
+          },
+        },
+        {
+          path: 'standesdb/change-requests/:id(\\d+)',
+          name: 'standesdb-change-request-review',
+          component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
+          meta: {
+            requiredPermissions: ['standesdbVbwAdmin', 'standesdbVbnAdmin'],
+          },
+        },
+        {
           path: 'standesdb/contacts/:id(\\d+)',
           name: 'standesdb-contact-show',
           component: () => import('../views/standesdb/ContactShowView.vue'),

@@ -1,5 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import standesdbService from '@/services/standesdbService'
+import type { MemberSelfServiceFormData } from '@/types/standesdb'
+
+function buildSelfServicePayload(
+  overrides: Partial<MemberSelfServiceFormData> = {},
+): MemberSelfServiceFormData {
+  return {
+    vortitel: null,
+    vorname: null,
+    nachname: 'Neu',
+    nachname_geburt: null,
+    nachtitel: null,
+    couleurname: null,
+    email: null,
+    url: null,
+    mkv_ogv_url: null,
+    rufnummer_mobil: null,
+    rufnummer_privat: null,
+    rufnummer_beruf: null,
+    zustellungen: 'deaktiviert',
+    adresse_privat_anschrift: null,
+    adresse_privat_plz: null,
+    adresse_privat_ort: null,
+    adresse_privat_land: null,
+    adresse_beruf_anschrift: null,
+    adresse_beruf_plz: null,
+    adresse_beruf_ort: null,
+    adresse_beruf_land: null,
+    arbeitgeber: null,
+    taetigkeit: null,
+    mitgliedschaften: null,
+    verbandchargen: null,
+    ...overrides,
+  }
+}
 
 const mockGet = vi.fn()
 const mockPost = vi.fn()
@@ -97,6 +131,39 @@ describe('standesdbService', () => {
   it('getContact fetches a single contact', () => {
     standesdbService.getContact(2)
     expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2')
+  })
+
+  it('getMySelfServiceData fetches the own live Stammdaten', () => {
+    standesdbService.getMySelfServiceData()
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/me/stammdaten')
+  })
+
+  it('getMyChangeRequest fetches the own pending change request', () => {
+    standesdbService.getMyChangeRequest()
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/me/change-request')
+  })
+
+  it('submitMyChangeRequest posts the self-service form payload', () => {
+    const data = buildSelfServicePayload()
+    standesdbService.submitMyChangeRequest(data)
+    expect(mockPost).toHaveBeenCalledWith('/standesdb/members/me/change-request', data)
+  })
+
+  it('listChangeRequests fetches the org-scoped pending list', () => {
+    standesdbService.listChangeRequests()
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/member-change-requests')
+  })
+
+  it('getChangeRequest fetches a single change request with its diff', () => {
+    standesdbService.getChangeRequest(7)
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/member-change-requests/7')
+  })
+
+  it('decideChangeRequest posts the field decisions', () => {
+    standesdbService.decideChangeRequest(7, { nachname: 'approved' })
+    expect(mockPost).toHaveBeenCalledWith('/standesdb/member-change-requests/7/decide', {
+      field_decisions: { nachname: 'approved' },
+    })
   })
 
   it('createContact posts the new contact payload', () => {

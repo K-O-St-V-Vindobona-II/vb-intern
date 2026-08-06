@@ -7,6 +7,11 @@ import type {
   KeysListResponse,
   MemberDetail,
   MemberDismissed,
+  MemberSelfServiceDetail,
+  MemberSelfServiceFormData,
+  MyChangeRequest,
+  MemberChangeRequestSummary,
+  MemberChangeRequestDetail,
   ContactDetail,
   SearchResult,
   StandesdbImage,
@@ -67,6 +72,34 @@ export default {
       data: { id: number; cn: string }[]
     }>(`/standesdb/members/${memberId}/searchparent`, {
       params: { q },
+    })
+  },
+
+  getMySelfServiceData() {
+    return api.get<MemberSelfServiceDetail>('/standesdb/members/me/stammdaten')
+  },
+
+  getMyChangeRequest() {
+    return api.get<MyChangeRequest>('/standesdb/members/me/change-request')
+  },
+
+  submitMyChangeRequest(data: MemberSelfServiceFormData) {
+    return api.post<{ status: string }>('/standesdb/members/me/change-request', data)
+  },
+
+  listChangeRequests() {
+    return api.get<{ items: MemberChangeRequestSummary[]; total: number }>(
+      '/standesdb/member-change-requests',
+    )
+  },
+
+  getChangeRequest(id: number) {
+    return api.get<MemberChangeRequestDetail>(`/standesdb/member-change-requests/${id}`)
+  },
+
+  decideChangeRequest(id: number, fieldDecisions: Record<string, 'approved' | 'rejected'>) {
+    return api.post<{ status: string }>(`/standesdb/member-change-requests/${id}/decide`, {
+      field_decisions: fieldDecisions,
     })
   },
 

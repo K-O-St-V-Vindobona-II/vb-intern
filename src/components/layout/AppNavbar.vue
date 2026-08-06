@@ -63,6 +63,11 @@ const goToMyFeeAccount = () => {
   router.push({ name: 'p4x-my-fee-account' })
 }
 
+const goToMyStammdaten = () => {
+  profileDrawerVisible.value = false
+  router.push({ name: 'standesdb-my-stammdaten' })
+}
+
 const toggleUserMenu = () => {
   profileDrawerVisible.value = true
 }
@@ -110,9 +115,14 @@ const toggleUserMenu = () => {
           </div>
         </div>
         <div class="user-card-actions">
+          <span class="action-group-label">Meine Daten (Self-Service)</span>
           <button class="user-card-action" @click="goToProfile">
             <i class="pi pi-user-edit" />
             Mein Benutzerkonto
+          </button>
+          <button class="user-card-action" @click="goToMyStammdaten">
+            <i class="pi pi-id-card" />
+            Meine Stammdaten
           </button>
           <button
             v-if="authStore.user?.is_fee_member"
@@ -122,6 +132,8 @@ const toggleUserMenu = () => {
             <i class="pi pi-wallet" />
             Mein Beitragskonto
           </button>
+
+          <span class="action-group-label">System</span>
           <button class="user-card-action" @click="goToPermissions">
             <i class="pi pi-shield" />
             Berechtigungen
@@ -345,6 +357,21 @@ const toggleUserMenu = () => {
 .user-card-actions {
   border-top: 1px solid var(--p-surface-200);
   padding: 0.5rem 0;
+}
+
+.action-group-label {
+  display: block;
+  padding: 0.6rem 1rem 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--p-text-muted-color);
+}
+
+.action-group-label:not(:first-child) {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--p-surface-200);
 }
 
 .user-card-action {

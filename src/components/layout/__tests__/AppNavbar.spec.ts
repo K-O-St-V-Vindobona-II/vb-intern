@@ -184,6 +184,25 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
+  it('navigates to "Meine Stammdaten", unconditionally visible for every authenticated user', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const stammdatenBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Meine Stammdaten'),
+    )!
+    expect(stammdatenBtn).toBeDefined()
+    stammdatenBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-stammdaten' })
+    wrapper.unmount()
+  })
+
   it('navigates to the permission-setup page and closes the drawer', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
     const wrapper = mount(AppNavbar, {
