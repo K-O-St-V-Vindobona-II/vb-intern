@@ -58,6 +58,11 @@ const goToPermissions = () => {
   router.push({ name: 'permission-setup' })
 }
 
+const goToMyFeeAccount = () => {
+  profileDrawerVisible.value = false
+  router.push({ name: 'p4x-my-fee-account' })
+}
+
 const toggleUserMenu = () => {
   profileDrawerVisible.value = true
 }
@@ -108,6 +113,14 @@ const toggleUserMenu = () => {
           <button class="user-card-action" @click="goToProfile">
             <i class="pi pi-user-edit" />
             Mein Benutzerkonto
+          </button>
+          <button
+            v-if="authStore.user?.is_fee_member"
+            class="user-card-action"
+            @click="goToMyFeeAccount"
+          >
+            <i class="pi pi-wallet" />
+            Mein Beitragskonto
           </button>
           <button class="user-card-action" @click="goToPermissions">
             <i class="pi pi-shield" />

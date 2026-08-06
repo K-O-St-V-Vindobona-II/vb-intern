@@ -5,6 +5,7 @@ import type {
   DashboardData,
   Debtor,
   FeeMember,
+  FeeMemberSelf,
   ImportResult,
   P4xAccount,
   P4xFee,
@@ -187,6 +188,14 @@ export default {
 
   exportFeeMember(id: number) {
     return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
+  },
+
+  getOwnFeeMember() {
+    return api.get<FeeMemberSelf>('/p4x/fee-members/me')
+  },
+
+  exportOwnFeeMember() {
+    return api.get('/p4x/fee-members/me/export', { responseType: 'blob' })
   },
 
   updateFeeMember(id: number, data: object) {

@@ -55,6 +55,11 @@ const router = createRouter({
           component: () => import('../views/PermissionSetupView.vue'),
         },
         {
+          path: 'p4x/my-fee-account',
+          name: 'p4x-my-fee-account',
+          component: () => import('../views/p4x/MyFeeAccountView.vue'),
+        },
+        {
           path: 'unauthorized',
           name: 'unauthorized',
           component: () => import('../views/UnauthorizedView.vue'),

@@ -202,6 +202,40 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
+  it('hides "Mein Beitragskonto" when the user is not fee-obligated', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: false }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const found = Array.from(document.querySelectorAll('button')).some((b) =>
+      b.textContent?.includes('Mein Beitragskonto'),
+    )
+    expect(found).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows "Mein Beitragskonto" and navigates there when the user is fee-obligated', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: true }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const feeAccountBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Mein Beitragskonto'),
+    )!
+    expect(feeAccountBtn).toBeDefined()
+    feeAccountBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-my-fee-account' })
+    wrapper.unmount()
+  })
+
   it('falls back through vorname/nachname when cn is missing', async () => {
     mockAuthStore.user = { vorname: 'Maria', nachname: 'Muster', default_image: null }
     const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
