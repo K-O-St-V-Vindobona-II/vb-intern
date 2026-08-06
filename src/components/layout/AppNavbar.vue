@@ -120,11 +120,14 @@ const toggleUserMenu = () => {
             <i class="pi pi-id-card" />
             Meine Stammdaten
           </button>
-          <button
-            v-if="authStore.user?.is_fee_member"
-            class="user-card-action"
-            @click="goToMyFeeAccount"
-          >
+          <!--
+            Temporarily hidden: fee account balance does not yet distinguish
+            standing-order overpayments (which are effectively donations, not
+            a fee credit) from genuine advance payments of future dues (which
+            must reduce the balance). Re-enable once that accounting logic is
+            resolved (roadmap item: fee categorization).
+          -->
+          <button v-if="false" class="user-card-action" @click="goToMyFeeAccount">
             <i class="pi pi-wallet" />
             Mein Beitragskonto
           </button>
