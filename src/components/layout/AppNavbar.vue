@@ -109,10 +109,6 @@ const toggleUserMenu = () => {
             <i class="pi pi-clock" />
             Angemeldet seit {{ loginTime }}
           </div>
-          <div v-if="authStore.user" class="user-card-meta">
-            Automatische Abmeldung nach {{ authStore.user?.session_idle_timeout ?? 30 }} Min.
-            Inaktivität
-          </div>
         </div>
         <div class="user-card-actions">
           <span class="action-group-label">Meine Daten (Self-Service)</span>
@@ -320,27 +316,27 @@ const toggleUserMenu = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem 1rem 1.25rem;
-  gap: 0.75rem;
+  padding: 0.85rem 1rem 1rem;
+  gap: 0.6rem;
 }
 
 .avatar-img-lg {
-  max-width: 120px;
-  max-height: 100px;
+  max-width: 92px;
+  max-height: 78px;
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .avatar-placeholder-lg {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
   border-radius: 12px;
   background: var(--p-surface-100);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 1.6rem;
   color: var(--p-text-muted-color);
 }
 
@@ -356,12 +352,12 @@ const toggleUserMenu = () => {
 
 .user-card-actions {
   border-top: 1px solid var(--p-surface-200);
-  padding: 0.5rem 0;
+  padding: 0.35rem 0;
 }
 
 .action-group-label {
   display: block;
-  padding: 0.6rem 1rem 0.3rem;
+  padding: 0.4rem 1rem 0.2rem;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -370,7 +366,7 @@ const toggleUserMenu = () => {
 }
 
 .action-group-label:not(:first-child) {
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
   border-top: 1px solid var(--p-surface-200);
 }
 
@@ -379,7 +375,7 @@ const toggleUserMenu = () => {
   align-items: center;
   gap: 0.6rem;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 1rem;
   background: none;
   border: none;
   cursor: pointer;

@@ -87,24 +87,6 @@ describe('AppNavbar.vue', () => {
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
   })
 
-  it('shows idle-timeout info instead of a misleading access-token countdown', async () => {
-    mockAuthStore.user = {
-      vorname: 'Maria',
-      nachname: 'Muster',
-      cn: 'Maria Muster',
-      default_image: null,
-      session_idle_timeout: 45,
-    }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
-    await wrapper.find('.avatar-btn').trigger('click')
-
-    expect(document.body.textContent).toContain('45 Min.')
-    expect(document.body.textContent).toContain('Inaktivität')
-    expect(document.body.textContent).not.toContain('Abmeldung in spätestens')
-
-    wrapper.unmount()
-  })
-
   it('loads and shows the avatar image when default_image is set', async () => {
     mockAuthStore.user = {
       id: 5,
@@ -270,15 +252,6 @@ describe('AppNavbar.vue', () => {
     await wrapper.find('.avatar-btn').trigger('click')
 
     expect(document.body.textContent).toContain('maria@vb.at')
-    wrapper.unmount()
-  })
-
-  it('shows the default idle timeout of 30 minutes when unset', async () => {
-    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
-    await wrapper.find('.avatar-btn').trigger('click')
-
-    expect(document.body.textContent).toContain('30 Min.')
     wrapper.unmount()
   })
 })
