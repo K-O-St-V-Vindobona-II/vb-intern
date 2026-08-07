@@ -154,9 +154,10 @@ export interface FeeMember {
 // response, so this type describes what the API actually sends.
 export type FeeMemberSelf = Omit<FeeMember, 'p4x_comment'>
 
-export interface Debtor {
+export interface FeeBalanceEntry {
   id: number
   cn: string
+  p4x_freed: boolean
   balance: number
 }
 

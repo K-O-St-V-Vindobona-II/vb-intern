@@ -3,7 +3,7 @@ import type {
   CategoryFilter,
   CategoryWithUsage,
   DashboardData,
-  Debtor,
+  FeeBalanceEntry,
   FeeMember,
   FeeMemberSelf,
   ImportResult,
@@ -202,8 +202,8 @@ export default {
     return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
   },
 
-  getDebtors() {
-    return api.get<Debtor[]>('/p4x/fee-debtors')
+  getFeeBalances() {
+    return api.get<FeeBalanceEntry[]>('/p4x/fee-balances')
   },
 
   getSumupBalance() {

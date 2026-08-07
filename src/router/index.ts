@@ -246,9 +246,9 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-debtors',
-          name: 'p4x-debtors',
-          component: () => import('../views/p4x/DebtorsView.vue'),
+          path: 'p4x/fee-balances',
+          name: 'p4x-fee-balances',
+          component: () => import('../views/p4x/FeeBalancesView.vue'),
           meta: {
             requiredPermissions: ['p4xView'],
           },

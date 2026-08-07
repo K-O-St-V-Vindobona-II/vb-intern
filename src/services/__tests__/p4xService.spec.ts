@@ -252,9 +252,9 @@ describe('p4xService', () => {
     expect(mockPost).toHaveBeenCalledWith('/p4x/admin/fee-members/8', data)
   })
 
-  it('getDebtors fetches the debtors list', () => {
-    p4xService.getDebtors()
-    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-debtors')
+  it('getFeeBalances fetches the fee balance list', () => {
+    p4xService.getFeeBalances()
+    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-balances')
   })
 
   it('getSumupBalance fetches the SumUp balance', () => {

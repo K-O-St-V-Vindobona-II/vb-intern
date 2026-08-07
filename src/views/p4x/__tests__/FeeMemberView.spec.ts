@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FeeMemberView from '../FeeMemberView.vue'
+import FeeMemberCriteriaInfoBox from '../components/FeeMemberCriteriaInfoBox.vue'
 import PrimeVue from 'primevue/config'
 import type { FeeMember } from '@/types/p4x'
 
@@ -79,6 +80,14 @@ describe('FeeMemberView', () => {
 
     expect(mockGetFeeMember).not.toHaveBeenCalled()
     expect(wrapper.find('.member-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the shared FeeMemberCriteriaInfoBox below the search field', async () => {
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.findComponent(FeeMemberCriteriaInfoBox).exists()).toBe(true)
     wrapper.unmount()
   })
 

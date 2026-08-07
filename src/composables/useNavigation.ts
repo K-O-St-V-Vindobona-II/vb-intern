@@ -86,8 +86,8 @@ export function useNavigation() {
               command: () => router.push({ name: 'p4x-fee-member' }),
             },
             {
-              label: 'Schuldnerliste',
-              command: () => router.push({ name: 'p4x-debtors' }),
+              label: 'Saldenliste',
+              command: () => router.push({ name: 'p4x-fee-balances' }),
             },
             {
               label: 'Beitragskonfiguration',

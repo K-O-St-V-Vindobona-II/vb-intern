@@ -5,6 +5,7 @@ import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import type { FeeMember } from '@/types/p4x'
 import Amount from './components/Amount.vue'
+import FeeMemberCriteriaInfoBox from './components/FeeMemberCriteriaInfoBox.vue'
 import Button from 'primevue/button'
 import SearchField from '@/components/SearchField.vue'
 import type { SearchResult } from '@/components/SearchField.vue'
@@ -110,6 +111,8 @@ onMounted(async () => {
         @select="onMemberSelect"
       />
     </div>
+
+    <FeeMemberCriteriaInfoBox />
 
     <div v-if="member && !loading" class="member-detail">
       <div class="member-name">
