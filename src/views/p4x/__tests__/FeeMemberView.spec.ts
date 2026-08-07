@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FeeMemberView from '../FeeMemberView.vue'
+import FeeCalculationInfoBox from '../components/FeeCalculationInfoBox.vue'
 import PrimeVue from 'primevue/config'
 import type { FeeMember } from '@/types/p4x'
 
@@ -42,6 +43,7 @@ function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
     p4x_init_date: '2020-01-01',
     p4x_init_balance: 10,
     p4x_freed: false,
+    p4x_fee_interval: 'monthly',
     p4x_comment: null,
     balance: {
       start_date: '2020-01-01',
@@ -54,6 +56,7 @@ function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
         { type: 'fee', booking: '2026-01-01', amount: 10, balance: 20 },
         { type: 'payment', booking: '2026-02-01', amount: -10, balance: 10 },
       ],
+      fee_ceiling_cutover_date: '2026-09-01',
     },
     ...overrides,
   }
@@ -314,6 +317,46 @@ describe('FeeMemberView', () => {
     await flushPromises()
 
     expect(wrapper.find('.member-comment').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('wires the FeeCalculationInfoBox with the admin context and the cutover date', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    const infoBox = wrapper.findComponent(FeeCalculationInfoBox)
+    expect(infoBox.exists()).toBe(true)
+    expect(infoBox.props('context')).toBe('admin')
+    expect(infoBox.props('cutoverDate')).toBe('2026-09-01')
+    wrapper.unmount()
+  })
+
+  it('shows an excess row as "Nicht angerechnet (Spende)" with muted styling', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({
+      data: buildMember({
+        balance: {
+          start_date: '2020-01-01',
+          start_balance: 10,
+          count: { fees: 1, payments: 1 },
+          sum: { fees: 10, payments: -12 },
+          end_date: '2026-06-01',
+          end_balance: 10,
+          progress: [{ type: 'excess', booking: '2026-09-05', amount: -2, balance: 10 }],
+          fee_ceiling_cutover_date: '2026-09-01',
+        },
+      }),
+    })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    await wrapper.find('.progress-toggle').trigger('click')
+
+    const row = wrapper.get('.progress-entry')
+    expect(row.text()).toContain('Nicht angerechnet (Spende)')
+    expect(row.classes()).toContain('progress-entry-excess')
     wrapper.unmount()
   })
 

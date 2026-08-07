@@ -4,10 +4,12 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
+import type { FeeInterval } from '@/types/p4x'
 import FormAmount from './components/FormAmount.vue'
 import InputText from 'primevue/inputtext'
 import DatePicker from 'primevue/datepicker'
 import Checkbox from 'primevue/checkbox'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
 
 const route = useRoute()
@@ -20,11 +22,20 @@ const loading = ref(true)
 const saving = ref(false)
 const memberName = ref('')
 
+const intervalOptions: { label: string; value: FeeInterval }[] = [
+  { label: 'Monatlich', value: 'monthly' },
+  { label: 'Quartalsweise', value: 'quarterly' },
+  { label: 'Halbjährlich', value: 'semiannual' },
+  { label: 'Jährlich', value: 'annual' },
+  { label: 'Unbegrenzt (kein Deckel)', value: 'unlimited' },
+]
+
 const form = ref({
   init_date: null as Date | null,
   init_balance: 0,
   freed: false,
   comment: '',
+  interval: 'monthly' as FeeInterval,
 })
 
 onMounted(async () => {
@@ -36,6 +47,7 @@ onMounted(async () => {
       init_balance: resp.data.p4x_init_balance ?? 0,
       freed: resp.data.p4x_freed ?? false,
       comment: resp.data.p4x_comment ?? '',
+      interval: resp.data.p4x_fee_interval,
     }
   } finally {
     loading.value = false
@@ -52,6 +64,7 @@ const save = async () => {
       p4x_init_balance: form.value.init_balance,
       p4x_freed: form.value.freed,
       p4x_comment: form.value.comment.trim() || null,
+      p4x_fee_interval: form.value.interval,
     }
     await p4xService.updateFeeMember(memberId, data)
     toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
@@ -82,6 +95,19 @@ const save = async () => {
       <div class="field field-checkbox">
         <Checkbox v-model="form.freed" :binary="true" input-id="freed" />
         <label for="freed">Vom Mitgliedsbeitrag befreit</label>
+      </div>
+      <div class="field">
+        <label>Zahlungsintervall</label>
+        <Select
+          v-model="form.interval"
+          :options="intervalOptions"
+          option-label="label"
+          option-value="value"
+        />
+        <p v-if="form.interval === 'unlimited'" class="field-hint">
+          Nur für bewusste Einzelfälle, z. B. eine bekannte Einmal-Vorauszahlung über mehrere Jahre
+          hinweg — keine automatische Obergrenze mehr für dieses Mitglied.
+        </p>
       </div>
       <div class="field">
         <label>Kommentar</label>
@@ -119,9 +145,15 @@ const save = async () => {
   font-weight: 600;
   margin-bottom: 0.3rem;
 }
+.field-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+}
 .field :deep(input),
 .field :deep(.p-datepicker),
-.field :deep(.p-inputnumber) {
+.field :deep(.p-inputnumber),
+.field :deep(.p-select) {
   width: 100%;
 }
 .field-checkbox {

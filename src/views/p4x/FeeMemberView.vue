@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import type { FeeMember } from '@/types/p4x'
+import { feeProgressEntryDisplay } from './components/feeProgressEntryDisplay'
+import FeeCalculationInfoBox from './components/FeeCalculationInfoBox.vue'
 import Amount from './components/Amount.vue'
 import Button from 'primevue/button'
 import SearchField from '@/components/SearchField.vue'
@@ -23,6 +25,12 @@ const hasFeeSetup = computed(
   () => !!member.value?.p4x_init_date && member.value?.p4x_init_balance !== null,
 )
 const showOverview = computed(() => hasFeeSetup.value && !isFreed.value)
+const progressRows = computed(() =>
+  (member.value?.balance?.progress ?? []).map((entry) => ({
+    entry,
+    ...feeProgressEntryDisplay(entry),
+  })),
+)
 
 const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
   const resp = await p4xService.searchFeeMembers(query)
@@ -116,6 +124,12 @@ onMounted(async () => {
         {{ member.cn }}
       </div>
 
+      <FeeCalculationInfoBox
+        v-if="member.balance"
+        context="admin"
+        :cutover-date="member.balance.fee_ceiling_cutover_date"
+      />
+
       <p v-if="isFreed" class="member-freed">Vom Mitgliedsbeitrag befreit</p>
 
       <p v-if="member.p4x_comment" class="member-comment">{{ member.p4x_comment }}</p>
@@ -190,11 +204,16 @@ onMounted(async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(entry, i) in member.balance.progress" :key="i" class="progress-entry">
-                <td>{{ formatDate(entry.booking) }}</td>
-                <td>{{ entry.type === 'fee' ? 'Fälligkeit' : 'Zahlung' }}</td>
-                <td class="align-right"><Amount :amount="entry.amount" /></td>
-                <td class="align-right"><Amount :amount="entry.balance" /></td>
+              <tr
+                v-for="(row, i) in progressRows"
+                :key="i"
+                class="progress-entry"
+                :class="row.cssClass"
+              >
+                <td>{{ formatDate(row.entry.booking) }}</td>
+                <td>{{ row.label }}</td>
+                <td class="align-right"><Amount :amount="row.entry.amount" /></td>
+                <td class="align-right"><Amount :amount="row.entry.balance" /></td>
               </tr>
             </tbody>
           </table>
@@ -305,6 +324,10 @@ onMounted(async () => {
   color: var(--p-text-muted-color);
   border-bottom: 1px solid var(--p-surface-300);
   padding-bottom: 0.3rem;
+}
+.progress-entry-excess {
+  font-style: italic;
+  color: var(--p-text-muted-color);
 }
 .no-setup-hint {
   max-width: 500px;

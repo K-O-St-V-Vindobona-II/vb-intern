@@ -122,8 +122,19 @@ export interface P4xFee {
   protected: boolean
 }
 
+// Mirrors app.models.enums.FeeInterval on the backend — how often a fee
+// member normally pays their dues. Governs the advance-payment ceiling for
+// payments booked on/after FeeBalance.fee_ceiling_cutover_date; 'unlimited'
+// disables that ceiling entirely and must only ever be set manually (never
+// suggested/auto-picked in the UI).
+export type FeeInterval = 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'unlimited'
+
 export interface FeeProgressEntry {
-  type: 'fee' | 'payment'
+  // 'excess' is the portion of a payment beyond the advance-payment
+  // ceiling — still counted as a full "Beitrag" in categorization/exports,
+  // but excluded from the running fee-account balance (see `balance`,
+  // which stays unchanged on an 'excess' row).
+  type: 'fee' | 'payment' | 'excess'
   booking: string
   amount: number
   balance: number
@@ -137,6 +148,7 @@ export interface FeeBalance {
   end_date: string
   end_balance: number
   progress: FeeProgressEntry[]
+  fee_ceiling_cutover_date: string
 }
 
 export interface FeeMember {
@@ -145,6 +157,7 @@ export interface FeeMember {
   p4x_init_date: string | null
   p4x_init_balance: number | null
   p4x_freed: boolean | null
+  p4x_fee_interval: FeeInterval
   p4x_comment: string | null
   balance: FeeBalance | null
 }

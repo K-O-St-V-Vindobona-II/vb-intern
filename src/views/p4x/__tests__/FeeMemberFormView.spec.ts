@@ -32,6 +32,7 @@ function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
     p4x_init_date: '2020-01-01',
     p4x_init_balance: 10,
     p4x_freed: false,
+    p4x_fee_interval: 'monthly',
     p4x_comment: null,
     balance: null,
     ...overrides,
@@ -89,10 +90,53 @@ describe('FeeMemberFormView', () => {
         p4x_init_balance: 10,
         p4x_freed: false,
         p4x_comment: null,
+        p4x_fee_interval: 'monthly',
       }),
     )
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: 1 } })
+    wrapper.unmount()
+  })
+
+  it('pre-fills the payment interval select from the fee member', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_fee_interval: 'quarterly' }) })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Quartalsweise')
+    wrapper.unmount()
+  })
+
+  it('shows the "unlimited" hint text only when that interval is selected', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_fee_interval: 'monthly' }) })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.field-hint').exists()).toBe(false)
+
+    const select = wrapper.findComponent({ name: 'Select' })
+    await select.vm.$emit('update:modelValue', 'unlimited')
+
+    expect(wrapper.find('.field-hint').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('sends the changed payment interval when saving', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_fee_interval: 'monthly' }) })
+    mockUpdateFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    const select = wrapper.findComponent({ name: 'Select' })
+    await select.vm.$emit('update:modelValue', 'annual')
+
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateFeeMember).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ p4x_fee_interval: 'annual' }),
+    )
     wrapper.unmount()
   })
 
