@@ -10,6 +10,11 @@ vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({ push: mockPush })),
 }))
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 const mockGetFeeBalances = vi.fn()
 vi.mock('@/services/p4xService', () => ({
   default: { getFeeBalances: (...args: unknown[]) => mockGetFeeBalances(...args) },
@@ -102,6 +107,20 @@ describe('FeeBalancesView', () => {
     await flushPromises()
 
     expect(wrapper.find('.empty').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows an error toast instead of a misleading empty state when loading fails', async () => {
+    mockGetFeeBalances.mockRejectedValue(new Error('network error'))
+    const wrapper = mount(FeeBalancesView, mountOpts)
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Saldenliste konnte nicht geladen werden.',
+      }),
+    )
     wrapper.unmount()
   })
 })

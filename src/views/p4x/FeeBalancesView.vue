@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import type { FeeBalanceEntry } from '@/types/p4x'
 import { balanceSeverityClass } from './components/balanceSeverityClass'
@@ -11,6 +12,7 @@ import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 
 const router = useRouter()
+const toast = useToast()
 
 const loading = ref(true)
 const balances = ref<FeeBalanceEntry[]>([])
@@ -23,6 +25,13 @@ onMounted(async () => {
   try {
     const resp = await p4xService.getFeeBalances()
     balances.value = resp.data
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Saldenliste konnte nicht geladen werden.',
+      life: 5000,
+    })
   } finally {
     loading.value = false
   }
