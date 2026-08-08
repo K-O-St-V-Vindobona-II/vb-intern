@@ -68,6 +68,11 @@ const goToMyStammdaten = () => {
   router.push({ name: 'standesdb-my-stammdaten' })
 }
 
+const goToMyImages = () => {
+  profileDrawerVisible.value = false
+  router.push({ name: 'standesdb-my-images' })
+}
+
 const toggleUserMenu = () => {
   profileDrawerVisible.value = true
 }
@@ -101,10 +106,20 @@ const toggleUserMenu = () => {
     >
       <div class="user-card">
         <div class="user-card-header">
-          <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-lg" alt="Profil" />
-          <div v-else class="avatar-placeholder-lg">
-            <i class="pi pi-user" />
-          </div>
+          <button
+            v-tooltip="'Meine Profilbilder verwalten'"
+            class="avatar-edit-btn"
+            aria-label="Meine Profilbilder verwalten"
+            @click="goToMyImages"
+          >
+            <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-lg" alt="Profil" />
+            <div v-else class="avatar-placeholder-lg">
+              <i class="pi pi-user" />
+            </div>
+            <span class="avatar-edit-badge">
+              <i class="pi pi-pencil" />
+            </span>
+          </button>
           <div class="user-card-meta">
             <i class="pi pi-clock" />
             Angemeldet seit {{ loginTime }}
@@ -320,24 +335,57 @@ const toggleUserMenu = () => {
   gap: 0.6rem;
 }
 
+.avatar-edit-btn {
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 12px;
+  display: inline-flex;
+  transition: opacity 0.15s;
+}
+
+.avatar-edit-btn:hover,
+.avatar-edit-btn:focus-visible {
+  opacity: 0.8;
+}
+
 .avatar-img-lg {
-  max-width: 92px;
-  max-height: 78px;
+  max-width: 140px;
+  max-height: 120px;
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .avatar-placeholder-lg {
-  width: 64px;
-  height: 64px;
+  width: 96px;
+  height: 96px;
   border-radius: 12px;
   background: var(--p-surface-100);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-size: 2.4rem;
   color: var(--p-text-muted-color);
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--p-primary-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--p-content-background, white);
 }
 
 .user-card-meta {

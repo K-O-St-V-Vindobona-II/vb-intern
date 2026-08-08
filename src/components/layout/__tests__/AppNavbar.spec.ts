@@ -254,4 +254,24 @@ describe('AppNavbar.vue', () => {
     expect(document.body.textContent).toContain('maria@vb.at')
     wrapper.unmount()
   })
+
+  it('navigates to the own image gallery when the drawer avatar is clicked', async () => {
+    mockAuthStore.user = { id: 7, cn: 'Maria Muster', default_image: null }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const avatarEditBtn = document.querySelector('.avatar-edit-btn') as HTMLButtonElement
+    expect(avatarEditBtn).toBeTruthy()
+    avatarEditBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    // Dedicated self-service route, no id param (unlike the admin-style
+    // standesdb-member-images/:id route) - see ImageGalleryView.vue's
+    // isOwnRoute handling.
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-images' })
+    wrapper.unmount()
+  })
 })

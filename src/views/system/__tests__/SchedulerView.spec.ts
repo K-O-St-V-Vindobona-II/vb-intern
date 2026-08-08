@@ -5,11 +5,13 @@ import PrimeVue from 'primevue/config'
 
 const mockGetScheduledJobs = vi.fn()
 const mockTriggerBackup = vi.fn()
+const mockTriggerDownsync = vi.fn()
 const mockGetJobRunHistory = vi.fn()
 vi.mock('@/services/systemService', () => ({
   default: {
     getScheduledJobs: (...args: unknown[]) => mockGetScheduledJobs(...args),
     triggerBackup: (...args: unknown[]) => mockTriggerBackup(...args),
+    triggerDownsync: (...args: unknown[]) => mockTriggerDownsync(...args),
     getJobRunHistory: (...args: unknown[]) => mockGetJobRunHistory(...args),
   },
 }))
@@ -19,9 +21,29 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockPush = vi.fn()
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn(() => ({ push: mockPush })),
+}))
+
+const mockLogout = vi.fn()
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: vi.fn(() => ({ logout: mockLogout })),
+}))
+
+// Defaults to "production" so every pre-existing test below (all written
+// against the backup button) keeps working unchanged - tests for the
+// non-production/downsync branch override this explicitly.
+const mockAppEnvironment = vi.fn(() => 'production')
+vi.mock('@/runtimeConfig', () => ({
+  appEnvironment: () => mockAppEnvironment(),
+}))
+
 describe('SchedulerView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAppEnvironment.mockReturnValue('production')
+    mockLogout.mockResolvedValue(undefined)
   })
 
   it('renders a card per scheduled job with its trigger and next run', async () => {
@@ -145,6 +167,105 @@ describe('SchedulerView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'pg_dump fehlgeschlagen' }),
     )
+  })
+
+  it('shows only the backup button on production, not downsync', async () => {
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Backup jetzt erstellen')
+    expect(wrapper.text()).not.toContain('Downsync jetzt durchführen')
+  })
+
+  it('shows only the downsync button on a non-production stage, not backup', async () => {
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Downsync jetzt durchführen')
+    expect(wrapper.text()).not.toContain('Backup jetzt erstellen')
+  })
+
+  it('triggers a downsync and shows a success toast', async () => {
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerDownsync.mockResolvedValue({ data: { status: 'started' } })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockTriggerDownsync).toHaveBeenCalledOnce()
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'success',
+        summary: 'Downsync gestartet - Fortschritt in der Job-Historie unten sichtbar.',
+      }),
+    )
+  })
+
+  it('logs the current session out and redirects to login after triggering a downsync', async () => {
+    // The session is already doomed the moment the restore actually runs
+    // (it wipes the sessions table too) - logging out immediately keeps
+    // the UI honest instead of looking "logged in" a few seconds longer.
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerDownsync.mockResolvedValue({ data: { status: 'started' } })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockLogout).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ name: 'login' })
+  })
+
+  it('shows a sticky red warning that the current session will be logged out', async () => {
+    // The restore step wipes and replaces this stage's entire database,
+    // including the sessions table - shown right after triggering, before
+    // the background task even starts, no race with the actual logout.
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerDownsync.mockResolvedValue({ data: { status: 'started' } })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        summary: 'Achtung: automatische Abmeldung folgt',
+      }),
+    )
+    const warningCall = mockToastAdd.mock.calls.find(
+      (call) => call[0].summary === 'Achtung: automatische Abmeldung folgt',
+    )
+    expect(warningCall?.[0].life).toBeUndefined()
+  })
+
+  it('shows an error toast when triggering a downsync fails', async () => {
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    mockTriggerDownsync.mockRejectedValue({
+      response: { data: { detail: 'Downsync fehlgeschlagen' } },
+    })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Downsync fehlgeschlagen' }),
+    )
+    // No reason to log out if the trigger itself never succeeded.
+    expect(mockLogout).not.toHaveBeenCalled()
   })
 
   describe('history dialog', () => {

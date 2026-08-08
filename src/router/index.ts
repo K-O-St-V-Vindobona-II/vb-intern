@@ -186,6 +186,11 @@ const router = createRouter({
           },
         },
         {
+          path: 'standesdb/members/me/images',
+          name: 'standesdb-my-images',
+          component: () => import('../views/standesdb/ImageGalleryView.vue'),
+        },
+        {
           path: 'standesdb/members/:id(\\d+)/images',
           name: 'standesdb-member-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),

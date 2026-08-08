@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { useAuthStore } from '@/stores/auth'
 import systemService from '@/services/systemService'
 import type { ScheduledJobResponse, ScheduledJobRunListItem } from '@/services/systemService'
 import { formatApiError, formatDateTime } from '@/utils/formatters'
+import { appEnvironment } from '@/runtimeConfig'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
+const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 const loading = ref(true)
 const jobs = ref<ScheduledJobResponse[]>([])
 const backupLoading = ref(false)
+const downsyncLoading = ref(false)
+
+// Production is this app's leading data source - every other stage is
+// meant to be refreshable from it on demand (Downsync), not backed up
+// independently (a non-production backup has little value once Downsync
+// exists). Backend still allows POST /backups/trigger everywhere (see its
+// docstring) - this is a UI-only simplification, one relevant action per
+// stage instead of two.
+const isProduction = computed(() => appEnvironment() === 'production')
 
 onMounted(async () => {
   try {
@@ -47,6 +61,50 @@ const triggerBackup = async () => {
     })
   } finally {
     backupLoading.value = false
+  }
+}
+
+const triggerDownsync = async () => {
+  downsyncLoading.value = true
+  try {
+    await systemService.triggerDownsync()
+    toast.add({
+      severity: 'success',
+      summary: 'Downsync gestartet - Fortschritt in der Job-Historie unten sichtbar.',
+      life: 5000,
+    })
+    // The restore step replaces this stage's entire database, including
+    // the sessions table - every currently logged-in user (this one
+    // included) gets logged out the moment that happens. Shown right
+    // away, before the background task even starts mirroring S3, so
+    // there's no race with the actual logout - sticky (no life) since
+    // missing it means being logged out with no warning at all.
+    toast.add({
+      severity: 'error',
+      summary: 'Achtung: automatische Abmeldung folgt',
+      detail:
+        'Der Downsync ersetzt in Kürze die komplette Datenbank dieser Stage, inklusive ' +
+        'aller aktiven Sitzungen. Alle angemeldeten Personen auf dieser Stage (auch Du) ' +
+        'werden dabei automatisch abgemeldet - bitte danach neu einloggen.',
+    })
+    // Log out right away instead of waiting for some future request to
+    // fail with 401 once the restore actually runs - the session is
+    // already doomed the moment it does, so there's no reason for the UI
+    // to keep looking "logged in" in the meantime. Toast is rendered
+    // outside <RouterView> (see App.vue), so both toasts above stay
+    // visible across this navigation. authStore.logout() never throws
+    // (it swallows its own backend-call failure internally) - safe here
+    // even if the backend session is already half-gone.
+    await authStore.logout()
+    router.push({ name: 'login' })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: formatApiError(e, 'Downsync konnte nicht gestartet werden.'),
+      life: 5000,
+    })
+  } finally {
+    downsyncLoading.value = false
   }
 }
 
@@ -99,13 +157,37 @@ const onHistoryPage = (event: { page: number }) => {
     <p class="subtitle">Scheduler</p>
     <p class="hint">Registrierte Hintergrund-Jobs und ihre nächste geplante Ausführung.</p>
 
-    <div class="backup-action">
+    <div v-if="isProduction" class="backup-action">
       <Button
         label="Backup jetzt erstellen"
         icon="pi pi-database"
         :loading="backupLoading"
         @click="triggerBackup"
       />
+      <p class="action-hint action-hint-stage">
+        Dieser Button steht nur in der Production-Stage zur Verfügung.
+      </p>
+      <p class="action-hint">
+        Erstellt sofort ein zusätzliches Backup der Produktivdaten in S3 - unabhängig vom täglichen
+        automatischen Backup.
+      </p>
+    </div>
+
+    <div v-else class="backup-action">
+      <Button
+        label="Downsync jetzt durchführen"
+        icon="pi pi-cloud-download"
+        :loading="downsyncLoading"
+        @click="triggerDownsync"
+      />
+      <p class="action-hint action-hint-stage">
+        Dieser Button steht nur in nicht-produktiven Stages zur Verfügung.
+      </p>
+      <p class="action-hint">
+        Lädt die aktuellen Produktivdaten (Dateien + Datenbank) auf diese Stage herunter und ersetzt
+        hier alles damit. Production ist die führende Datenquelle - läuft im Hintergrund,
+        Fortschritt und Ergebnis erscheinen unten in der Job-Historie.
+      </p>
     </div>
 
     <div v-if="!loading" class="job-grid">
@@ -219,7 +301,22 @@ const onHistoryPage = (event: { page: number }) => {
 
 .backup-action {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
   margin-bottom: 1.5rem;
+}
+
+.action-hint {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.action-hint-stage {
+  font-weight: 700;
+  color: var(--p-red-500);
 }
 
 .job-grid {
