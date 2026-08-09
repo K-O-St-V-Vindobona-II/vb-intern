@@ -413,8 +413,7 @@ const capitalize = (s: string | null | undefined) =>
 
           <div v-if="member.email_verified_at" class="show-field show-field--small">
             <span class="muted-text">
-              Email verifiziert:
-              {{ formatFullDate(member.email_verified_at?.split('T')[0] ?? null) }}
+              Email verifiziert: {{ formatDateTime(member.email_verified_at) }}
             </span>
           </div>
 

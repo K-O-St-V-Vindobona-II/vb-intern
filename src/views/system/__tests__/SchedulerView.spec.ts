@@ -21,6 +21,11 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({ push: mockPush })),
@@ -188,7 +193,38 @@ describe('SchedulerView', () => {
     expect(wrapper.text()).not.toContain('Backup jetzt erstellen')
   })
 
-  it('triggers a downsync and shows a success toast', async () => {
+  it('asks for confirmation instead of triggering the downsync directly, with the logout warning in the message', async () => {
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockTriggerDownsync).not.toHaveBeenCalled()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain(
+      'werden dabei automatisch abgemeldet',
+    )
+  })
+
+  it('does not trigger a downsync when the confirmation is dismissed', async () => {
+    mockAppEnvironment.mockReturnValue('development')
+    mockGetScheduledJobs.mockResolvedValue({ data: [] })
+    const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+    await flushPromises()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    // Never calling accept() is what "Abbrechen" looks like from the
+    // component's perspective - PrimeVue itself owns the reject button.
+    expect(mockTriggerDownsync).not.toHaveBeenCalled()
+    expect(mockLogout).not.toHaveBeenCalled()
+  })
+
+  it('triggers a downsync and shows a success toast once confirmed', async () => {
     mockAppEnvironment.mockReturnValue('development')
     mockGetScheduledJobs.mockResolvedValue({ data: [] })
     mockTriggerDownsync.mockResolvedValue({ data: { status: 'started' } })
@@ -196,6 +232,7 @@ describe('SchedulerView', () => {
     await flushPromises()
 
     await wrapper.get('button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockTriggerDownsync).toHaveBeenCalledOnce()
@@ -207,7 +244,7 @@ describe('SchedulerView', () => {
     )
   })
 
-  it('logs the current session out and redirects to login after triggering a downsync', async () => {
+  it('logs the current session out and redirects to login after a confirmed downsync', async () => {
     // The session is already doomed the moment the restore actually runs
     // (it wipes the sessions table too) - logging out immediately keeps
     // the UI honest instead of looking "logged in" a few seconds longer.
@@ -218,6 +255,7 @@ describe('SchedulerView', () => {
     await flushPromises()
 
     await wrapper.get('button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockLogout).toHaveBeenCalledOnce()
@@ -235,6 +273,7 @@ describe('SchedulerView', () => {
     await flushPromises()
 
     await wrapper.get('button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -249,7 +288,7 @@ describe('SchedulerView', () => {
     expect(warningCall?.[0].life).toBeUndefined()
   })
 
-  it('shows an error toast when triggering a downsync fails', async () => {
+  it('shows an error toast when triggering a confirmed downsync fails', async () => {
     mockAppEnvironment.mockReturnValue('development')
     mockGetScheduledJobs.mockResolvedValue({ data: [] })
     mockTriggerDownsync.mockRejectedValue({
@@ -259,6 +298,7 @@ describe('SchedulerView', () => {
     await flushPromises()
 
     await wrapper.get('button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
