@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import { useAuthStore } from '@/stores/auth'
 import systemService from '@/services/systemService'
 import type { ScheduledJobResponse, ScheduledJobRunListItem } from '@/services/systemService'
@@ -15,6 +16,7 @@ import Column from 'primevue/column'
 
 const router = useRouter()
 const toast = useToast()
+const confirm = useConfirm()
 const authStore = useAuthStore()
 const loading = ref(true)
 const jobs = ref<ScheduledJobResponse[]>([])
@@ -108,6 +110,31 @@ const triggerDownsync = async () => {
   }
 }
 
+// Guards the actual trigger behind an explicit confirmation - unlike the
+// backup button, this replaces this stage's entire database and files and
+// force-logs-out everyone on it, so a stray click must not be enough to
+// set it off (same confirm.require() pattern already used for other
+// irreversible actions, e.g. DirList.vue's delete/restore).
+const confirmDownsync = () => {
+  confirm.require({
+    message:
+      'Downsync ersetzt die komplette Datenbank und alle Dateien dieser Stage mit dem ' +
+      'aktuellen Produktivstand. Alle angemeldeten Personen auf dieser Stage (auch Du) ' +
+      'werden dabei automatisch abgemeldet. Fortfahren?',
+    header: 'Downsync bestätigen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Abbrechen',
+      severity: 'secondary',
+    },
+    acceptProps: {
+      label: 'Downsync starten',
+      severity: 'danger',
+    },
+    accept: triggerDownsync,
+  })
+}
+
 const exitCodeSeverity = (exitCode: number) => (exitCode === 0 ? 'success' : 'danger')
 
 const historyVisible = ref(false)
@@ -178,7 +205,7 @@ const onHistoryPage = (event: { page: number }) => {
         label="Downsync jetzt durchführen"
         icon="pi pi-cloud-download"
         :loading="downsyncLoading"
-        @click="triggerDownsync"
+        @click="confirmDownsync"
       />
       <p class="action-hint action-hint-stage">
         Dieser Button steht nur in nicht-produktiven Stages zur Verfügung.
