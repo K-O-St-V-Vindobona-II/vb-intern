@@ -15,7 +15,17 @@ html {
   scrollbar-gutter: stable;
 }
 
-html.p-overflow-hidden {
+/* PrimeVue's modal scroll-lock (blockBodyScroll()) adds this class to
+   <body> - never to <html> (verified against @primeuix/utils source).
+   Its own base stylesheet reacts with "overflow: hidden; padding-right:
+   var(--p-scrollbar-width)" to compensate for the scrollbar it expects to
+   disappear. Since scrollbar-gutter: stable above already reserves that
+   width permanently on <html>, no scrollbar ever actually disappears -
+   PrimeVue's padding-right would double up on top of the existing gutter
+   and shift all content sideways for as long as a modal is open. Zeroing
+   it out here, on the element PrimeVue actually targets, removes that
+   double compensation. */
+body.p-overflow-hidden {
   overflow: auto !important;
   padding-right: 0 !important;
   margin-right: 0 !important;

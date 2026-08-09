@@ -19,4 +19,12 @@ describe('Amount', () => {
     const wrapper = mount(Amount, { props: { amount: 0 } })
     expect(wrapper.classes()).toContain('amount-positive')
   })
+
+  it('overrides the default class with colorClass when provided', () => {
+    const wrapper = mount(Amount, {
+      props: { amount: -1500, colorClass: 'amount-negative-high' },
+    })
+    expect(wrapper.classes()).toContain('amount-negative-high')
+    expect(wrapper.classes()).not.toContain('amount-negative')
+  })
 })

@@ -236,15 +236,25 @@ describe('p4xService', () => {
     expect(mockGet).toHaveBeenCalledWith('/p4x/fee-members/8/export', { responseType: 'blob' })
   })
 
+  it('getOwnFeeMember fetches the self-service fee account', () => {
+    p4xService.getOwnFeeMember()
+    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-members/me')
+  })
+
+  it('exportOwnFeeMember requests a blob from the self-service export endpoint', () => {
+    p4xService.exportOwnFeeMember()
+    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-members/me/export', { responseType: 'blob' })
+  })
+
   it('updateFeeMember posts the updated fee member', () => {
     const data = { fee_override: 5 }
     p4xService.updateFeeMember(8, data)
     expect(mockPost).toHaveBeenCalledWith('/p4x/admin/fee-members/8', data)
   })
 
-  it('getDebtors fetches the debtors list', () => {
-    p4xService.getDebtors()
-    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-debtors')
+  it('getFeeBalances fetches the fee balance list', () => {
+    p4xService.getFeeBalances()
+    expect(mockGet).toHaveBeenCalledWith('/p4x/fee-balances')
   })
 
   it('getSumupBalance fetches the SumUp balance', () => {

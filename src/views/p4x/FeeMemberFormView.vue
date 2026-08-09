@@ -37,6 +37,14 @@ onMounted(async () => {
       freed: resp.data.p4x_freed ?? false,
       comment: resp.data.p4x_comment ?? '',
     }
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Beitragskonto konnte nicht geladen werden.',
+      life: 5000,
+    })
+    router.push({ name: 'p4x-fee-balances' })
   } finally {
     loading.value = false
   }

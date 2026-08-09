@@ -33,6 +33,12 @@ export function useNavigation() {
           visible: hasPermission('keylist'),
           command: () => router.push({ name: 'standesdb-keys' }),
         },
+        {
+          label: 'Änderungs-Anträge',
+          icon: 'pi pi-file-edit',
+          visible: hasPermission('standesdbVbwAdmin') || hasPermission('standesdbVbnAdmin'),
+          command: () => router.push({ name: 'standesdb-change-requests' }),
+        },
       ],
     },
     {
@@ -80,8 +86,8 @@ export function useNavigation() {
               command: () => router.push({ name: 'p4x-fee-member' }),
             },
             {
-              label: 'Schuldnerliste',
-              command: () => router.push({ name: 'p4x-debtors' }),
+              label: 'Saldenliste',
+              command: () => router.push({ name: 'p4x-fee-balances' }),
             },
             {
               label: 'Beitragskonfiguration',

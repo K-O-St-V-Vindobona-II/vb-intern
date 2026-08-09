@@ -90,11 +90,36 @@ describe('useNavigation', () => {
       const wwwGroup = findItem(mainMenuItems.value, 'www-Administration')
       const standesdbGroup = findItem(mainMenuItems.value, 'Standesdatenbank')
       const exportItem = findChildItem(standesdbGroup, 'Export')
+      const changeRequestsItem = findChildItem(standesdbGroup, 'Änderungs-Anträge')
 
       expect(p4xGroup?.visible).toBe(false)
       expect(systemGroup?.visible).toBe(false)
       expect(wwwGroup?.visible).toBe(false)
       expect(exportItem?.visible).toBe(false)
+      expect(changeRequestsItem?.visible).toBe(false)
+    })
+
+    it('shows "Änderungs-Anträge" for EITHER org-admin permission (OR semantics)', () => {
+      const authStoreVbw = useAuthStore()
+      authStoreVbw.user = buildUser(['standesdbVbwAdmin'])
+      const vbwGroup = findItem(useNavigation().mainMenuItems.value, 'Standesdatenbank')
+      expect(findChildItem(vbwGroup, 'Änderungs-Anträge')?.visible).toBe(true)
+
+      const authStoreVbn = useAuthStore()
+      authStoreVbn.user = buildUser(['standesdbVbnAdmin'])
+      const vbnGroup = findItem(useNavigation().mainMenuItems.value, 'Standesdatenbank')
+      expect(findChildItem(vbnGroup, 'Änderungs-Anträge')?.visible).toBe(true)
+    })
+
+    it('"Änderungs-Anträge" navigates to the change-requests list', () => {
+      const authStore = useAuthStore()
+      authStore.user = buildUser(['standesdbVbwAdmin'])
+      const standesdbGroup = findItem(useNavigation().mainMenuItems.value, 'Standesdatenbank')
+      const changeRequestsItem = findChildItem(standesdbGroup, 'Änderungs-Anträge')
+
+      changeRequestsItem?.command?.()
+
+      expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-change-requests' })
     })
 
     it('shows permission-gated items when the user has the permission', () => {

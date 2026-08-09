@@ -55,6 +55,11 @@ const router = createRouter({
           component: () => import('../views/PermissionSetupView.vue'),
         },
         {
+          path: 'p4x/my-fee-account',
+          name: 'p4x-my-fee-account',
+          component: () => import('../views/p4x/MyFeeAccountView.vue'),
+        },
+        {
           path: 'unauthorized',
           name: 'unauthorized',
           component: () => import('../views/UnauthorizedView.vue'),
@@ -139,6 +144,27 @@ const router = createRouter({
           },
         },
         {
+          path: 'standesdb/my-stammdaten',
+          name: 'standesdb-my-stammdaten',
+          component: () => import('../views/standesdb/MyStammdatenView.vue'),
+        },
+        {
+          path: 'standesdb/change-requests',
+          name: 'standesdb-change-requests',
+          component: () => import('../views/standesdb/ChangeRequestsListView.vue'),
+          meta: {
+            requiredPermissions: ['standesdbVbwAdmin', 'standesdbVbnAdmin'],
+          },
+        },
+        {
+          path: 'standesdb/change-requests/:id(\\d+)',
+          name: 'standesdb-change-request-review',
+          component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
+          meta: {
+            requiredPermissions: ['standesdbVbwAdmin', 'standesdbVbnAdmin'],
+          },
+        },
+        {
           path: 'standesdb/contacts/:id(\\d+)',
           name: 'standesdb-contact-show',
           component: () => import('../views/standesdb/ContactShowView.vue'),
@@ -158,6 +184,11 @@ const router = createRouter({
           meta: {
             requiredPermissions: ['standesdbContactAdmin'],
           },
+        },
+        {
+          path: 'standesdb/members/me/images',
+          name: 'standesdb-my-images',
+          component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
           path: 'standesdb/members/:id(\\d+)/images',
@@ -220,9 +251,9 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-debtors',
-          name: 'p4x-debtors',
-          component: () => import('../views/p4x/DebtorsView.vue'),
+          path: 'p4x/fee-balances',
+          name: 'p4x-fee-balances',
+          component: () => import('../views/p4x/FeeBalancesView.vue'),
           meta: {
             requiredPermissions: ['p4xView'],
           },

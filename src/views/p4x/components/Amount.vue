@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ amount: number }>()
+const props = defineProps<{ amount: number; colorClass?: string }>()
 
 const formatter = new Intl.NumberFormat('de-AT', {
   style: 'currency',
@@ -9,10 +9,16 @@ const formatter = new Intl.NumberFormat('de-AT', {
 })
 
 const formatted = computed(() => formatter.format(props.amount))
+// colorClass lets callers opt into a finer-grained severity (e.g. the
+// four-step balance scale in FeeBalancesView.vue) without changing the
+// default binary green/red behaviour every other caller relies on.
+const cssClass = computed(
+  () => props.colorClass ?? (props.amount >= 0 ? 'amount-positive' : 'amount-negative'),
+)
 </script>
 
 <template>
-  <span :class="amount >= 0 ? 'amount-positive' : 'amount-negative'">
+  <span :class="cssClass">
     {{ formatted }}
   </span>
 </template>
@@ -23,5 +29,15 @@ const formatted = computed(() => formatter.format(props.amount))
 }
 .amount-negative {
   color: var(--p-red-600, #dc2626);
+}
+.amount-negative-low {
+  color: var(--p-yellow-700, #a16207);
+}
+.amount-negative-mid {
+  color: var(--p-red-600, #dc2626);
+}
+.amount-negative-high {
+  color: var(--p-red-700, #b91c1c);
+  font-weight: 700;
 }
 </style>

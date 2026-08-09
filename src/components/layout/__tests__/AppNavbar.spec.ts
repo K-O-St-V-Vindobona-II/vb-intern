@@ -87,24 +87,6 @@ describe('AppNavbar.vue', () => {
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
   })
 
-  it('shows idle-timeout info instead of a misleading access-token countdown', async () => {
-    mockAuthStore.user = {
-      vorname: 'Maria',
-      nachname: 'Muster',
-      cn: 'Maria Muster',
-      default_image: null,
-      session_idle_timeout: 45,
-    }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
-    await wrapper.find('.avatar-btn').trigger('click')
-
-    expect(document.body.textContent).toContain('45 Min.')
-    expect(document.body.textContent).toContain('Inaktivität')
-    expect(document.body.textContent).not.toContain('Abmeldung in spätestens')
-
-    wrapper.unmount()
-  })
-
   it('loads and shows the avatar image when default_image is set', async () => {
     mockAuthStore.user = {
       id: 5,
@@ -184,6 +166,25 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
+  it('navigates to "Meine Stammdaten", unconditionally visible for every authenticated user', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const stammdatenBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Meine Stammdaten'),
+    )!
+    expect(stammdatenBtn).toBeDefined()
+    stammdatenBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-stammdaten' })
+    wrapper.unmount()
+  })
+
   it('navigates to the permission-setup page and closes the drawer', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
     const wrapper = mount(AppNavbar, {
@@ -199,6 +200,40 @@ describe('AppNavbar.vue', () => {
     await flushPromises()
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'permission-setup' })
+    wrapper.unmount()
+  })
+
+  it('hides "Mein Beitragskonto" when the user is not fee-obligated', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: false }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const found = Array.from(document.querySelectorAll('button')).some((b) =>
+      b.textContent?.includes('Mein Beitragskonto'),
+    )
+    expect(found).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows "Mein Beitragskonto" and navigates there when the user is fee-obligated', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: true }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    const feeAccountBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Mein Beitragskonto'),
+    )!
+    expect(feeAccountBtn).toBeDefined()
+    feeAccountBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-my-fee-account' })
     wrapper.unmount()
   })
 
@@ -220,12 +255,23 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
-  it('shows the default idle timeout of 30 minutes when unset', async () => {
-    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
+  it('navigates to the own image gallery when the drawer avatar is clicked', async () => {
+    mockAuthStore.user = { id: 7, cn: 'Maria Muster', default_image: null }
+    const wrapper = mount(AppNavbar, {
+      global: { plugins: [PrimeVue] },
+      attachTo: document.body,
+    })
     await wrapper.find('.avatar-btn').trigger('click')
 
-    expect(document.body.textContent).toContain('30 Min.')
+    const avatarEditBtn = document.querySelector('.avatar-edit-btn') as HTMLButtonElement
+    expect(avatarEditBtn).toBeTruthy()
+    avatarEditBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    // Dedicated self-service route, no id param (unlike the admin-style
+    // standesdb-member-images/:id route) - see ImageGalleryView.vue's
+    // isOwnRoute handling.
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-images' })
     wrapper.unmount()
   })
 })

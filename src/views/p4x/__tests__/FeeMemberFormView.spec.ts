@@ -128,6 +128,21 @@ describe('FeeMemberFormView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast and navigates to the balances list when loading fails', async () => {
+    mockGetFeeMember.mockRejectedValue(new Error('network error'))
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Beitragskonto konnte nicht geladen werden.',
+      }),
+    )
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-balances' })
+    wrapper.unmount()
+  })
+
   it('navigates back to the member view without saving on cancel', async () => {
     mockGetFeeMember.mockResolvedValue({ data: buildMember() })
     const wrapper = mount(FeeMemberFormView, mountOpts)

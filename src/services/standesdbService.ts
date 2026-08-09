@@ -7,6 +7,11 @@ import type {
   KeysListResponse,
   MemberDetail,
   MemberDismissed,
+  MemberSelfServiceDetail,
+  MemberSelfServiceFormData,
+  MyChangeRequest,
+  MemberChangeRequestSummary,
+  MemberChangeRequestDetail,
   ContactDetail,
   SearchResult,
   StandesdbImage,
@@ -67,6 +72,34 @@ export default {
       data: { id: number; cn: string }[]
     }>(`/standesdb/members/${memberId}/searchparent`, {
       params: { q },
+    })
+  },
+
+  getMySelfServiceData() {
+    return api.get<MemberSelfServiceDetail>('/standesdb/members/me/stammdaten')
+  },
+
+  getMyChangeRequest() {
+    return api.get<MyChangeRequest>('/standesdb/members/me/change-request')
+  },
+
+  submitMyChangeRequest(data: MemberSelfServiceFormData) {
+    return api.post<{ status: string }>('/standesdb/members/me/change-request', data)
+  },
+
+  listChangeRequests() {
+    return api.get<{ items: MemberChangeRequestSummary[]; total: number }>(
+      '/standesdb/member-change-requests',
+    )
+  },
+
+  getChangeRequest(id: number) {
+    return api.get<MemberChangeRequestDetail>(`/standesdb/member-change-requests/${id}`)
+  },
+
+  decideChangeRequest(id: number, fieldDecisions: Record<string, 'approved' | 'rejected'>) {
+    return api.post<{ status: string }>(`/standesdb/member-change-requests/${id}/decide`, {
+      field_decisions: fieldDecisions,
     })
   },
 
@@ -153,6 +186,30 @@ export default {
   deleteImage(ownerType: string, ownerId: number, imageId: number) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.delete(`/standesdb/${plural}/${ownerId}/images/${imageId}`)
+  },
+
+  getOwnImages() {
+    return api.get<{
+      owner: ImageOwnerRef
+      images: StandesdbImage[]
+    }>('/standesdb/members/me/images')
+  },
+
+  uploadOwnImage(file: File, description: string | null) {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (description) formData.append('description', description)
+    return api.post('/standesdb/members/me/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  updateOwnImage(imageId: number, data: { description: string | null; default: boolean }) {
+    return api.put(`/standesdb/members/me/images/${imageId}`, data)
+  },
+
+  deleteOwnImage(imageId: number) {
+    return api.delete(`/standesdb/members/me/images/${imageId}`)
   },
 
   getImageUrl(ownerType: string, ownerId: number, imageId: number, thumb = false) {

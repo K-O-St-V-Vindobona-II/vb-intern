@@ -144,6 +144,83 @@ export type MemberFormData = Omit<
   'id' | 'cn' | 'org_label' | 'state_label' | 'default_image' | 'email_verified_at' | 'tree'
 >
 
+// Self-service subset of MemberFormData - "echte Stammdaten" only. An
+// explicit interface (not a derived Omit<MemberFormData, ...>) on purpose:
+// a derived type would silently gain any future admin-only field added to
+// MemberFormData. Excludes org_id/state_id/gruender/entlassen/verstorben/
+// grabadresse/parent_id/auth_locked/chroniclemail (own dedicated toggle in
+// ProfileView.vue)/anmerkungen (admin-internal risk)/geburtsdatum(_accuracy)
+// and the membership-milestone dates (official record, not something that
+// legitimately changes after the fact)/roles_history/badges/keys - all
+// admin-only.
+export interface MemberSelfServiceFormData {
+  vortitel: string | null
+  vorname: string | null
+  nachname: string | null
+  nachname_geburt: string | null
+  nachtitel: string | null
+  couleurname: string | null
+  email: string | null
+  url: string | null
+  mkv_ogv_url: string | null
+  rufnummer_mobil: string | null
+  rufnummer_privat: string | null
+  rufnummer_beruf: string | null
+  zustellungen: string
+  adresse_privat_anschrift: string | null
+  adresse_privat_plz: string | null
+  adresse_privat_ort: string | null
+  adresse_privat_land: string | null
+  adresse_beruf_anschrift: string | null
+  adresse_beruf_plz: string | null
+  adresse_beruf_ort: string | null
+  adresse_beruf_land: string | null
+  arbeitgeber: string | null
+  taetigkeit: string | null
+  mitgliedschaften: string | null
+  verbandchargen: string | null
+}
+
+export interface MemberSelfServiceDetail extends MemberSelfServiceFormData {
+  id: number
+  cn: string
+}
+
+export interface MyChangeRequest {
+  id: number
+  created_at: string | null
+  proposed_fields: Record<string, string | number | null>
+}
+
+export interface MemberChangeRequestSummary {
+  id: number
+  member_id: number
+  member_cn: string
+  member_org_id: string | null
+  field_count: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface MemberChangeRequestDiffEntry {
+  field: string
+  old: string | null
+  new: string | null
+}
+
+export interface MemberChangeRequestDetail {
+  id: number
+  member_id: number
+  member_cn: string
+  status: 'pending' | 'resolved'
+  created_at: string | null
+  updated_at: string | null
+  resolved_at: string | null
+  resolved_by_name: string | null
+  diff: MemberChangeRequestDiffEntry[]
+  field_decisions: Record<string, string> | null
+}
+
 export interface MemberDismissed {
   id: number
   cn: string

@@ -65,6 +65,10 @@ export interface BackupTriggerResponse {
   triggered_at: string
 }
 
+export interface DownsyncTriggerResponse {
+  status: string
+}
+
 export default {
   getEnvironment() {
     return api.get<EnvironmentResponse>('/system/environment')
@@ -86,6 +90,10 @@ export default {
 
   triggerBackup() {
     return api.post<BackupTriggerResponse>('/system/backups/trigger')
+  },
+
+  triggerDownsync() {
+    return api.post<DownsyncTriggerResponse>('/system/downsync/trigger')
   },
 
   getTables() {

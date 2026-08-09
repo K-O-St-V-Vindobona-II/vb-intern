@@ -17,8 +17,20 @@ const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
-const ownerType = computed(() => (String(route.name).includes('member') ? 'member' : 'contact'))
-const ownerId = computed(() => Number(route.params['id']))
+// The self-service entry point (AppNavbar.vue's "Meine Profilbilder
+// verwalten") uses its own route, not the admin-style /members/:id/images
+// one - the caller isn't navigating away from a member/contact detail
+// page, so there's nothing sensible for "Zurück" to go back to.
+const isOwnRoute = computed(() => String(route.name) === 'standesdb-my-images')
+
+const ownerType = computed(() => {
+  if (isOwnRoute.value) return 'member'
+  return String(route.name).includes('member') ? 'member' : 'contact'
+})
+const ownerId = computed(() => {
+  if (isOwnRoute.value) return authStore.user?.id ?? 0
+  return Number(route.params['id'])
+})
 const backRoute = computed(() =>
   ownerType.value === 'member'
     ? { name: 'standesdb-member-show', params: { id: ownerId.value } }
@@ -34,6 +46,7 @@ const imageUrls = ref<Record<number, string>>({})
 
 const uploadFile = ref<File | null>(null)
 const uploadDescription = ref('')
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const editDialogVisible = ref(false)
 const editImageId = ref(0)
@@ -52,11 +65,18 @@ const isAdmin = computed(() => {
   return perms.includes(orgPerm)
 })
 
+// Contacts have no self-service concept (they don't log in) - isSelf stays
+// hard-gated to member galleries.
+const isSelf = computed(() => ownerType.value === 'member' && authStore.user?.id === ownerId.value)
+
+const canManage = computed(() => isAdmin.value || isSelf.value)
+
 const loadGallery = async () => {
   loading.value = true
   try {
-    const resp =
-      ownerType.value === 'member'
+    const resp = isOwnRoute.value
+      ? await standesdbService.getOwnImages()
+      : ownerType.value === 'member'
         ? await standesdbService.getMemberImages(ownerId.value)
         : await standesdbService.getContactImages(ownerId.value)
     ownerCn.value = resp.data.owner.cn ?? ''
@@ -100,6 +120,7 @@ const onFileSelect = (event: Event) => {
       life: 5000,
     })
     input.value = ''
+    uploadFile.value = null
     return
   }
   if (file.size > 5 * 1024 * 1024) {
@@ -110,6 +131,7 @@ const onFileSelect = (event: Event) => {
       life: 5000,
     })
     input.value = ''
+    uploadFile.value = null
     return
   }
   uploadFile.value = file
@@ -119,12 +141,16 @@ const doUpload = async () => {
   if (!uploadFile.value) return
   uploading.value = true
   try {
-    await standesdbService.uploadImage(
-      ownerType.value,
-      ownerId.value,
-      uploadFile.value,
-      uploadDescription.value || null,
-    )
+    if (isSelf.value) {
+      await standesdbService.uploadOwnImage(uploadFile.value, uploadDescription.value || null)
+    } else {
+      await standesdbService.uploadImage(
+        ownerType.value,
+        ownerId.value,
+        uploadFile.value,
+        uploadDescription.value || null,
+      )
+    }
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -133,9 +159,9 @@ const doUpload = async () => {
     })
     uploadFile.value = null
     uploadDescription.value = ''
-    const fileInput = document.querySelector('.upload-file-input') as HTMLInputElement
-    if (fileInput) fileInput.value = ''
+    if (fileInputRef.value) fileInputRef.value.value = ''
     await loadGallery()
+    await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -148,6 +174,18 @@ const doUpload = async () => {
   }
 }
 
+// The navbar avatar reads authStore.user.default_image, a snapshot from
+// login/session-restore - it isn't automatically kept in sync with
+// self-service gallery changes elsewhere in the app. Re-fetching here
+// (same action already used after login/Google-link/-unlink) lets
+// AppNavbar.vue's existing watch(() => authStore.user?.default_image, ...)
+// pick up the change immediately, no page reload needed. Only relevant
+// for isSelf - an admin editing someone else's gallery never affects
+// their own navbar avatar.
+const refreshNavbarAvatarIfSelf = async () => {
+  if (isSelf.value) await authStore.fetchUser()
+}
+
 const openEdit = (img: StandesdbImage) => {
   editImageId.value = img.id
   editDescription.value = img.description
@@ -157,10 +195,17 @@ const openEdit = (img: StandesdbImage) => {
 
 const saveEdit = async () => {
   try {
-    await standesdbService.updateImage(ownerType.value, ownerId.value, editImageId.value, {
-      description: editDescription.value,
-      default: editDefault.value,
-    })
+    if (isSelf.value) {
+      await standesdbService.updateOwnImage(editImageId.value, {
+        description: editDescription.value,
+        default: editDefault.value,
+      })
+    } else {
+      await standesdbService.updateImage(ownerType.value, ownerId.value, editImageId.value, {
+        description: editDescription.value,
+        default: editDefault.value,
+      })
+    }
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -169,6 +214,7 @@ const saveEdit = async () => {
     })
     editDialogVisible.value = false
     await loadGallery()
+    await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -187,7 +233,11 @@ const confirmDelete = (img: StandesdbImage) => {
 const doDelete = async () => {
   deleteDialogVisible.value = false
   try {
-    await standesdbService.deleteImage(ownerType.value, ownerId.value, deleteImageId.value)
+    if (isSelf.value) {
+      await standesdbService.deleteOwnImage(deleteImageId.value)
+    } else {
+      await standesdbService.deleteImage(ownerType.value, ownerId.value, deleteImageId.value)
+    }
     toast.add({
       severity: 'success',
       summary: 'Gelöscht',
@@ -195,6 +245,7 @@ const doDelete = async () => {
       life: 3000,
     })
     await loadGallery()
+    await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -229,7 +280,7 @@ onMounted(loadGallery)
         <p class="page-name">
           {{ ownerCn }}
         </p>
-        <div class="header-actions">
+        <div v-if="!isOwnRoute" class="header-actions">
           <Button
             label="Zurück"
             icon="pi pi-arrow-left"
@@ -243,15 +294,25 @@ onMounted(loadGallery)
       <p class="image-count">{{ images.length }} Profilbild{{ images.length !== 1 ? 'er' : '' }}</p>
 
       <!-- Upload -->
-      <div v-if="isAdmin" class="upload-section">
+      <div v-if="canManage" class="upload-section">
         <label class="section-label">Neues Bild hochladen</label>
         <div class="upload-row">
           <input
+            ref="fileInputRef"
             type="file"
             accept="image/jpeg,image/png"
             class="upload-file-input"
             @change="onFileSelect"
           />
+          <Button
+            label="Datei wählen"
+            icon="pi pi-image"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="fileInputRef?.click()"
+          />
+          <span class="upload-filename">{{ uploadFile?.name ?? 'Keine Datei ausgewählt' }}</span>
           <InputText
             v-model="uploadDescription"
             placeholder="Beschreibung (optional, max. 100 Zeichen)"
@@ -301,7 +362,7 @@ onMounted(loadGallery)
                 size="small"
                 @click="doDownload(img)"
               />
-              <template v-if="isAdmin">
+              <template v-if="canManage">
                 <Button
                   label="Bearbeiten"
                   icon="pi pi-pencil"
@@ -434,7 +495,15 @@ onMounted(loadGallery)
 }
 
 .upload-file-input {
+  display: none;
+}
+
+.upload-filename {
   font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .upload-desc {

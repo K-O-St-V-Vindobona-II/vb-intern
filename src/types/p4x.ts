@@ -149,9 +149,15 @@ export interface FeeMember {
   balance: FeeBalance | null
 }
 
-export interface Debtor {
+// Self-service shape returned by GET /p4x/fee-members/me - the backend
+// deliberately omits p4x_comment (an admin-internal note) from that
+// response, so this type describes what the API actually sends.
+export type FeeMemberSelf = Omit<FeeMember, 'p4x_comment'>
+
+export interface FeeBalanceEntry {
   id: number
   cn: string
+  p4x_freed: boolean
   balance: number
 }
 

@@ -11,5 +11,6 @@ export interface User {
   permissions: string[]
   google_linked: boolean
   chroniclemail: boolean
+  is_fee_member: boolean
   session_idle_timeout: number
 }

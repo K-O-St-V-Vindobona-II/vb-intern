@@ -8,18 +8,26 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 
 const mockGetMemberImages = vi.fn()
 const mockGetContactImages = vi.fn()
+const mockGetOwnImages = vi.fn()
 const mockUploadImage = vi.fn()
 const mockUpdateImage = vi.fn()
 const mockDeleteImage = vi.fn()
+const mockUploadOwnImage = vi.fn()
+const mockUpdateOwnImage = vi.fn()
+const mockDeleteOwnImage = vi.fn()
 const mockGetImageUrl = vi.fn()
 
 vi.mock('@/services/standesdbService', () => ({
   default: {
     getMemberImages: (...args: unknown[]) => mockGetMemberImages(...args),
     getContactImages: (...args: unknown[]) => mockGetContactImages(...args),
+    getOwnImages: (...args: unknown[]) => mockGetOwnImages(...args),
     uploadImage: (...args: unknown[]) => mockUploadImage(...args),
     updateImage: (...args: unknown[]) => mockUpdateImage(...args),
     deleteImage: (...args: unknown[]) => mockDeleteImage(...args),
+    uploadOwnImage: (...args: unknown[]) => mockUploadOwnImage(...args),
+    updateOwnImage: (...args: unknown[]) => mockUpdateOwnImage(...args),
+    deleteOwnImage: (...args: unknown[]) => mockDeleteOwnImage(...args),
     getImageUrl: (...args: unknown[]) => mockGetImageUrl(...args),
   },
 }))
@@ -32,10 +40,16 @@ vi.mock('@/services/api', () => ({
 }))
 
 let mockPermissions: string[] = ['standesdbVbwAdmin', 'standesdbContactAdmin']
+// Deliberately different from the mocked gallery owner id (1) by default -
+// most existing tests exercise the "viewing someone else's gallery" case,
+// tests that need "isSelf" true set this explicitly to 1.
+let mockUserId = 99
+const mockFetchUser = vi.fn()
 vi.mock('@/stores/auth', () => ({
   useAuthStore: vi.fn(() => ({
-    user: { permissions: mockPermissions },
+    user: { id: mockUserId, permissions: mockPermissions },
     token: 'test-token',
+    fetchUser: mockFetchUser,
   })),
 }))
 
@@ -93,6 +107,11 @@ function router() {
     history: createMemoryHistory(),
     routes: [
       {
+        path: '/standesdb/members/me/images',
+        name: 'standesdb-my-images',
+        component: ImageGalleryView,
+      },
+      {
         path: '/standesdb/members/:id/images',
         name: 'standesdb-member-images',
         component: ImageGalleryView,
@@ -124,16 +143,23 @@ describe('ImageGalleryView', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     mockPermissions = ['standesdbVbwAdmin', 'standesdbContactAdmin']
+    mockUserId = 99
     mockGetMemberImages.mockResolvedValue({
       data: { owner: { cn: 'Max Muster', default_image: 1, org_id: 'vbw' }, images: buildImages() },
     })
     mockGetContactImages.mockResolvedValue({
       data: { owner: { cn: 'Kontakt Test', default_image: null }, images: [] },
     })
+    mockGetOwnImages.mockResolvedValue({
+      data: { owner: { cn: 'Max Muster', default_image: 1, org_id: 'vbw' }, images: buildImages() },
+    })
     mockGetImageUrl.mockRejectedValue(new Error('no preview'))
     mockUploadImage.mockResolvedValue({ data: { id: 3 } })
     mockUpdateImage.mockResolvedValue({ data: {} })
     mockDeleteImage.mockResolvedValue({ data: {} })
+    mockUploadOwnImage.mockResolvedValue({ data: { id: 3 } })
+    mockUpdateOwnImage.mockResolvedValue({ data: {} })
+    mockDeleteOwnImage.mockResolvedValue({ data: {} })
     currentRouter = router()
   })
 
@@ -150,6 +176,17 @@ describe('ImageGalleryView', () => {
 
   const mountContactGallery = async (attachTo: Element | undefined = undefined) => {
     await currentRouter.push('/standesdb/contacts/1/images')
+    await currentRouter.isReady()
+    const w = mount(ImageGalleryView, {
+      global: { plugins: [PrimeVue, ToastService, currentRouter, createPinia()] },
+      attachTo,
+    })
+    await flushPromises()
+    return w
+  }
+
+  const mountOwnGallery = async (attachTo: Element | undefined = undefined) => {
+    await currentRouter.push('/standesdb/members/me/images')
     await currentRouter.isReady()
     const w = mount(ImageGalleryView, {
       global: { plugins: [PrimeVue, ToastService, currentRouter, createPinia()] },
@@ -216,12 +253,145 @@ describe('ImageGalleryView', () => {
     w.unmount()
   })
 
-  it('hides upload/edit/delete for a non-admin', async () => {
+  it('hides upload/edit/delete for a non-admin viewing another member', async () => {
     mockPermissions = []
+    // mockUserId (99) differs from the mocked gallery owner id (1) - neither
+    // admin nor self, the case this test guards against.
     const w = await mountMemberGallery()
     expect(w.text()).not.toContain('Neues Bild hochladen')
     expect(w.text()).not.toContain('Bearbeiten')
     expect(w.text()).not.toContain('Löschen')
+  })
+
+  it('shows upload/edit/delete for the resource owner even without admin permission', async () => {
+    mockPermissions = []
+    mockUserId = 1 // matches the mocked gallery owner id
+    const w = await mountMemberGallery()
+    expect(w.text()).toContain('Neues Bild hochladen')
+    expect(w.text()).toContain('Bearbeiten')
+    expect(w.text()).toContain('Löschen')
+  })
+
+  it('grants no self-service management on a contact gallery, even with a matching id', async () => {
+    mockPermissions = []
+    mockUserId = 1 // numerically matches the mocked contact id, but contacts have no self-service concept
+    const w = await mountContactGallery()
+    expect(w.text()).not.toContain('Neues Bild hochladen')
+  })
+
+  it('uses the self-service upload endpoint for the owner, not the admin one', async () => {
+    mockPermissions = []
+    mockUserId = 1
+    const w = await mountMemberGallery(document.body)
+    const input = w.find('.upload-file-input').element as HTMLInputElement
+    setInputFiles(input, [makeFile('pic.jpg', 1000)])
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+
+    clickButton('Hochladen')
+    await flushPromises()
+
+    expect(mockUploadOwnImage).toHaveBeenCalledWith(expect.any(File), null)
+    expect(mockUploadImage).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('uses the self-service update endpoint for the owner, not the admin one', async () => {
+    mockPermissions = []
+    mockUserId = 1
+    const w = await mountMemberGallery(document.body)
+    clickButton('Bearbeiten')
+    await flushPromises()
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateOwnImage).toHaveBeenCalledWith(1, { description: 'Profilbild', default: true })
+    expect(mockUpdateImage).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('uses the self-service delete endpoint for the owner, not the admin one', async () => {
+    mockPermissions = []
+    mockUserId = 1
+    const w = await mountMemberGallery(document.body)
+    clickButton('Löschen')
+    await flushPromises()
+    clickDialogButton('Löschen')
+    await flushPromises()
+
+    expect(mockDeleteOwnImage).toHaveBeenCalledWith(1)
+    expect(mockDeleteImage).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('uses the self-service endpoint even for an admin who is also the owner', async () => {
+    mockPermissions = ['standesdbVbwAdmin']
+    mockUserId = 1
+    const w = await mountMemberGallery(document.body)
+    const input = w.find('.upload-file-input').element as HTMLInputElement
+    setInputFiles(input, [makeFile('pic.jpg', 1000)])
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+    clickButton('Hochladen')
+    await flushPromises()
+
+    expect(mockUploadOwnImage).toHaveBeenCalled()
+    expect(mockUploadImage).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('refreshes the auth store user after a self-service upload, so the navbar avatar updates', async () => {
+    mockPermissions = []
+    mockUserId = 1
+    const w = await mountMemberGallery(document.body)
+    const input = w.find('.upload-file-input').element as HTMLInputElement
+    setInputFiles(input, [makeFile('pic.jpg', 1000)])
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+    clickButton('Hochladen')
+    await flushPromises()
+
+    expect(mockFetchUser).toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it("does not refresh the auth store user for an admin editing someone else's gallery", async () => {
+    const w = await mountMemberGallery(document.body)
+    clickButton('Bearbeiten')
+    await flushPromises()
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockFetchUser).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('loads via the dedicated self-service read endpoint, not the id-based one', async () => {
+    mockUserId = 42
+    await mountOwnGallery()
+    expect(mockGetOwnImages).toHaveBeenCalled()
+    expect(mockGetMemberImages).not.toHaveBeenCalled()
+  })
+
+  it('resolves the owner id from the auth store on the dedicated self-service route', async () => {
+    mockPermissions = []
+    mockUserId = 42
+    const w = await mountOwnGallery()
+    // ownerId (= authStore.user.id) feeds isSelf, which alone (no admin
+    // permission) must already unlock management actions.
+    expect(w.text()).toContain('Neues Bild hochladen')
+  })
+
+  it('hides the back button on the dedicated self-service route', async () => {
+    const w = await mountOwnGallery()
+    expect(w.text()).not.toContain('Zurück')
+  })
+
+  it('shows upload/edit/delete on the dedicated self-service route without admin permission', async () => {
+    mockPermissions = []
+    mockUserId = 1
+    const w = await mountOwnGallery()
+    expect(w.text()).toContain('Neues Bild hochladen')
   })
 
   it('shows upload section for a contact admin', async () => {
@@ -270,6 +440,23 @@ describe('ImageGalleryView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', detail: 'Datei zu groß (max. 5 MB).' }),
     )
+    w.unmount()
+  })
+
+  it('clears the displayed filename when a valid selection is followed by a rejected one', async () => {
+    const w = await mountMemberGallery(document.body)
+    const input = w.find('.upload-file-input').element as HTMLInputElement
+    setInputFiles(input, [makeFile('good.jpg', 1000)])
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+    expect(w.text()).toContain('good.jpg')
+
+    setInputFiles(input, [makeFile('doc.pdf', 1000, 'application/pdf')])
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+
+    expect(w.text()).not.toContain('good.jpg')
+    expect(w.text()).toContain('Keine Datei ausgewählt')
     w.unmount()
   })
 

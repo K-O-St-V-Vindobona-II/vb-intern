@@ -3,8 +3,9 @@ import type {
   CategoryFilter,
   CategoryWithUsage,
   DashboardData,
-  Debtor,
+  FeeBalanceEntry,
   FeeMember,
+  FeeMemberSelf,
   ImportResult,
   P4xAccount,
   P4xFee,
@@ -189,12 +190,20 @@ export default {
     return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
   },
 
+  getOwnFeeMember() {
+    return api.get<FeeMemberSelf>('/p4x/fee-members/me')
+  },
+
+  exportOwnFeeMember() {
+    return api.get('/p4x/fee-members/me/export', { responseType: 'blob' })
+  },
+
   updateFeeMember(id: number, data: object) {
     return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
   },
 
-  getDebtors() {
-    return api.get<Debtor[]>('/p4x/fee-debtors')
+  getFeeBalances() {
+    return api.get<FeeBalanceEntry[]>('/p4x/fee-balances')
   },
 
   getSumupBalance() {
