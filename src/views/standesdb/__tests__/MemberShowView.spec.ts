@@ -161,6 +161,23 @@ describe('MemberShowView', () => {
     expect(link.exists()).toBe(true)
   })
 
+  it('renders the email-verified timestamp with date and time, not just the date', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, email_verified_at: '2026-08-05T14:32:00Z' },
+    })
+    const w = await mountView()
+    // formatDateTime() converts to local time and always includes hour:minute -
+    // this used to be formatFullDate(...split('T')[0]...), which silently
+    // dropped the time and read the UTC calendar date directly instead of
+    // converting to local time first.
+    expect(w.text()).toMatch(/Email verifiziert: \d{2}\.\d{2}\.2026, \d{2}:\d{2}/)
+  })
+
+  it('hides the email-verified line when the email was never verified', async () => {
+    const w = await mountView()
+    expect(w.text()).not.toContain('Email verifiziert')
+  })
+
   it('renders phone as tel link', async () => {
     const w = await mountView()
     const link = w.find('a[href="tel:+43650123456"]')
