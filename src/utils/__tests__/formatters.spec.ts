@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   formatDate,
   formatDateTime,
+  formatDateLong,
   formatApiError,
   getApiErrorStatus,
   getApiErrorDetail,
@@ -34,6 +35,26 @@ describe('formatDateTime', () => {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+      }),
+    )
+  })
+})
+
+describe('formatDateLong', () => {
+  it("returns the default fallback ('-') for null", () => {
+    expect(formatDateLong(null)).toBe('-')
+  })
+
+  it('returns a custom fallback for null when given', () => {
+    expect(formatDateLong(null, '')).toBe('')
+  })
+
+  it('spells the month out with a non-padded day', () => {
+    expect(formatDateLong('2026-03-05')).toBe(
+      new Date('2026-03-05').toLocaleDateString('de-AT', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
       }),
     )
   })

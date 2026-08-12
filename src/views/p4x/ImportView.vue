@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, formatDateLong } from '@/utils/formatters'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
@@ -74,11 +74,6 @@ const doImport = async () => {
     if (fileInputRef.value) fileInputRef.value.value = ''
   }
 }
-
-const formatDate = (d: string | null): string => {
-  if (!d) return '-'
-  return new Date(d).toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' })
-}
 </script>
 
 <template>
@@ -109,7 +104,7 @@ const formatDate = (d: string | null): string => {
           </div>
           <div class="detail-row">
             <span class="detail-label">Letzte Transaktion:</span>
-            <span>{{ formatDate(account.transactions_latest) }}</span>
+            <span>{{ formatDateLong(account.transactions_latest) }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Kontostand:</span>

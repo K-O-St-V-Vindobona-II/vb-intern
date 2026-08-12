@@ -16,6 +16,18 @@ export function formatDateTime(dt: string | null): string {
   })
 }
 
+// Spells the month out, e.g. "5. März 2024" (day is NOT zero-padded -
+// unlike formatFullDate, which is for a different field family and always
+// pads). Used by the p4x views for account/transaction/import dates.
+export function formatDateLong(dt: string | null, fallback = '-'): string {
+  if (!dt) return fallback
+  return new Date(dt).toLocaleDateString('de-AT', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 export function formatApiError(e: unknown, fallback = 'Fehler'): string {
   const resp = (e as { response?: { data?: { detail?: unknown } } })?.response
   if (!resp?.data?.detail) return fallback

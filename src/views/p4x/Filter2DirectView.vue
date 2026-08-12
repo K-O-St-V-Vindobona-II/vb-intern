@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, formatDateLong } from '@/utils/formatters'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
@@ -23,11 +23,6 @@ const warningsCount = ref(0)
 const filter = ref<CategoryFilter | null>(null)
 const category = ref<P4xCategory | null>(null)
 const hits = ref<FilterHit[]>([])
-
-const formatDate = (d: string | null): string => {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' })
-}
 
 const subjectModeLabel = (mode: string): string => {
   const labels: Record<string, string> = {
@@ -144,7 +139,7 @@ const process = async () => {
       <DataTable :value="hits" size="small" striped-rows scrollable>
         <Column header="" sortable style="width: 10rem">
           <template #body="{ data }">
-            {{ formatDate(data.booking) }}
+            {{ formatDateLong(data.booking, '') }}
           </template>
         </Column>
         <Column field="iban" header="IBAN" sortable />
