@@ -292,7 +292,7 @@ defineExpose({ open })
 .filter-table th {
   text-align: left;
   padding: 0.3rem 0.5rem;
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid var(--app-border-card);
   font-weight: 600;
 }
 .filter-table td {
@@ -315,7 +315,7 @@ defineExpose({ open })
   padding: 0 0.5rem 0.5rem !important;
 }
 .filter-details {
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
@@ -325,9 +325,9 @@ defineExpose({ open })
   display: inline-block;
   margin: 0.2rem 0;
   padding: 0.2rem 0.5rem;
-  border: 1px solid var(--p-surface-300);
+  border: 1px solid var(--app-border-card);
   border-radius: 4px;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
   font-size: 0.85rem;
 }
 .slot-row {

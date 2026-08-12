@@ -22,6 +22,14 @@ app.use(router)
 app.use(PrimeVue, {
   theme: {
     preset: Aura,
+    options: {
+      // Explicit (behavior-identical to PrimeVue's own default): the app
+      // intentionally follows the OS/browser color-scheme preference.
+      // Custom component styles must use the --app-* tokens from
+      // assets/main.css (or PrimeVue's own semantic tokens), never the
+      // raw --p-surface-N scale, to stay correct in both schemes.
+      darkModeSelector: 'system',
+    },
   },
   locale: {
     firstDayOfWeek: 1,

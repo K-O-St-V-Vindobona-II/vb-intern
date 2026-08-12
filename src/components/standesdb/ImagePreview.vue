@@ -48,7 +48,7 @@ watch(() => props.imageId, loadImage)
   max-width: 150px;
   max-height: 200px;
   border-radius: 8px;
-  border: 2px solid var(--p-surface-200);
+  border: 2px solid var(--app-border-card);
   object-fit: contain;
 }
 
@@ -56,7 +56,7 @@ watch(() => props.imageId, loadImage)
   width: 120px !important;
   height: 120px !important;
   font-size: 3rem !important;
-  background-color: var(--p-surface-100);
+  background-color: var(--app-surface-subtle);
   color: var(--p-text-muted-color);
 }
 </style>

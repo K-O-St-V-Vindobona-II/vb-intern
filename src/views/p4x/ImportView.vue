@@ -239,11 +239,11 @@ const formatDate = (d: string | null): string => {
   align-items: center;
   gap: 0.6rem;
   padding: 0.75rem 1.5rem;
-  border: 2px dashed var(--p-surface-300);
+  border: 2px dashed var(--app-border-card);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
 }
 .file-picker:hover {
   border-color: var(--p-primary-400);

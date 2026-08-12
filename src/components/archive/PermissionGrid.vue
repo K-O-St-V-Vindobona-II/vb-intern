@@ -48,11 +48,11 @@ defineProps<{
 .perm-grid th,
 .perm-grid td {
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
 }
 .perm-grid th {
   font-weight: 600;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
 }
 .perm-cell {
   text-align: center;

@@ -260,8 +260,8 @@ const toggleMenu = (event: Event, accountId: number) => {
   margin: 0 0 1.5rem;
 }
 .account-card {
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-subtle);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 0.75rem;

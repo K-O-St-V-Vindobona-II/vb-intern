@@ -386,7 +386,7 @@ watch(
 .stats-by-extension-wrap td {
   text-align: left;
   padding: 0.25rem 0.75rem 0.25rem 0;
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid var(--app-border-card);
 }
 .hover-preview {
   position: fixed;

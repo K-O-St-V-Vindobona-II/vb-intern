@@ -377,8 +377,8 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: var(--p-surface-100);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-subtle);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   cursor: pointer;
   user-select: none;
@@ -386,7 +386,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
 }
 
 .changelog-header:hover {
-  background: var(--p-surface-200);
+  background: var(--app-border-card);
 }
 
 .changelog-title {
@@ -477,10 +477,10 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
 }
 
 .show-value {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 6px;
   padding: 0.5rem 0.65rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
   font-size: 0.9rem;
   min-height: 2.25rem;
   word-break: break-word;
@@ -510,7 +510,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
 
 .check-icon {
   font-size: 1.1rem;
-  color: var(--p-surface-400);
+  color: var(--p-text-muted-color);
 }
 
 .check-icon.active {

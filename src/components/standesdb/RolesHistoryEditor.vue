@@ -334,7 +334,7 @@ watch([quickSemester, quickYear], ([sem, year]) => {
 }
 
 .quick-section {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   padding-top: 0.75rem;
 }
 

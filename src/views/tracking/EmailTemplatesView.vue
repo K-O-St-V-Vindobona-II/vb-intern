@@ -155,8 +155,8 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   padding: 1rem 2rem;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 12px;
 }
 
@@ -210,8 +210,11 @@ onMounted(async () => {
 .preview-frame {
   width: 100%;
   min-height: 500px;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 6px;
+  /* Intentionally fixed white, not a theme token: this frame renders raw
+     HTML email content designed for a white canvas (like any email
+     client's preview), independent of the app's own color scheme. */
   background: #fff;
 }
 </style>

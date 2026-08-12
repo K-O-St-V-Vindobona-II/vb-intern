@@ -413,10 +413,10 @@ onMounted(async () => {
 }
 
 .session-card {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 10px;
   overflow: hidden;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .session-header {
@@ -429,7 +429,7 @@ onMounted(async () => {
 }
 
 .session-header:hover {
-  background-color: var(--p-surface-50);
+  background-color: var(--app-surface-subtle);
 }
 
 .session-user {
@@ -456,7 +456,7 @@ onMounted(async () => {
 }
 
 .session-actions {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   padding: 0.5rem;
 }
 
@@ -471,7 +471,7 @@ onMounted(async () => {
 }
 
 .action-item:hover {
-  background-color: var(--p-surface-50);
+  background-color: var(--app-surface-subtle);
 }
 
 .method-tag {
@@ -499,8 +499,8 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   padding: 1.25rem 2rem;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 12px;
 }
 
@@ -539,7 +539,7 @@ onMounted(async () => {
 .action-bar-track {
   flex: 1;
   height: 8px;
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -582,7 +582,7 @@ onMounted(async () => {
 }
 
 .request-body {
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   padding: 0.75rem;
   border-radius: 6px;
   font-size: 0.8rem;

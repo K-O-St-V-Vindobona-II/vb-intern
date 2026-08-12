@@ -357,13 +357,13 @@ onMounted(async () => {
 
 /* Drop Zone */
 .drop-zone {
-  border: 2px dashed var(--p-surface-300);
+  border: 2px dashed var(--app-border-card);
   border-radius: 12px;
   padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   margin-bottom: 1.5rem;
 }
 .drop-zone:hover {
@@ -421,8 +421,8 @@ onMounted(async () => {
   gap: 0.6rem;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-subtle);
+  border: 1px solid var(--app-border-card);
 }
 .file-item-invalid {
   background: var(--p-red-50);

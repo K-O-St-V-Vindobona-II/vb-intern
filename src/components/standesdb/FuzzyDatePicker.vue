@@ -215,7 +215,7 @@ const togglePopover = (event: Event) => {
 
 .fuzzy-trigger {
   cursor: pointer;
-  background-color: #fff;
+  background-color: var(--app-surface-card);
 }
 
 .fuzzy-popover {

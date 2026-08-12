@@ -748,8 +748,8 @@ const capitalize = (s: string | null | undefined) =>
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-subtle);
+  border: 1px solid var(--app-border-card);
   border-radius: 6px;
   font-size: 0.85rem;
 }
@@ -793,8 +793,8 @@ const capitalize = (s: string | null | undefined) =>
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: var(--p-surface-100);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-subtle);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   cursor: pointer;
   user-select: none;
@@ -802,7 +802,7 @@ const capitalize = (s: string | null | undefined) =>
 }
 
 .changelog-header:hover {
-  background: var(--p-surface-200);
+  background: var(--app-border-card);
 }
 
 .changelog-title {
@@ -905,10 +905,10 @@ const capitalize = (s: string | null | undefined) =>
 }
 
 .show-value {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 6px;
   padding: 0.5rem 0.65rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
   font-size: 0.9rem;
   min-height: 2.25rem;
   word-break: break-word;
@@ -939,7 +939,7 @@ const capitalize = (s: string | null | undefined) =>
 
 .check-icon {
   font-size: 1.1rem;
-  color: var(--p-surface-400);
+  color: var(--p-text-muted-color);
 }
 
 .check-icon.active {

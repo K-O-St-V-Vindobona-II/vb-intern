@@ -353,8 +353,8 @@ const onHistoryPage = (event: { page: number }) => {
 }
 
 .job-card {
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 10px;
   padding: 1.25rem;
   transition: box-shadow 0.15s;
@@ -392,7 +392,7 @@ const onHistoryPage = (event: { page: number }) => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   border-radius: 6px;
   padding: 0.6rem 0.8rem;
 }

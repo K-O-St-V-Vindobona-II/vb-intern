@@ -68,8 +68,8 @@ onMounted(async () => {
   margin: 0 0 1.5rem;
 }
 .sumup-card {
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 10px;
   padding: 1.5rem;
 }
@@ -81,7 +81,7 @@ onMounted(async () => {
   margin-bottom: 0.25rem;
 }
 .saldo {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   padding-top: 1rem;
 }
 .saldo-hint {
@@ -92,7 +92,7 @@ onMounted(async () => {
 .saldo-amount {
   display: inline-block;
   padding: 0.4rem 0.8rem;
-  border: 1px solid var(--p-surface-300);
+  border: 1px solid var(--app-border-card);
   border-radius: 6px;
   font-size: 1.1rem;
 }

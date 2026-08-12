@@ -288,11 +288,11 @@ onMounted(loadQuotes)
 }
 
 .add-section {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .add-row {
@@ -327,10 +327,10 @@ onMounted(loadQuotes)
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.9rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .quote-info {
