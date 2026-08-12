@@ -258,7 +258,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 .balance-total {
-  border-top: 1px solid var(--p-surface-300);
+  border-top: 1px solid var(--app-border-card);
   padding-top: 0.3rem;
   margin-top: 0.3rem;
 }
@@ -306,7 +306,7 @@ onMounted(async () => {
   font-weight: 600;
   font-size: 0.75rem;
   color: var(--p-text-muted-color);
-  border-bottom: 1px solid var(--p-surface-300);
+  border-bottom: 1px solid var(--app-border-card);
   padding-bottom: 0.3rem;
 }
 .no-setup-hint {

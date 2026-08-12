@@ -105,8 +105,8 @@ const tiles = [
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 12px;
   cursor: pointer;
   transition:

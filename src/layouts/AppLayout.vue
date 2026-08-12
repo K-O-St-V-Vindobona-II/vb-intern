@@ -45,7 +45,7 @@ const loadingStore = useLoadingStore()
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: var(--p-surface-50);
+  background-color: var(--app-surface-subtle);
   overflow-x: hidden;
 }
 

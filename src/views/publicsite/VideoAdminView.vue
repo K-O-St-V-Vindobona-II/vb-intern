@@ -173,7 +173,7 @@ onMounted(loadSettings)
 }
 
 .preview {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   padding-top: 1.5rem;
 }
 

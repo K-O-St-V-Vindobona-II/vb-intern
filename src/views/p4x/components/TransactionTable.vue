@@ -456,7 +456,7 @@ const onTxChanged = () => {
   font-size: 0.8rem;
   max-height: 60vh;
   overflow: auto;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   padding: 1rem;
   border-radius: 6px;
 }

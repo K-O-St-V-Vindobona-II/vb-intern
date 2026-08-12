@@ -363,7 +363,7 @@ const toggleUserMenu = () => {
   width: 96px;
   height: 96px;
   border-radius: 12px;
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,7 +399,7 @@ const toggleUserMenu = () => {
 }
 
 .user-card-actions {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   padding: 0.35rem 0;
 }
 
@@ -415,7 +415,7 @@ const toggleUserMenu = () => {
 
 .action-group-label:not(:first-child) {
   margin-top: 0.3rem;
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
 }
 
 .user-card-action {
@@ -433,7 +433,7 @@ const toggleUserMenu = () => {
 }
 
 .user-card-action:hover {
-  background-color: var(--p-surface-100);
+  background-color: var(--app-surface-subtle);
 }
 
 .action-logout {

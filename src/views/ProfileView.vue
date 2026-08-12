@@ -249,7 +249,7 @@ const toggleChronicle = async () => {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   border-radius: var(--p-border-radius);
 }
 
@@ -288,7 +288,7 @@ const toggleChronicle = async () => {
   align-items: center;
   gap: 0.4rem;
   padding: 0.3rem 0.75rem;
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
   border-radius: 2rem;
   font-size: 0.85rem;
   font-weight: 500;

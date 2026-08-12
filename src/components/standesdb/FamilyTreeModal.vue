@@ -134,7 +134,7 @@ const memberClass = (node: TreeNode) => {
   width: 12px;
   flex-shrink: 0;
   cursor: pointer;
-  color: var(--p-surface-400);
+  color: var(--p-text-muted-color);
   font-size: 0.45rem;
   display: inline-flex;
   align-items: center;

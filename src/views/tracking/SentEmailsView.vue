@@ -273,7 +273,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.4rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid var(--app-border-card);
   margin-bottom: 1rem;
 }
 
@@ -284,7 +284,7 @@ onMounted(async () => {
 .email-body-frame {
   width: 100%;
   min-height: 400px;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
 }
 </style>

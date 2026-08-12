@@ -342,7 +342,7 @@ onMounted(loadGallery)
             class="image-preview"
           />
           <div v-else class="image-placeholder">
-            <i class="pi pi-image" style="font-size: 2rem; color: var(--p-surface-400)" />
+            <i class="pi pi-image" style="font-size: 2rem; color: var(--p-text-muted-color)" />
           </div>
 
           <div class="image-info">
@@ -480,11 +480,11 @@ onMounted(loadGallery)
 }
 
 .upload-section {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .upload-row {
@@ -528,10 +528,10 @@ onMounted(loadGallery)
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.75rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
   align-items: flex-start;
 }
 
@@ -539,7 +539,7 @@ onMounted(loadGallery)
   max-width: 150px;
   max-height: 200px;
   border-radius: 6px;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   object-fit: contain;
 }
 
@@ -549,7 +549,7 @@ onMounted(loadGallery)
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   border-radius: 6px;
 }
 

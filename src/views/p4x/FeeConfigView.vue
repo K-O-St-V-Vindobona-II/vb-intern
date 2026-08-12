@@ -140,7 +140,7 @@ onMounted(load)
   justify-content: space-between;
   align-items: center;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid var(--app-border-card);
 }
 .delete-col {
   width: 2rem;
@@ -154,7 +154,7 @@ onMounted(load)
   color: var(--p-red-600);
 }
 .disabled-icon {
-  color: var(--p-surface-300);
+  color: var(--p-text-muted-color);
 }
 .actions-center {
   text-align: center;

@@ -436,11 +436,11 @@ onMounted(loadGallery)
 }
 
 .upload-section {
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .upload-row {
@@ -476,17 +476,17 @@ onMounted(loadGallery)
   flex-direction: column;
   align-items: flex-start;
   gap: 1rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.75rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .image-preview {
   max-width: 150px;
   max-height: 200px;
   border-radius: 6px;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   object-fit: contain;
 }
 

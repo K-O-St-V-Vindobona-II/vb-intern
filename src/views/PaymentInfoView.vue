@@ -105,8 +105,8 @@ onMounted(async () => {
 }
 .payment-card {
   position: relative;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
+  background: var(--app-surface-card);
+  border: 1px solid var(--app-border-card);
   border-radius: 12px;
   padding: 2rem 1.5rem 1.25rem;
   text-align: center;
@@ -135,7 +135,7 @@ onMounted(async () => {
   line-height: 1.3;
 }
 .card-details {
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -147,7 +147,7 @@ onMounted(async () => {
   padding: 0.35rem 0;
 }
 .detail-item + .detail-item {
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
 }
 .detail-label {
   font-size: 0.75rem;

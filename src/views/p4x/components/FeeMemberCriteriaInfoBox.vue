@@ -30,9 +30,9 @@ const expanded = ref(false)
 .criteria-info-box {
   max-width: 500px;
   margin: 0 auto 1.25rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   overflow: hidden;
   text-align: left;
 }
@@ -48,7 +48,7 @@ const expanded = ref(false)
   transition: background-color 0.15s ease;
 }
 .criteria-info-toggle:hover {
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
 }
 .criteria-info-icon {
   font-size: 0.9rem;
@@ -62,7 +62,7 @@ const expanded = ref(false)
 }
 .criteria-info-content {
   padding: 0.75rem 0.85rem 0.85rem;
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid var(--app-border-card);
   font-size: 0.95rem;
   line-height: 1.5;
   color: var(--p-text-muted-color);

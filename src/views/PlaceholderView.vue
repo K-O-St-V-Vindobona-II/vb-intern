@@ -52,7 +52,7 @@ const moduleName = (route.meta['moduleName'] as string) ?? 'Dieses Modul'
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--p-surface-300), var(--p-surface-400));
+  background: linear-gradient(135deg, var(--app-border-card), var(--p-text-muted-color));
   color: #fff;
   font-size: 1.8rem;
 }

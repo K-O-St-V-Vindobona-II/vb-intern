@@ -666,7 +666,7 @@ const save = async () => {
   margin-top: 0.5rem;
   margin-bottom: 0.75rem;
   padding: 1rem;
-  background: var(--p-surface-50);
+  background: var(--app-surface-subtle);
   border-radius: 8px;
 }
 

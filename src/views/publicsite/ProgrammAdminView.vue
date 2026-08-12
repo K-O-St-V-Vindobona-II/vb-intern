@@ -398,10 +398,10 @@ onMounted(loadAll)
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .hint-icon {

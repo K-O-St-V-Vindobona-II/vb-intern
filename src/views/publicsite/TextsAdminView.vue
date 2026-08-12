@@ -139,10 +139,10 @@ onMounted(loadTabs)
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border: 1px solid var(--p-surface-200);
+  border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 1.25rem;
-  background: var(--p-surface-0);
+  background: var(--app-surface-card);
 }
 
 .field label {

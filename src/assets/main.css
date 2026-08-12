@@ -4,6 +4,18 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Design tokens for the custom "card"-style boxes used throughout the
+     app (bordered value boxes, panels, dropdowns, ...). Always alias
+     PrimeVue's *semantic* (scheme-aware) tokens here - never reference raw
+     --p-surface-N tokens directly in component styles, they do NOT change
+     between light/dark mode and caused white-on-white text in dark mode
+     (production incident, reported 2026-08-12). */
+  --app-surface-card: var(--p-content-background); /* was: --p-surface-0 */
+  --app-surface-subtle: var(--p-content-hover-background); /* was: --p-surface-50 / -100 */
+  --app-border-card: var(--p-content-border-color); /* was: --p-surface-200 / -300 */
+}
+
 html {
   margin: 0;
   padding: 0;
@@ -35,6 +47,11 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  /* Explicit page canvas colors so the viewport background matches
+     PrimeVue's own dark-mode surfaces instead of staying light behind
+     them (previously unset/transparent - see --app-surface-card above). */
+  background: var(--app-surface-card);
+  color: var(--p-text-color);
 }
 
 @media (max-width: 767px) {

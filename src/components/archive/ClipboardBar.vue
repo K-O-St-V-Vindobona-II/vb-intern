@@ -111,7 +111,7 @@ const moveItems = (type: string, items: string[]) => {
   left: 0;
   z-index: 1000;
   padding: 0.5rem 0.75rem;
-  background: var(--p-surface-100);
+  background: var(--app-surface-subtle);
   border: 1px solid var(--p-primary-color);
   border-radius: 0 8px 0 0;
   font-size: 0.85rem;
@@ -125,7 +125,7 @@ const moveItems = (type: string, items: string[]) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-top: 1px solid var(--p-surface-300);
+  border-top: 1px solid var(--app-border-card);
   padding-top: 0.25rem;
   margin-top: 0.25rem;
 }

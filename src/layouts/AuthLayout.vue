@@ -12,7 +12,7 @@ import { RouterView } from 'vue-router'
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--p-surface-50);
+  background-color: var(--app-surface-subtle);
 }
 
 .auth-card {
