@@ -2,6 +2,7 @@
 import { ref, nextTick } from 'vue'
 import type { P4xTransaction, P4xCategory } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
+import { formatDateLong } from '@/utils/formatters'
 import Amount from './Amount.vue'
 import CategoryLabel from './CategoryLabel.vue'
 import PartnerLabel from './PartnerLabel.vue'
@@ -65,12 +66,6 @@ const downloadAttachment = async (tx: P4xTransaction) => {
   } catch {
     /* empty */
   }
-}
-
-const formatDate = (d: string | null): string => {
-  if (!d) return ''
-  const dt = new Date(d)
-  return dt.toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 const directionLabel = (amount: number): { text: string; cls: string } => {
@@ -176,7 +171,7 @@ const onTxChanged = () => {
 
         <Column field="booking" header="Buchungsdatum" sortable>
           <template #body="{ data }">
-            {{ formatDate(data.booking) }}
+            {{ formatDateLong(data.booking, '') }}
           </template>
         </Column>
 
@@ -266,7 +261,7 @@ const onTxChanged = () => {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Wertstellung:</span>
-                <span>{{ formatDate(tx.valuation) }}</span>
+                <span>{{ formatDateLong(tx.valuation, '') }}</span>
               </div>
               <div v-if="tx.comment" class="detail-item">
                 <span class="detail-label">Kommentar:</span>

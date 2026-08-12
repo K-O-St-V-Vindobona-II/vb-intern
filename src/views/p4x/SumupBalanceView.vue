@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import p4xService from '@/services/p4xService'
+import { formatDateLong } from '@/utils/formatters'
 import type { SumUpBalance } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 
 const loading = ref(true)
 const data = ref<SumUpBalance | null>(null)
-
-const formatDate = (d: string | null): string => {
-  if (!d) return '-'
-  return new Date(d).toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' })
-}
 
 onMounted(async () => {
   try {
@@ -30,7 +26,7 @@ onMounted(async () => {
     <div v-if="data" class="sumup-card">
       <div class="section">
         <strong>Letzte Transaktion</strong>
-        <div>{{ formatDate(data.latest) }}</div>
+        <div>{{ formatDateLong(data.latest) }}</div>
       </div>
 
       <div class="section">

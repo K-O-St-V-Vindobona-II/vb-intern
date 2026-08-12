@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
+import { formatDateLong } from '@/utils/formatters'
 import type { FeeMember } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import FeeMemberCriteriaInfoBox from './components/FeeMemberCriteriaInfoBox.vue'
@@ -38,11 +39,6 @@ const onMemberSelect = async (item: SearchResult) => {
   } finally {
     loading.value = false
   }
-}
-
-const formatDate = (d: string | null): string => {
-  if (!d) return '-'
-  return new Date(d).toLocaleDateString('de-AT', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 const goToEdit = () => {
@@ -128,7 +124,7 @@ onMounted(async () => {
           <div class="balance-grid">
             <div class="balance-row">
               <span class="balance-label">Initialdatum:</span>
-              <span>{{ formatDate(member.p4x_init_date) }}</span>
+              <span>{{ formatDateLong(member.p4x_init_date) }}</span>
             </div>
             <div class="balance-row">
               <span class="balance-label">Initialstand:</span>
@@ -149,7 +145,7 @@ onMounted(async () => {
               </div>
               <div class="balance-row">
                 <span class="balance-label">Enddatum:</span>
-                <span>{{ formatDate(member.balance.end_date) }}</span>
+                <span>{{ formatDateLong(member.balance.end_date) }}</span>
               </div>
               <div class="balance-row balance-total">
                 <span class="balance-label">Endstand:</span>
@@ -194,7 +190,7 @@ onMounted(async () => {
             </thead>
             <tbody>
               <tr v-for="(entry, i) in member.balance.progress" :key="i" class="progress-entry">
-                <td>{{ formatDate(entry.booking) }}</td>
+                <td>{{ formatDateLong(entry.booking) }}</td>
                 <td>{{ entry.type === 'fee' ? 'Fälligkeit' : 'Zahlung' }}</td>
                 <td class="align-right"><Amount :amount="entry.amount" /></td>
                 <td class="align-right"><Amount :amount="entry.balance" /></td>
