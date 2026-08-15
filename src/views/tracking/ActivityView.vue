@@ -17,7 +17,7 @@ import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
-import { formatApiError, formatDateTime } from '@/utils/formatters'
+import { formatApiError, formatDateTime, toLocalDateStr } from '@/utils/formatters'
 import { useToast } from 'primevue/usetoast'
 
 const toast = useToast()
@@ -57,13 +57,6 @@ const formatTime = (dateStr: string | null): string => {
   })
 }
 
-const toDateStr = (d: Date): string => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 const methodSeverity = (method: string): string => {
   const map: Record<string, string> = {
     POST: 'success',
@@ -101,7 +94,7 @@ const fetchSessions = async () => {
   loading.value = true
   try {
     const result = await trackingService.getActivitySessions({
-      date_str: toDateStr(sessionsDate.value),
+      date_str: toLocalDateStr(sessionsDate.value),
       page: 1,
       page_size: 100,
     })
@@ -128,8 +121,8 @@ const fetchRawData = async () => {
       page: rawPage.value,
       page_size: rawPageSize,
     }
-    if (rawDateFrom.value) params['date_from'] = toDateStr(rawDateFrom.value)
-    if (rawDateTo.value) params['date_to'] = toDateStr(rawDateTo.value)
+    if (rawDateFrom.value) params['date_from'] = toLocalDateStr(rawDateFrom.value)
+    if (rawDateTo.value) params['date_to'] = toLocalDateStr(rawDateTo.value)
     const result = await trackingService.getActivity(params)
     rawItems.value = result.items
     rawTotal.value = result.total
