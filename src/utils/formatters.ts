@@ -1,5 +1,19 @@
 import type { ApiValidationErrorItem } from '@/types/standesdb'
 
+// Formats a Date using its local (browser-timezone) calendar fields, as
+// "YYYY-MM-DD" — for anything that means "today"/"this day" the way the
+// user sees their own clock (query params, form defaults, download
+// filenames). Never use `date.toISOString().split('T')[0]` for this: it
+// converts to UTC first, so for any timezone ahead of UTC (e.g. Vienna) it
+// silently returns yesterday's date for the ~1-2h after local midnight
+// (see the 2026-08-15 timezone audit).
+export function toLocalDateStr(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function formatDate(dt: string | null): string {
   if (!dt) return ''
   return new Date(dt).toLocaleDateString('de-AT')

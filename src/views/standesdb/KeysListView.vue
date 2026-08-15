@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
+import { toLocalDateStr } from '@/utils/formatters'
 import type { KeysListMember } from '@/types/standesdb'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
@@ -31,7 +32,7 @@ const download = async () => {
 
     const disposition = resp.headers['content-disposition'] ?? ''
     const match = disposition.match(/filename=(.+)/)
-    const filename = match ? match[1] : `schluessel_${new Date().toISOString().slice(0, 10)}.txt`
+    const filename = match ? match[1] : `schluessel_${toLocalDateStr(new Date())}.txt`
 
     const url = URL.createObjectURL(resp.data)
     const a = document.createElement('a')

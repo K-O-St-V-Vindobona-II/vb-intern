@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import SetEditor from '../SetEditor.vue'
 import PrimeVue from 'primevue/config'
@@ -249,5 +249,47 @@ describe('SetEditor', () => {
     expect(w.emitted('update:modelValue')).toBeUndefined()
     expect(document.querySelector('.p-dialog')).toBeNull()
     w.unmount()
+  })
+
+  describe('new-entry date default — timezone regression', () => {
+    const originalTz = process.env['TZ']
+
+    afterEach(() => {
+      vi.useRealTimers()
+      if (originalTz === undefined) {
+        delete process.env['TZ']
+      } else {
+        process.env['TZ'] = originalTz
+      }
+    })
+
+    it('defaults to the local calendar day, not the UTC day', async () => {
+      // Regression (2026-08-15 timezone audit): openAdd() previously used
+      // new Date().toISOString().split('T')[0], which converts to UTC
+      // first — for a timezone ahead of UTC (e.g. Vienna) this silently
+      // prefilled *yesterday's* date during the first 1-2h after local
+      // midnight. 2026-01-15T23:30:00Z is already 2026-01-16 00:30 in
+      // Vienna (CET, UTC+1).
+      process.env['TZ'] = 'Europe/Vienna'
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(Date.UTC(2026, 0, 15, 23, 30, 0)))
+
+      const w = mountWith({
+        modelValue: [],
+        availableItems: badges,
+        title: 'Test',
+        withDate: true,
+      })
+      await w.find('[aria-label="Hinzufügen"]').trigger('click')
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      const updated = w.emitted('update:modelValue')![0]![0] as Array<{
+        presentationdate: string | null
+      }>
+      expect(updated[0]!.presentationdate).toBe('2026-01-16')
+      w.unmount()
+    })
   })
 })

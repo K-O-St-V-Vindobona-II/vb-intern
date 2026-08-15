@@ -9,7 +9,30 @@ import {
   formatSize,
   fuzzyDisplay,
   formatFullDate,
+  toLocalDateStr,
 } from '@/utils/formatters'
+
+describe('toLocalDateStr', () => {
+  it('formats local calendar fields as YYYY-MM-DD', () => {
+    expect(toLocalDateStr(new Date(2026, 5, 3))).toBe('2026-06-03')
+  })
+
+  it('zero-pads single-digit month and day', () => {
+    expect(toLocalDateStr(new Date(2026, 0, 5))).toBe('2026-01-05')
+  })
+
+  it('uses the Date object local fields, not a UTC conversion', () => {
+    // Regression (2026-08-15 timezone audit): date.toISOString().split('T')[0]
+    // converts to UTC first, so for any timezone ahead of UTC it silently
+    // returns the *previous* day for the first 1-2h after local midnight.
+    // Constructing the Date via local-time fields (as every real call site
+    // does — new Date()) and reading it back via toLocalDateStr() must
+    // round-trip to the same calendar day regardless of the host's offset
+    // from UTC, unlike toISOString().
+    const localMidnight = new Date(2026, 0, 15, 0, 30)
+    expect(toLocalDateStr(localMidnight)).toBe('2026-01-15')
+  })
+})
 
 describe('formatDate', () => {
   it('returns an empty string for null', () => {

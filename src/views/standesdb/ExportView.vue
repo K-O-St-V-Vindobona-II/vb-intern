@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
+import { toLocalDateStr } from '@/utils/formatters'
 import type { ExportConfig, StateRef } from '@/types/standesdb'
 import Card from 'primevue/card'
 import Select from 'primevue/select'
@@ -97,7 +98,7 @@ const doExport = async () => {
 
     const disposition = resp.headers['content-disposition'] ?? ''
     const match = disposition.match(/filename=(.+)/)
-    const filename = match ? match[1] : `export_${new Date().toISOString().slice(0, 10)}`
+    const filename = match ? match[1] : `export_${toLocalDateStr(new Date())}`
 
     const url = URL.createObjectURL(resp.data)
     const a = document.createElement('a')

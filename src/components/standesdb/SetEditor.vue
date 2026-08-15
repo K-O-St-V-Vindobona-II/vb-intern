@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { fuzzyDisplay } from '@/utils/formatters'
+import { fuzzyDisplay, toLocalDateStr } from '@/utils/formatters'
 import FuzzyDatePicker from './FuzzyDatePicker.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -58,8 +58,7 @@ const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : 
 const openAdd = () => {
   editingEntry.value = null
   formId.value = unused.value[0]?.id ?? 0
-  const today = new Date().toISOString().split('T')[0] ?? ''
-  formDate.value = today
+  formDate.value = toLocalDateStr(new Date())
   formAccuracy.value = props.withDate ? 3 : 0
   dialogVisible.value = true
 }
