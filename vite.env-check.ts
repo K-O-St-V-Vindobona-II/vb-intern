@@ -1,3 +1,6 @@
+// Kept in sync by convention with the equivalent guards in vb-api
+// (app/core/config.py) and vb-www (vite.env-check.ts) — not shared code,
+// since backend and frontends deploy and release independently.
 export const VALID_APP_ENVIRONMENTS = ['development', 'test', 'qa', 'production'] as const
 
 export type ViteAppEnvironment = (typeof VALID_APP_ENVIRONMENTS)[number]
