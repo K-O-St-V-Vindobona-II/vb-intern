@@ -26,8 +26,18 @@ require_env() {
   fi
 }
 
+# Unlike require_env(), a missing/empty value is not an error - it just
+# stays an empty string in the rendered config.js. Used for GOOGLE_CLIENT_ID:
+# the frontend hides the "Sign in with Google" button when it is empty
+# (see LoginView.vue's isGoogleLoginEnabled) instead of refusing to boot.
+optional_env() {
+  var_name="$1"
+  eval "value=\${$var_name:-}"
+  eval "$var_name=\$value"
+}
+
 require_env API_BASE_URL
-require_env GOOGLE_CLIENT_ID
+optional_env GOOGLE_CLIENT_ID
 require_env PASSWORD_MIN_LENGTH
 require_env APP_ENVIRONMENT
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorStatus, getApiErrorDetail } from '@/utils/formatters'
+import { googleClientId } from '@/runtimeConfig'
 import type { GoogleCredentialResponse } from '@/types/auth'
 
 import Card from 'primevue/card'
@@ -23,6 +24,10 @@ const isLoading = ref(false)
 
 const needsLinking = ref(false)
 const tempGoogleToken = ref('')
+
+// GOOGLE_CLIENT_ID is optional (see docker-entrypoint.d/40-generate-runtime-config.sh) -
+// hide the button instead of mounting <GoogleLogin>, which throws on an empty client ID.
+const isGoogleLoginEnabled = computed(() => !!googleClientId())
 
 // Prevent Open Redirect via protocol-relative URLs
 function isSafeRedirectPath(path: unknown): path is string {
@@ -220,13 +225,15 @@ const handleLinkAccount = async () => {
             />
           </div>
 
-          <Divider align="center">
-            <span class="text-muted">ODER</span>
-          </Divider>
+          <template v-if="isGoogleLoginEnabled">
+            <Divider align="center">
+              <span class="text-muted">ODER</span>
+            </Divider>
 
-          <div class="auth-center google-row">
-            <GoogleLogin :callback="handleGoogleCallback" />
-          </div>
+            <div class="auth-center google-row">
+              <GoogleLogin :callback="handleGoogleCallback" />
+            </div>
+          </template>
         </form>
       </template>
     </Card>

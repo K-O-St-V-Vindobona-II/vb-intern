@@ -2,6 +2,11 @@ import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import LoginView from '../LoginView.vue'
 import PrimeVue from 'primevue/config'
+import { googleClientId } from '@/runtimeConfig'
+
+vi.mock('@/runtimeConfig', () => ({
+  googleClientId: vi.fn(() => 'test-client-id.apps.googleusercontent.com'),
+}))
 
 const mockPush = vi.fn()
 
@@ -193,5 +198,25 @@ describe('LoginView.vue', () => {
     await googleComponent.props('callback')({ credential: 'token' })
 
     expect(wrapper.text()).toContain('Verbindung zum Backend fehlgeschlagen.')
+  })
+
+  it('should show the Google login button when a client ID is configured', () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+
+    expect(wrapper.findComponent({ name: 'GoogleLogin' }).exists()).toBe(true)
+    expect(wrapper.text()).toContain('ODER')
+  })
+
+  it('should hide the Google login button and divider when no client ID is configured', () => {
+    vi.mocked(googleClientId).mockReturnValueOnce('')
+
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+
+    expect(wrapper.findComponent({ name: 'GoogleLogin' }).exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('ODER')
   })
 })
