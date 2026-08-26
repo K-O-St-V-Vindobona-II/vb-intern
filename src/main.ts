@@ -69,6 +69,10 @@ app.use(PrimeVue, {
   },
 })
 
+// An empty clientId is safe here: vue3-google-login's install() does not
+// validate it - the actual failure would only come from <GoogleLogin>'s
+// own onMounted hook, and that component is never rendered when the ID is
+// empty (see LoginView.vue's isGoogleLoginEnabled).
 app.use(vue3GoogleLogin, {
   clientId: googleClientId(),
 })
