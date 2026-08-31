@@ -23,10 +23,18 @@ FROM docker.io/library/nginx:1-alpine
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# config.template.js reaches dist/ verbatim (Vite copies everything under
+# public/ as-is) and would otherwise stay publicly reachable at
+# /config.template.js forever, since the entrypoint hook below no longer
+# deletes it after rendering. Move it out of the served webroot so it is
+# never web-accessible - the entrypoint reads it from here instead.
+RUN mkdir -p /etc/vb-intern \
+    && mv /usr/share/nginx/html/config.template.js /etc/vb-intern/config.template.js
+
 # nginx's own /docker-entrypoint.sh (the base image's ENTRYPOINT) runs every
 # executable *.sh file under /docker-entrypoint.d/ before starting nginx.
-# This hook renders dist/config.template.js (copied above) into config.js
-# from the real container environment on every container start.
+# This hook renders /etc/vb-intern/config.template.js (moved above) into
+# config.js from the real container environment on every container start.
 COPY --chmod=755 docker/docker-entrypoint.d/40-generate-runtime-config.sh /docker-entrypoint.d/40-generate-runtime-config.sh
 
 EXPOSE 80

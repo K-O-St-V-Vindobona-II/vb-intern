@@ -52,9 +52,75 @@ jobs:
           languages: javascript-typescript
       - uses: github/codeql-action/analyze@v4
 
+  smoke-test-readonly:
+    name: Read-Only Rootfs Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: vb-intern:smoke-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Mirrors the Quadlet hardening applied in the deploy repo's
+      # templates: read-only rootfs, nginx's master-to-worker privilege
+      # drop needs CAP_CHOWN/CAP_SETUID/CAP_SETGID beyond CAP_NET_BIND_SERVICE
+      # (binding port 80 as root). Proves the image actually boots and
+      # serves the runtime-rendered config.js under those constraints
+      # instead of just assuming it from reading the code.
+      - name: Boot the container read-only
+        run: |
+          docker run -d --name vb-intern-smoke \
+            --read-only --cap-drop=all --security-opt no-new-privileges \
+            --cap-add=CAP_NET_BIND_SERVICE --cap-add=CAP_CHOWN \
+            --cap-add=CAP_SETUID --cap-add=CAP_SETGID \
+            --tmpfs /run:mode=1777 \
+            --tmpfs /var/cache/nginx:mode=0755 \
+            -p 8090:80 \
+            -e API_BASE_URL=https://api.example.test \
+            -e PASSWORD_MIN_LENGTH=12 \
+            -e APP_ENVIRONMENT=test \
+            vb-intern:smoke-test
+
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8090/ -o /dev/null; then
+              echo "Container is up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+          echo "--- index page ---"
+          curl -sf http://localhost:8090/ -o /dev/null -w "HTTP %{http_code}\n"
+          echo "--- rendered config.js ---"
+          curl -sf http://localhost:8090/config.js
+          curl -sf http://localhost:8090/config.js | grep -q "https://api.example.test"
+
+          echo "--- container logs ---"
+          docker logs vb-intern-smoke
+
+          # nginx's stock docker-entrypoint.d hooks log a benign
+          # "can not modify ... (read-only file system?)" info line when
+          # they skip a config tweak on the read-only webroot - only match
+          # nginx's own fatal-severity tags plus a generic EROFS/OSError,
+          # not that expected info-level message.
+          if docker logs vb-intern-smoke 2>&1 | grep -qi "\[emerg\]\|\[alert\]\|EROFS"; then
+            echo "Found a fatal read-only/permission error in the container log"
+            exit 1
+          fi
+
+          docker rm -f vb-intern-smoke
+
   release-image:
     name: Build & Push Image
-    needs: [lint, quality, security]
+    needs: [lint, quality, security, smoke-test-readonly]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
