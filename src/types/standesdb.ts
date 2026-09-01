@@ -18,14 +18,14 @@ export interface RoleRef {
 }
 
 export interface BadgeRef {
-  id: number
+  id: string
   name: string
   group: string | null
   order: number
 }
 
 export interface KeyRef {
-  id: number
+  id: string
   name: string
 }
 
@@ -47,7 +47,7 @@ export interface RoleHistoryEntry {
 }
 
 export interface BadgeEntry {
-  id: number
+  id: string
   name?: string
   group?: string | null
   order?: number
@@ -56,7 +56,7 @@ export interface BadgeEntry {
 }
 
 export interface KeyEntry {
-  id: number
+  id: string
   name?: string
   presentationdate: string | null
   presentationdate_accuracy: number

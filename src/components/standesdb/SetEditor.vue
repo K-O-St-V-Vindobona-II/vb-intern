@@ -9,14 +9,14 @@ import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 
 interface SetItem {
-  id: number
+  id: string
   name: string
   group?: string | null
   order?: number
 }
 
 interface Entry {
-  id: number
+  id: string
   name?: string
   group?: string | null
   order?: number
@@ -39,25 +39,29 @@ const emit = defineEmits<{
 
 const dialogVisible = ref(false)
 const editingEntry = ref<Entry | null>(null)
-const formId = ref<number>(0)
+const formId = ref<string>('')
 const formDate = ref<string | null>(null)
 const formAccuracy = ref(0)
 
-const sorted = computed(() => [...props.modelValue].sort((a, b) => (a.id ?? 0) - (b.id ?? 0)))
+// String comparison only, not a meaningful business order - id is a
+// UUID now, not a sequential int; this just keeps the list stable.
+const sorted = computed(() =>
+  [...props.modelValue].sort((a, b) => (a.id ?? '').localeCompare(b.id ?? '')),
+)
 
 const unused = computed(() =>
   props.availableItems.filter((item) => !props.modelValue.some((e) => e.id === item.id)),
 )
 
-const itemName = (id: number) => props.availableItems.find((i) => i.id === id)?.name ?? '?'
+const itemName = (id: string) => props.availableItems.find((i) => i.id === id)?.name ?? '?'
 
-const itemGroup = (id: number) => props.availableItems.find((i) => i.id === id)?.group ?? ''
+const itemGroup = (id: string) => props.availableItems.find((i) => i.id === id)?.group ?? ''
 
 const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
 
 const openAdd = () => {
   editingEntry.value = null
-  formId.value = unused.value[0]?.id ?? 0
+  formId.value = unused.value[0]?.id ?? ''
   formDate.value = toLocalDateStr(new Date())
   formAccuracy.value = props.withDate ? 3 : 0
   dialogVisible.value = true

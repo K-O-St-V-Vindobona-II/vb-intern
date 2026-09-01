@@ -66,14 +66,21 @@ const fullMemberData = {
   ],
   badges: [
     {
-      id: 1,
+      id: '11111111-1111-1111-1111-111111111111',
       name: 'fuxenband',
       group: 'band',
       presentationdate: null,
       presentationdate_accuracy: 0,
     },
   ],
-  keys: [{ id: 1, name: 'bude', presentationdate: null, presentationdate_accuracy: 0 }],
+  keys: [
+    {
+      id: '22222222-2222-2222-2222-222222222222',
+      name: 'bude',
+      presentationdate: null,
+      presentationdate_accuracy: 0,
+    },
+  ],
   tree: { children: [], ancestry: [] },
 }
 
