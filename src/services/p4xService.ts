@@ -63,7 +63,7 @@ export default {
     )
   },
 
-  getTransactionsByPartner(accountId: number, type: string, partnerId: number, page = 1) {
+  getTransactionsByPartner(accountId: number, type: string, partnerId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-partner/${type}/${partnerId}`,
       { params: { page } },

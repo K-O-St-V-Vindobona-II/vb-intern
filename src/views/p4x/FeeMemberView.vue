@@ -34,7 +34,7 @@ const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
 const onMemberSelect = async (item: SearchResult) => {
   loading.value = true
   try {
-    const resp = await p4xService.getFeeMember(item.id)
+    const resp = await p4xService.getFeeMember(Number(item.id))
     member.value = resp.data
   } finally {
     loading.value = false

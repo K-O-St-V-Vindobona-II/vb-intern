@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { PartnerRef } from '@/types/p4x'
+import type { LegacyPartnerRef, PartnerRef } from '@/types/p4x'
 
 defineProps<{
   partner: PartnerRef
-  delegatingPartner?: PartnerRef | null
+  delegatingPartner?: LegacyPartnerRef | null
 }>()
 
 const typeLabels: Record<string, string> = {

@@ -101,7 +101,9 @@ describe('TransactionTable', () => {
     const wrapper = mount(TransactionTable, {
       props: {
         transactions: [
-          buildTransaction({ partner: { type: 'member', id: 5, cn: 'Max Mustermann' } }),
+          buildTransaction({
+            partner: { type: 'member', id: 'member-uuid-5', cn: 'Max Mustermann' },
+          }),
         ],
         categories,
       },
