@@ -12,9 +12,13 @@ const baseSettings = {
   gallery_heading: 'Eindrücke',
 }
 
+const FIRST_HINT_ID = '0199a1c1-0000-7000-8000-000000000001'
+const SECOND_HINT_ID = '0199a1c1-0000-7000-8000-000000000002'
+const THIRD_HINT_ID = '0199a1c1-0000-7000-8000-000000000003'
+
 const baseHints = [
-  { id: 1, text: 'Erster Hinweis.' },
-  { id: 2, text: 'Zweiter Hinweis.' },
+  { id: FIRST_HINT_ID, text: 'Erster Hinweis.' },
+  { id: SECOND_HINT_ID, text: 'Zweiter Hinweis.' },
 ]
 
 const mockGetSettings = vi.fn()
@@ -46,8 +50,8 @@ describe('ProgrammAdminView', () => {
     mockGetSettings.mockReset().mockResolvedValue({ data: { ...baseSettings } })
     mockUpdateSettings.mockReset().mockResolvedValue({ data: { ...baseSettings } })
     mockListHints.mockReset().mockResolvedValue({ data: structuredClone(baseHints) })
-    mockCreateHint.mockReset().mockResolvedValue({ data: { id: 3, text: 'Neu' } })
-    mockUpdateHint.mockReset().mockResolvedValue({ data: { id: 1, text: 'Geändert' } })
+    mockCreateHint.mockReset().mockResolvedValue({ data: { id: THIRD_HINT_ID, text: 'Neu' } })
+    mockUpdateHint.mockReset().mockResolvedValue({ data: { id: FIRST_HINT_ID, text: 'Geändert' } })
     mockMoveHint.mockReset().mockResolvedValue({ data: { status: 'ok' } })
     mockRemoveHint.mockReset().mockResolvedValue({ data: undefined })
   })
@@ -112,7 +116,7 @@ describe('ProgrammAdminView', () => {
     await upButtons[1]?.trigger('click')
     await flushPromises()
 
-    expect(mockMoveHint).toHaveBeenCalledWith(2, 'up')
+    expect(mockMoveHint).toHaveBeenCalledWith(SECOND_HINT_ID, 'up')
   })
 
   it('deletes a hint after confirming', async () => {
@@ -127,6 +131,6 @@ describe('ProgrammAdminView', () => {
     confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockRemoveHint).toHaveBeenCalledWith(1)
+    expect(mockRemoveHint).toHaveBeenCalledWith(FIRST_HINT_ID)
   })
 })

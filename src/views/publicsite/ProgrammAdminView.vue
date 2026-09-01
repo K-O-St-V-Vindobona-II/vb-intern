@@ -28,11 +28,11 @@ const newHintText = ref('')
 const addingHint = ref(false)
 
 const editDialogVisible = ref(false)
-const editHintId = ref(0)
+const editHintId = ref('')
 const editHintText = ref('')
 
 const deleteDialogVisible = ref(false)
-const deleteHintId = ref(0)
+const deleteHintId = ref('')
 
 const loadAll = async () => {
   loading.value = true

@@ -18,12 +18,12 @@ const newAuthor = ref('')
 const adding = ref(false)
 
 const editDialogVisible = ref(false)
-const editQuoteId = ref(0)
+const editQuoteId = ref('')
 const editQuoteText = ref('')
 const editAuthor = ref('')
 
 const deleteDialogVisible = ref(false)
-const deleteQuoteId = ref(0)
+const deleteQuoteId = ref('')
 
 const loadQuotes = async () => {
   loading.value = true
