@@ -48,7 +48,7 @@ export interface QuoteRequest {
 }
 
 export interface SocialLinkAdminResponse {
-  id: number
+  id: string
   platform: string
   label: string
   url: string
@@ -145,15 +145,15 @@ export const socialLinksService = {
     return api.post<SocialLinkAdminResponse>(`${ADMIN_PREFIX}/social-links`, data)
   },
 
-  update(linkId: number, data: SocialLinkUpdateRequest) {
+  update(linkId: string, data: SocialLinkUpdateRequest) {
     return api.put<SocialLinkAdminResponse>(`${ADMIN_PREFIX}/social-links/${linkId}`, data)
   },
 
-  move(linkId: number, direction: MoveDirection) {
+  move(linkId: string, direction: MoveDirection) {
     return api.post(`${ADMIN_PREFIX}/social-links/${linkId}/move`, { direction })
   },
 
-  remove(linkId: number) {
+  remove(linkId: string) {
     return api.delete(`${ADMIN_PREFIX}/social-links/${linkId}`)
   },
 }

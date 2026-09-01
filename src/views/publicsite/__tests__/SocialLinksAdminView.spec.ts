@@ -5,16 +5,20 @@ import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import SocialLinksAdminView from '../SocialLinksAdminView.vue'
 
+const FACEBOOK_ID = '0199a1c0-0000-7000-8000-000000000001'
+const INSTAGRAM_ID = '0199a1c0-0000-7000-8000-000000000002'
+const LINKEDIN_ID = '0199a1c0-0000-7000-8000-000000000003'
+
 const baseLinks = [
   {
-    id: 1,
+    id: FACEBOOK_ID,
     platform: 'facebook',
     label: 'Facebook',
     url: 'https://www.facebook.com/vindobona2',
     is_enabled: false,
   },
   {
-    id: 2,
+    id: INSTAGRAM_ID,
     platform: 'instagram',
     label: 'Instagram',
     url: 'https://www.instagram.com/vindobona2',
@@ -44,7 +48,13 @@ describe('SocialLinksAdminView', () => {
   beforeEach(() => {
     mockList.mockReset().mockResolvedValue({ data: structuredClone(baseLinks) })
     mockCreate.mockReset().mockResolvedValue({
-      data: { id: 3, platform: 'linkedin', label: 'LinkedIn', url: 'https://x', is_enabled: true },
+      data: {
+        id: LINKEDIN_ID,
+        platform: 'linkedin',
+        label: 'LinkedIn',
+        url: 'https://x',
+        is_enabled: true,
+      },
     })
     mockUpdate.mockReset().mockResolvedValue({ data: baseLinks[0] })
     mockMove.mockReset().mockResolvedValue({ data: { status: 'ok' } })
@@ -120,7 +130,7 @@ describe('SocialLinksAdminView', () => {
     saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockUpdate).toHaveBeenCalledWith(1, {
+    expect(mockUpdate).toHaveBeenCalledWith(FACEBOOK_ID, {
       label: 'Facebook',
       url: 'https://www.facebook.com/vindobona2',
       is_enabled: true,
@@ -133,7 +143,7 @@ describe('SocialLinksAdminView', () => {
     await upButtons[1]?.trigger('click')
     await flushPromises()
 
-    expect(mockMove).toHaveBeenCalledWith(2, 'up')
+    expect(mockMove).toHaveBeenCalledWith(INSTAGRAM_ID, 'up')
   })
 
   it('deletes a link after confirming', async () => {
@@ -148,6 +158,6 @@ describe('SocialLinksAdminView', () => {
     confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockRemove).toHaveBeenCalledWith(1)
+    expect(mockRemove).toHaveBeenCalledWith(FACEBOOK_ID)
   })
 })

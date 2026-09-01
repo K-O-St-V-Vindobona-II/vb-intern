@@ -21,13 +21,13 @@ const newUrl = ref('')
 const adding = ref(false)
 
 const editDialogVisible = ref(false)
-const editLinkId = ref(0)
+const editLinkId = ref('')
 const editLabel = ref('')
 const editUrl = ref('')
 const editIsEnabled = ref(true)
 
 const deleteDialogVisible = ref(false)
-const deleteLinkId = ref(0)
+const deleteLinkId = ref('')
 
 const loadLinks = async () => {
   loading.value = true
