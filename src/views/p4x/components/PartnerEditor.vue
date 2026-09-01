@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { LegacyPartnerRef, P4xTransaction, PartnerRef, PartnerSearchResult } from '@/types/p4x'
+import type { P4xTransaction, PartnerRef, PartnerSearchResult } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
 import PartnerSearch from './PartnerSearch.vue'
 import Dialog from 'primevue/dialog'
@@ -21,16 +21,6 @@ const toSearchResult = (ref: PartnerRef): PartnerSearchResult => ({
   label: ref.cn,
 })
 
-// delegating_partner comes back keyed by the entity's legacy integer id
-// (p4x_transactions.delegating_* isn't UUID yet) - id_uuid is what the
-// set-partner endpoint actually resolves by, so re-submitting an
-// unchanged delegating partner must go through it, not id.
-const legacyToSearchResult = (ref: LegacyPartnerRef): PartnerSearchResult => ({
-  type: ref.type,
-  id: ref.id_uuid,
-  label: ref.cn,
-})
-
 const toPartnerRef = (r: PartnerSearchResult): PartnerRef => ({
   type: r.type,
   id: r.id,
@@ -41,7 +31,7 @@ const open = () => {
   partner.value = props.transaction.partner ? toSearchResult(props.transaction.partner) : null
   hasDelegating.value = !!props.transaction.delegating_partner
   delegatingPartner.value = props.transaction.delegating_partner
-    ? legacyToSearchResult(props.transaction.delegating_partner)
+    ? toSearchResult(props.transaction.delegating_partner)
     : null
   visible.value = true
 }

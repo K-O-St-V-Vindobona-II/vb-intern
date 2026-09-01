@@ -4,19 +4,6 @@ export interface PartnerRef {
   cn: string
 }
 
-// Same shape as PartnerRef, but keyed by the referenced entity's
-// still-integer primary key - used only for a transaction's delegating
-// partner, since p4x_transactions.delegating_* stays integer until that
-// table's own UUID cutover unifies it back with PartnerRef. id_uuid lets
-// an unchanged delegating partner be re-submitted as a PartnerRef
-// without a fresh search round-trip.
-export interface LegacyPartnerRef {
-  type: string
-  id: number
-  id_uuid: string
-  cn: string
-}
-
 export interface CategoryDirect {
   id: number
   p4x_category_id: number
@@ -54,7 +41,7 @@ export interface P4xTransaction {
   comment: string | null
   has_attachment: boolean
   partner: PartnerRef | null
-  delegating_partner: LegacyPartnerRef | null
+  delegating_partner: PartnerRef | null
   p4x_category_directs: CategoryDirect[]
   p4x_category_filters: CategoryFilterShort[]
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PartnerLabel from '../PartnerLabel.vue'
-import type { LegacyPartnerRef, PartnerRef } from '@/types/p4x'
+import type { PartnerRef } from '@/types/p4x'
 
 describe('PartnerLabel', () => {
   it('shows the German type label and name for a member', () => {
@@ -27,10 +27,9 @@ describe('PartnerLabel', () => {
 
   it('shows the delegating partner when given', () => {
     const partner: PartnerRef = { type: 'special', id: 'special-uuid-1', cn: 'Sammelkonto' }
-    const delegatingPartner: LegacyPartnerRef = {
+    const delegatingPartner: PartnerRef = {
       type: 'contact',
-      id: 2,
-      id_uuid: 'contact-uuid-2',
+      id: 'contact-uuid-2',
       cn: 'Firma GmbH',
     }
     const wrapper = mount(PartnerLabel, { props: { partner, delegatingPartner } })

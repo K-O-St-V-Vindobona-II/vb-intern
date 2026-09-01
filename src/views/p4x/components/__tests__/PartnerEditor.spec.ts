@@ -84,15 +84,10 @@ describe('PartnerEditor', () => {
     wrapper.unmount()
   })
 
-  it('pre-fills an existing delegating partner keyed by its id_uuid, not its legacy id', async () => {
+  it('pre-fills an existing delegating partner from the transaction when opened', async () => {
     const transaction = buildTransaction({
       partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
-      delegating_partner: {
-        type: 'contact',
-        id: 7,
-        id_uuid: 'contact-uuid-7',
-        cn: 'Firma',
-      },
+      delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
     })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -151,12 +146,7 @@ describe('PartnerEditor', () => {
   it('clears the delegating partner when the main partner is cleared', async () => {
     const transaction = buildTransaction({
       partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
-      delegating_partner: {
-        type: 'contact',
-        id: 7,
-        id_uuid: 'contact-uuid-7',
-        cn: 'Firma',
-      },
+      delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
     })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
