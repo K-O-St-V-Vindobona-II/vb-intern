@@ -37,6 +37,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
 const categories: P4xCategory[] = [
   {
     id: 1,
+    id_uuid: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -141,8 +142,8 @@ describe('TransactionTable', () => {
   it('warns about ambiguous category filters when more than one applies', () => {
     const tx = buildTransaction({
       p4x_category_filters: [
-        { id: 1, p4x_category_id: 1 },
-        { id: 2, p4x_category_id: 1 },
+        { id: 1, p4x_category_id: 'category-uuid-1' },
+        { id: 2, p4x_category_id: 'category-uuid-1' },
       ],
     })
     const wrapper = mount(TransactionTable, {
@@ -274,7 +275,12 @@ describe('TransactionTable', () => {
   })
 
   it('shows the single matching category filter without a warning', () => {
-    const tx = buildTransaction({ p4x_category_filters: [{ id: 1, p4x_category_id: 1 }] })
+    // p4x_category_filters is keyed by id_uuid, unlike p4x_category_directs
+    // above (still the category's legacy integer id) - findCategory() must
+    // resolve both id flavors against the same categories list.
+    const tx = buildTransaction({
+      p4x_category_filters: [{ id: 1, p4x_category_id: 'category-uuid-1' }],
+    })
     const wrapper = mount(TransactionTable, {
       props: { transactions: [tx], categories },
       ...mountOpts,

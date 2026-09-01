@@ -27,13 +27,13 @@ const useMax = ref(false)
 
 const form = ref({
   name: '',
-  p4x_account_id: null as number | null,
+  p4x_account_id: null as string | null,
   iban: '',
   min_amount: 0,
   max_amount: 0,
   subject_mode: 'equals',
   subject: '',
-  p4x_category_id: null as number | null,
+  p4x_category_id: null as string | null,
 })
 
 const subjectModeOptions = [
@@ -45,16 +45,30 @@ const subjectModeOptions = [
 const accountOptions = computed(() =>
   accounts.value.map((a) => ({
     label: `${a.label} (${a.iban})`,
-    value: a.id,
+    value: a.id_uuid,
   })),
 )
 
 const categoryOptions = computed(() =>
   categories.value.map((c) => ({
     label: `${c.name} (${c.label})`,
-    value: c.id,
+    value: c.id_uuid,
   })),
 )
+
+// accountId in the query is still the account's legacy integer id (e.g.
+// from a transaction's own p4x_account_id, which stays integer until
+// its own slice) - resolved here to the matching account's id_uuid, the
+// identifier the form actually submits.
+function resolveAccountIdFromQuery(
+  query: LocationQuery,
+  accounts: P4xAccount[],
+  defaultAccountId: string | null,
+): string | null {
+  if (!query['accountId']) return defaultAccountId
+  const match = accounts.find((a) => a.id === Number(query['accountId']))
+  return match ? match.id_uuid : defaultAccountId
+}
 
 function buildFormFromQuery(
   query: LocationQuery,
@@ -62,14 +76,14 @@ function buildFormFromQuery(
   categories: P4xCategory[],
 ): { form: typeof form.value; useMin: boolean; useMax: boolean } {
   const firstAccount = accounts[0]
-  const defaultAccountId = firstAccount ? firstAccount.id : null
+  const defaultAccountId = firstAccount ? firstAccount.id_uuid : null
   const firstCategory = categories[0]
-  const defaultCategoryId = firstCategory ? firstCategory.id : null
+  const defaultCategoryId = firstCategory ? firstCategory.id_uuid : null
 
   const result = {
     form: {
       name: '',
-      p4x_account_id: query['accountId'] ? Number(query['accountId']) : defaultAccountId,
+      p4x_account_id: resolveAccountIdFromQuery(query, accounts, defaultAccountId),
       iban: '',
       min_amount: 0,
       max_amount: 0,

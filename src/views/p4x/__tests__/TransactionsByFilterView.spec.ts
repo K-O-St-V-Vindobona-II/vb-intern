@@ -29,14 +29,15 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
     id: 1,
     name: 'Filter A',
-    p4x_account_id: 2,
+    p4x_account_id: 'account-uuid-2',
+    account_id: 2,
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 4,
     ...overrides,
   }
@@ -45,6 +46,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
 const categories: P4xCategory[] = [
   {
     id: 1,
+    id_uuid: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -108,7 +110,7 @@ describe('TransactionsByFilterView', () => {
     vi.clearAllMocks()
     mockRoute.query = {}
     mockGetCategoryFilters.mockResolvedValue({
-      data: [buildFilter({ id: 1, p4x_account_id: 2 }), buildFilter({ id: 2, p4x_account_id: 9 })],
+      data: [buildFilter({ id: 1, account_id: 2 }), buildFilter({ id: 2, account_id: 9 })],
     })
     mockGetDashboard.mockResolvedValue({ data: { categories } })
     mockGetTransactionsByFilter.mockResolvedValue({ data: buildResult() })

@@ -26,14 +26,18 @@ export interface CategoryDirect {
 export interface CategoryFilterShort {
   id: number
   name: string
-  p4x_account_id: number
+  p4x_account_id: string
+  // The account's own (still-integer) primary key, distinct from
+  // p4x_account_id above - needed to link into other account-scoped,
+  // integer-keyed views.
+  account_id: number
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
   max_amount: number | null
   subject: string | null
   subject_mode: string
-  p4x_category_id: number
+  p4x_category_id: string
   hitCount: number
 }
 
@@ -57,6 +61,9 @@ export interface P4xTransaction {
 
 export interface P4xAccount {
   id: number
+  // Additive alongside the still-integer id - the identifier
+  // p4x_category_filters.p4x_account_id now actually stores.
+  id_uuid: string
   iban: string
   bic: string | null
   label: string | null
@@ -69,6 +76,9 @@ export interface P4xAccount {
 
 export interface P4xCategory {
   id: number
+  // Additive alongside the still-integer id - the identifier
+  // p4x_category_filters.p4x_category_id now actually stores.
+  id_uuid: string
   name: string
   label: string
   background_color: string
@@ -83,14 +93,16 @@ export interface CategoryWithUsage extends P4xCategory {
 export interface CategoryFilter {
   id: number
   name: string
-  p4x_account_id: number
+  p4x_account_id: string
+  // See CategoryFilterShort.account_id above.
+  account_id: number
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
   max_amount: number | null
   subject: string | null
   subject_mode: string
-  p4x_category_id: number
+  p4x_category_id: string
   hitCount: number
 }
 

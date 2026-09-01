@@ -27,8 +27,10 @@ const load = async () => {
   }
 }
 
-const findCategory = (id: number): P4xCategory | undefined =>
-  categories.value.find((c) => c.id === id)
+// CategoryFilter.p4x_category_id is now id_uuid, not the category's own
+// (still-integer) id.
+const findCategory = (id: string): P4xCategory | undefined =>
+  categories.value.find((c) => c.id_uuid === id)
 
 onMounted(load)
 </script>
@@ -54,7 +56,7 @@ onMounted(load)
               @click="
                 router.push({
                   name: 'p4x-transactions-filter',
-                  params: { accountId: data.p4x_account_id },
+                  params: { accountId: data.account_id },
                   query: { filterId: data.id },
                 })
               "

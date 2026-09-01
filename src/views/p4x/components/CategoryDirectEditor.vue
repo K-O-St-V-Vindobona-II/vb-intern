@@ -205,7 +205,9 @@ defineExpose({ open })
                 <td>{{ f.hitCount }}</td>
                 <td>{{ f.name }}</td>
                 <td>
-                  <CategoryLabel :category="categories.find((c) => c.id === f.p4x_category_id)" />
+                  <CategoryLabel
+                    :category="categories.find((c) => c.id_uuid === f.p4x_category_id)"
+                  />
                 </td>
               </tr>
               <tr v-if="expandedFilters.has(f.id)">
@@ -226,7 +228,7 @@ defineExpose({ open })
                     </div>
                     <div>
                       <CategoryLabel
-                        :category="categories.find((c) => c.id === f.p4x_category_id)"
+                        :category="categories.find((c) => c.id_uuid === f.p4x_category_id)"
                       />
                     </div>
                   </div>

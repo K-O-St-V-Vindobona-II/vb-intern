@@ -22,14 +22,15 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
     id: 1,
     name: 'Filter A',
-    p4x_account_id: 1,
+    p4x_account_id: 'account-uuid-1',
+    account_id: 1,
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 4,
     ...overrides,
   }
@@ -38,6 +39,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
 const categories: P4xCategory[] = [
   {
     id: 1,
+    id_uuid: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -81,7 +83,7 @@ describe('CategoryFilterListView', () => {
 
   it('navigates to the transactions-by-filter view for the clicked filter row', async () => {
     mockGetCategoryFilters.mockResolvedValue({
-      data: [buildFilter({ id: 9, p4x_account_id: 3 })],
+      data: [buildFilter({ id: 9, account_id: 3 })],
     })
     const wrapper = mount(CategoryFilterListView, mountOpts)
     await flushPromises()

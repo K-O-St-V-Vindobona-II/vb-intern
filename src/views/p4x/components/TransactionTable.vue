@@ -39,8 +39,11 @@ const catEditorRef = ref<InstanceType<typeof CategoryDirectEditor> | null>(null)
 const partnerEditorRef = ref<InstanceType<typeof PartnerEditor> | null>(null)
 const editingTx = ref<P4xTransaction | null>(null)
 
-const findCategory = (id: number): P4xCategory | undefined =>
-  props.categories.find((c) => c.id === id)
+// Called with a CategoryDirect's still-integer p4x_category_id or a
+// CategoryFilterShort's now-id_uuid p4x_category_id, depending on
+// which categorization matched - so both id flavors must be checked.
+const findCategory = (id: number | string): P4xCategory | undefined =>
+  props.categories.find((c) => c.id === id || c.id_uuid === id)
 
 const showRaw = async (tx: P4xTransaction) => {
   try {
