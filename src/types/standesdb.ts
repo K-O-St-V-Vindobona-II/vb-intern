@@ -187,14 +187,14 @@ export interface MemberSelfServiceDetail extends MemberSelfServiceFormData {
 }
 
 export interface MyChangeRequest {
-  id: number
+  id: string
   created_at: string | null
   proposed_fields: Record<string, string | number | null>
 }
 
 export interface MemberChangeRequestSummary {
-  id: number
-  member_id: number
+  id: string
+  member_id: string
   member_cn: string
   member_org_id: string | null
   field_count: number
@@ -209,8 +209,8 @@ export interface MemberChangeRequestDiffEntry {
 }
 
 export interface MemberChangeRequestDetail {
-  id: number
-  member_id: number
+  id: string
+  member_id: string
   member_cn: string
   status: 'pending' | 'resolved'
   created_at: string | null

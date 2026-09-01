@@ -93,11 +93,11 @@ export default {
     )
   },
 
-  getChangeRequest(id: number) {
+  getChangeRequest(id: string) {
     return api.get<MemberChangeRequestDetail>(`/standesdb/member-change-requests/${id}`)
   },
 
-  decideChangeRequest(id: number, fieldDecisions: Record<string, 'approved' | 'rejected'>) {
+  decideChangeRequest(id: string, fieldDecisions: Record<string, 'approved' | 'rejected'>) {
     return api.post<{ status: string }>(`/standesdb/member-change-requests/${id}/decide`, {
       field_decisions: fieldDecisions,
     })

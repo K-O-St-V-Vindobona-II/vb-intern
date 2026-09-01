@@ -155,15 +155,20 @@ describe('standesdbService', () => {
   })
 
   it('getChangeRequest fetches a single change request with its diff', () => {
-    standesdbService.getChangeRequest(7)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/member-change-requests/7')
+    standesdbService.getChangeRequest('11111111-1111-1111-1111-111111111111')
+    expect(mockGet).toHaveBeenCalledWith(
+      '/standesdb/member-change-requests/11111111-1111-1111-1111-111111111111',
+    )
   })
 
   it('decideChangeRequest posts the field decisions', () => {
-    standesdbService.decideChangeRequest(7, { nachname: 'approved' })
-    expect(mockPost).toHaveBeenCalledWith('/standesdb/member-change-requests/7/decide', {
-      field_decisions: { nachname: 'approved' },
+    standesdbService.decideChangeRequest('11111111-1111-1111-1111-111111111111', {
+      nachname: 'approved',
     })
+    expect(mockPost).toHaveBeenCalledWith(
+      '/standesdb/member-change-requests/11111111-1111-1111-1111-111111111111/decide',
+      { field_decisions: { nachname: 'approved' } },
+    )
   })
 
   it('createContact posts the new contact payload', () => {

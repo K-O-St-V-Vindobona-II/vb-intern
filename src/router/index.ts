@@ -157,7 +157,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/change-requests/:id(\\d+)',
+          path: 'standesdb/change-requests/:id',
           name: 'standesdb-change-request-review',
           component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
           meta: {
