@@ -49,8 +49,10 @@ describe('trackingService', () => {
 
   it('getActivity forwards filter params', async () => {
     mockGet.mockResolvedValueOnce({ data: { items: [], total: 0 } })
-    await trackingService.getActivity({ member_id: 3 })
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity', { params: { member_id: 3 } })
+    await trackingService.getActivity({ member_id: 'member-uuid-3' })
+    expect(mockGet).toHaveBeenCalledWith('/tracking/activity', {
+      params: { member_id: 'member-uuid-3' },
+    })
   })
 
   it('getActivityDetail fetches a single activity entry', async () => {

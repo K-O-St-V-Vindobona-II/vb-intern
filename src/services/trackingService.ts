@@ -44,7 +44,7 @@ export default {
   async getActivity(params: {
     page?: number
     page_size?: number
-    member_id?: number
+    member_id?: string
     date_from?: string
     date_to?: string
   }): Promise<PaginatedResponse<ActivityLogItem>> {
@@ -59,7 +59,7 @@ export default {
 
   async getActivitySessions(params: {
     date_str?: string
-    member_id?: number
+    member_id?: string
     page?: number
     page_size?: number
   }): Promise<PaginatedResponse<ActivitySession>> {
