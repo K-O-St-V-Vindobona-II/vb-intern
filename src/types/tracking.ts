@@ -1,5 +1,5 @@
 export interface SentEmailListItem {
-  id: number
+  id: string
   created_at: string | null
   to: string | null
   subject: string | null

@@ -324,7 +324,7 @@ describe('SchedulerView', () => {
         data: {
           items: [
             {
-              id: 1,
+              id: '11111111-1111-1111-1111-111111111111',
               job_id: 'cleanup',
               exit_code: 0,
               output: '3 removed',

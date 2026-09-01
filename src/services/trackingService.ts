@@ -22,7 +22,7 @@ export default {
     return data
   },
 
-  async getSentEmailDetail(id: number): Promise<SentEmailDetail> {
+  async getSentEmailDetail(id: string): Promise<SentEmailDetail> {
     const { data } = await api.get(`/tracking/sent-emails/${id}`)
     return data
   },
