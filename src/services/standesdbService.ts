@@ -176,14 +176,14 @@ export default {
   updateImage(
     ownerType: string,
     ownerId: number,
-    imageId: number,
+    imageId: string,
     data: { description: string | null; default: boolean },
   ) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.put(`/standesdb/${plural}/${ownerId}/images/${imageId}`, data)
   },
 
-  deleteImage(ownerType: string, ownerId: number, imageId: number) {
+  deleteImage(ownerType: string, ownerId: number, imageId: string) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.delete(`/standesdb/${plural}/${ownerId}/images/${imageId}`)
   },
@@ -204,15 +204,15 @@ export default {
     })
   },
 
-  updateOwnImage(imageId: number, data: { description: string | null; default: boolean }) {
+  updateOwnImage(imageId: string, data: { description: string | null; default: boolean }) {
     return api.put(`/standesdb/members/me/images/${imageId}`, data)
   },
 
-  deleteOwnImage(imageId: number) {
+  deleteOwnImage(imageId: string) {
     return api.delete(`/standesdb/members/me/images/${imageId}`)
   },
 
-  getImageUrl(ownerType: string, ownerId: number, imageId: number, thumb = false) {
+  getImageUrl(ownerType: string, ownerId: number, imageId: string, thumb = false) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.get<{ url: string }>(`/standesdb/${plural}/${ownerId}/images/${imageId}/url`, {
       params: thumb ? { thumb: true } : undefined,

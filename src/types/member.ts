@@ -5,7 +5,7 @@ export interface User {
   nachname?: string
   couleurname?: string
   cn: string
-  default_image: number | null
+  default_image: string | null
   org_id: string
   auth_locked: boolean
   permissions: string[]

@@ -27,12 +27,12 @@ describe('ImagePreview', () => {
   })
 
   it('accepts member ownerType', () => {
-    const w = mountWith({ imageId: 5, ownerType: 'member', ownerId: 1 })
+    const w = mountWith({ imageId: 'image-uuid-5', ownerType: 'member', ownerId: 1 })
     expect(w.exists()).toBe(true)
   })
 
   it('accepts contact ownerType', () => {
-    const w = mountWith({ imageId: 5, ownerType: 'contact', ownerId: 1 })
+    const w = mountWith({ imageId: 'image-uuid-5', ownerType: 'contact', ownerId: 1 })
     expect(w.exists()).toBe(true)
   })
 })

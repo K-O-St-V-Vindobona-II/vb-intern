@@ -42,19 +42,19 @@ const uploading = ref(false)
 const ownerCn = ref('')
 const ownerOrgId = ref('')
 const images = ref<StandesdbImage[]>([])
-const imageUrls = ref<Record<number, string>>({})
+const imageUrls = ref<Record<string, string>>({})
 
 const uploadFile = ref<File | null>(null)
 const uploadDescription = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const editDialogVisible = ref(false)
-const editImageId = ref(0)
+const editImageId = ref('')
 const editDescription = ref<string | null>(null)
 const editDefault = ref(false)
 
 const deleteDialogVisible = ref(false)
-const deleteImageId = ref(0)
+const deleteImageId = ref('')
 
 const isAdmin = computed(() => {
   const perms = authStore.user?.permissions ?? []

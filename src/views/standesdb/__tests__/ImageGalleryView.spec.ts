@@ -61,7 +61,7 @@ vi.mock('primevue/usetoast', () => ({
 function buildImages() {
   return [
     {
-      id: 1,
+      id: 'image-uuid-1',
       type: 'image/jpeg',
       height: 200,
       width: 150,
@@ -70,7 +70,7 @@ function buildImages() {
       default: true,
     },
     {
-      id: 2,
+      id: 'image-uuid-2',
       type: 'image/png',
       height: 100,
       width: 100,
@@ -145,19 +145,25 @@ describe('ImageGalleryView', () => {
     mockPermissions = ['standesdbVbwAdmin', 'standesdbContactAdmin']
     mockUserId = 99
     mockGetMemberImages.mockResolvedValue({
-      data: { owner: { cn: 'Max Muster', default_image: 1, org_id: 'vbw' }, images: buildImages() },
+      data: {
+        owner: { cn: 'Max Muster', default_image: 'image-uuid-1', org_id: 'vbw' },
+        images: buildImages(),
+      },
     })
     mockGetContactImages.mockResolvedValue({
       data: { owner: { cn: 'Kontakt Test', default_image: null }, images: [] },
     })
     mockGetOwnImages.mockResolvedValue({
-      data: { owner: { cn: 'Max Muster', default_image: 1, org_id: 'vbw' }, images: buildImages() },
+      data: {
+        owner: { cn: 'Max Muster', default_image: 'image-uuid-1', org_id: 'vbw' },
+        images: buildImages(),
+      },
     })
     mockGetImageUrl.mockRejectedValue(new Error('no preview'))
-    mockUploadImage.mockResolvedValue({ data: { id: 3 } })
+    mockUploadImage.mockResolvedValue({ data: { id: 'image-uuid-3' } })
     mockUpdateImage.mockResolvedValue({ data: {} })
     mockDeleteImage.mockResolvedValue({ data: {} })
-    mockUploadOwnImage.mockResolvedValue({ data: { id: 3 } })
+    mockUploadOwnImage.mockResolvedValue({ data: { id: 'image-uuid-3' } })
     mockUpdateOwnImage.mockResolvedValue({ data: {} })
     mockDeleteOwnImage.mockResolvedValue({ data: {} })
     currentRouter = router()
@@ -305,7 +311,10 @@ describe('ImageGalleryView', () => {
     clickButton('Speichern')
     await flushPromises()
 
-    expect(mockUpdateOwnImage).toHaveBeenCalledWith(1, { description: 'Profilbild', default: true })
+    expect(mockUpdateOwnImage).toHaveBeenCalledWith('image-uuid-1', {
+      description: 'Profilbild',
+      default: true,
+    })
     expect(mockUpdateImage).not.toHaveBeenCalled()
     w.unmount()
   })
@@ -319,7 +328,7 @@ describe('ImageGalleryView', () => {
     clickDialogButton('Löschen')
     await flushPromises()
 
-    expect(mockDeleteOwnImage).toHaveBeenCalledWith(1)
+    expect(mockDeleteOwnImage).toHaveBeenCalledWith('image-uuid-1')
     expect(mockDeleteImage).not.toHaveBeenCalled()
     w.unmount()
   })
@@ -506,7 +515,7 @@ describe('ImageGalleryView', () => {
     clickButton('Speichern')
     await flushPromises()
 
-    expect(mockUpdateImage).toHaveBeenCalledWith('member', 1, 1, {
+    expect(mockUpdateImage).toHaveBeenCalledWith('member', 1, 'image-uuid-1', {
       description: 'Profilbild',
       default: true,
     })
@@ -551,7 +560,7 @@ describe('ImageGalleryView', () => {
     clickDialogButton('Löschen')
     await flushPromises()
 
-    expect(mockDeleteImage).toHaveBeenCalledWith('member', 1, 1)
+    expect(mockDeleteImage).toHaveBeenCalledWith('member', 1, 'image-uuid-1')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', detail: 'Profilbild gelöscht.' }),
     )
@@ -580,7 +589,7 @@ describe('ImageGalleryView', () => {
     clickButton('Download')
     await flushPromises()
 
-    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 1, 1)
+    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 1, 'image-uuid-1')
     expect(clickSpy).toHaveBeenCalled()
     clickSpy.mockRestore()
     w.unmount()

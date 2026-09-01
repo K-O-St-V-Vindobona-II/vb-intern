@@ -93,12 +93,12 @@ describe('AppNavbar.vue', () => {
       vorname: 'Maria',
       nachname: 'Muster',
       cn: 'Maria Muster',
-      default_image: 3,
+      default_image: 'image-uuid-3',
     }
     const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
     await flushPromises()
 
-    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 5, 3, true)
+    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 5, 'image-uuid-3', true)
     const img = wrapper.find('.avatar-img-sm')
     expect(img.exists()).toBe(true)
     expect(img.attributes('src')).toBe('https://cdn.test/avatar.jpg')
@@ -111,7 +111,7 @@ describe('AppNavbar.vue', () => {
       vorname: 'Maria',
       nachname: 'Muster',
       cn: 'Maria Muster',
-      default_image: 3,
+      default_image: 'image-uuid-3',
     }
     const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
     await flushPromises()

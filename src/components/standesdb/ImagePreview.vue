@@ -4,7 +4,7 @@ import standesdbService from '@/services/standesdbService'
 import Avatar from 'primevue/avatar'
 
 const props = defineProps<{
-  imageId: number | null | undefined
+  imageId: string | null | undefined
   ownerType: 'member' | 'contact'
   ownerId: number
 }>()

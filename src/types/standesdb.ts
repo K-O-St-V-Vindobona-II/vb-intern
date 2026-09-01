@@ -92,7 +92,7 @@ export interface MemberDetail {
   grabadresse: string | null
   parent_id: number
   parent_cn: string
-  default_image: number | null
+  default_image: string | null
   chroniclemail: boolean
   auth_locked: boolean
   email: string | null
@@ -246,14 +246,14 @@ export interface ContactDetail {
   rufnummer: string | null
   datum: string | null
   datum_accuracy: number
-  default_image: number | null
+  default_image: string | null
   anmerkungen: string | null
 }
 
 export type ContactFormData = Omit<ContactDetail, 'id' | 'cn' | 'org_label' | 'default_image'>
 
 export interface StandesdbImage {
-  id: number
+  id: string
   type: string | null
   height: number | null
   width: number | null
