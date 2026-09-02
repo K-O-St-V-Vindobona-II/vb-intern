@@ -123,11 +123,11 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveUploadView.vue'),
         },
         {
-          // Registered before the bare :id route below: members.id lost
-          // its digit constraint with its own Final-Cutover, so "new"
-          // must be a static sibling Vue Router's matcher can rank ahead
-          // of a same-shape dynamic segment, not rely on it (same fix as
-          // standesdb/contacts/new above).
+          // Registered before the bare :id route below: id is a UUID, not
+          // a digit-constrained segment, so "new" must be a static
+          // sibling Vue Router's matcher can rank ahead of a same-shape
+          // dynamic segment, not rely on it (same fix as
+          // standesdb/contacts/new further below).
           path: 'standesdb/members/new',
           name: 'standesdb-member-new',
           component: () => import('../views/standesdb/MemberEditView.vue'),
@@ -170,10 +170,11 @@ const router = createRouter({
           },
         },
         {
-          // Registered before the bare :id route below: contacts.id lost
-          // its digit constraint with its own Final-Cutover, so "new"
-          // must be a static sibling Vue Router's matcher can rank ahead
-          // of a same-shape dynamic segment, not rely on it.
+          // Registered before the bare :id route below: id is a UUID, not
+          // a digit-constrained segment, so "new" must be a static
+          // sibling Vue Router's matcher can rank ahead of a same-shape
+          // dynamic segment, not rely on it (same fix as
+          // standesdb/members/new further above).
           path: 'standesdb/contacts/new',
           name: 'standesdb-contact-new',
           component: () => import('../views/standesdb/ContactEditView.vue'),
