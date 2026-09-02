@@ -98,7 +98,7 @@ export default {
     return api.post<{ comment: Comment }>(`/archive/files/${fileId}/comments`, data)
   },
 
-  deleteComment(fileId: number, commentId: number) {
+  deleteComment(fileId: number, commentId: string) {
     return api.delete(`/archive/files/${fileId}/comments/${commentId}`)
   },
 

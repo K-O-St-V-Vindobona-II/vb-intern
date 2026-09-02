@@ -117,8 +117,8 @@ describe('archiveService', () => {
   })
 
   it('deleteComment deletes the comment', () => {
-    archiveService.deleteComment(42, 9)
-    expect(mockDelete).toHaveBeenCalledWith('/archive/files/42/comments/9')
+    archiveService.deleteComment(42, 'comment-uuid-9')
+    expect(mockDelete).toHaveBeenCalledWith('/archive/files/42/comments/comment-uuid-9')
   })
 
   it('getUploadConfig fetches upload limits', () => {

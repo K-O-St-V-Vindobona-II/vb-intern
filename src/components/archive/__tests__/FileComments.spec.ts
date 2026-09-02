@@ -25,7 +25,7 @@ vi.mock('@/services/archiveService', () => ({
 
 function buildComment(overrides: Partial<Comment> = {}): Comment {
   return {
-    id: 1,
+    id: 'comment-uuid-1',
     content: 'Schön!',
     author: 'Max',
     created_at: '2026-06-30T10:00:00Z',
@@ -137,7 +137,7 @@ describe('FileComments', () => {
 
   it('asks for confirmation and deletes the comment on accept', async () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment({ id: 3 })], admin: true },
+      props: { fileId: 9, comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
       ...mountOpts,
     })
 
@@ -147,7 +147,7 @@ describe('FileComments', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockDeleteComment).toHaveBeenCalledWith(9, 3)
+    expect(mockDeleteComment).toHaveBeenCalledWith(9, 'comment-uuid-3')
     expect(wrapper.emitted('changed')).toHaveLength(1)
     wrapper.unmount()
   })
@@ -155,7 +155,7 @@ describe('FileComments', () => {
   it('shows an error toast when deleting a comment fails', async () => {
     mockDeleteComment.mockRejectedValueOnce(new Error('failed'))
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment({ id: 3 })], admin: true },
+      props: { fileId: 9, comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
       ...mountOpts,
     })
 

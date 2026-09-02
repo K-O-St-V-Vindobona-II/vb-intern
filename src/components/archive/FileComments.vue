@@ -49,7 +49,7 @@ const saveComment = async () => {
   }
 }
 
-const deleteComment = (commentId: number) => {
+const deleteComment = (commentId: string) => {
   confirm.require({
     message: 'Kommentar wirklich löschen?',
     header: 'Bestätigung',
