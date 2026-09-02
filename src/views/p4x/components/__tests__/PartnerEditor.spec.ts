@@ -20,7 +20,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_cn: 'Kasse',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -55,7 +55,7 @@ describe('PartnerEditor', () => {
 
   it('pre-fills the partner from the transaction when opened', async () => {
     const transaction = buildTransaction({
-      partner: { type: 'member', id: 5, cn: 'Max Mustermann' },
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max Mustermann' },
     })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -64,14 +64,16 @@ describe('PartnerEditor', () => {
     const partnerSearch = wrapper.findComponent({ name: 'PartnerSearch' })
     expect(partnerSearch.props('modelValue')).toEqual({
       type: 'member',
-      id: 5,
+      id: 'member-uuid-5',
       label: 'Max Mustermann',
     })
     wrapper.unmount()
   })
 
   it('shows the delegating partner search once the checkbox is enabled', async () => {
-    const transaction = buildTransaction({ partner: { type: 'member', id: 5, cn: 'Max' } })
+    const transaction = buildTransaction({
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+    })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
     await flushPromises()
@@ -82,19 +84,48 @@ describe('PartnerEditor', () => {
     wrapper.unmount()
   })
 
+  it('pre-fills an existing delegating partner from the transaction when opened', async () => {
+    const transaction = buildTransaction({
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+      delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
+    })
+    const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const delegatingSearch = wrapper.findAllComponents({ name: 'PartnerSearch' })[1]!
+    expect(delegatingSearch.props('modelValue')).toEqual({
+      type: 'contact',
+      id: 'contact-uuid-7',
+      label: 'Firma',
+    })
+    wrapper.unmount()
+  })
+
   it('saves the partner and delegating partner and emits changed', async () => {
     const transaction = buildTransaction({ id: 9 })
-    const updated = buildTransaction({ id: 9, partner: { type: 'member', id: 5, cn: 'Max' } })
+    const updated = buildTransaction({
+      id: 9,
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+    })
     mockSetTransactionPartner.mockResolvedValue({ data: updated })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
     await flushPromises()
 
     const partnerSearch = wrapper.findComponent({ name: 'PartnerSearch' })
-    await partnerSearch.vm.$emit('update:modelValue', { type: 'member', id: 5, label: 'Max' })
+    await partnerSearch.vm.$emit('update:modelValue', {
+      type: 'member',
+      id: 'member-uuid-5',
+      label: 'Max',
+    })
     await wrapper.findComponent({ name: 'Checkbox' }).vm.$emit('update:modelValue', true)
     const delegatingSearch = wrapper.findAllComponents({ name: 'PartnerSearch' })[1]!
-    await delegatingSearch.vm.$emit('update:modelValue', { type: 'contact', id: 7, label: 'Firma' })
+    await delegatingSearch.vm.$emit('update:modelValue', {
+      type: 'contact',
+      id: 'contact-uuid-7',
+      label: 'Firma',
+    })
 
     // Dialog content is teleported to document.body, outside the wrapper's DOM subtree.
     const saveBtn = Array.from(document.querySelectorAll('button')).find(
@@ -104,9 +135,9 @@ describe('PartnerEditor', () => {
     await flushPromises()
 
     expect(mockSetTransactionPartner).toHaveBeenCalledWith(9, {
-      partner: { type: 'member', id: 5, cn: 'Max' },
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
       hasDelegatingPartner: true,
-      delegatingPartner: { type: 'contact', id: 7, cn: 'Firma' },
+      delegatingPartner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
     })
     expect(wrapper.emitted('changed')).toEqual([[updated]])
     wrapper.unmount()
@@ -114,8 +145,8 @@ describe('PartnerEditor', () => {
 
   it('clears the delegating partner when the main partner is cleared', async () => {
     const transaction = buildTransaction({
-      partner: { type: 'member', id: 5, cn: 'Max' },
-      delegating_partner: { type: 'contact', id: 7, cn: 'Firma' },
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+      delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
     })
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()

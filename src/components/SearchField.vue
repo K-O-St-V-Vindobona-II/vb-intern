@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import AutoComplete from 'primevue/autocomplete'
 
 export interface SearchResult {
-  id: number
+  id: number | string
   label: string
   [key: string]: unknown
 }

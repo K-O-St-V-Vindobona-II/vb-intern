@@ -5,7 +5,7 @@ import type { P4xCategory } from '@/types/p4x'
 
 function buildCategory(overrides: Partial<P4xCategory> = {}): P4xCategory {
   return {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',

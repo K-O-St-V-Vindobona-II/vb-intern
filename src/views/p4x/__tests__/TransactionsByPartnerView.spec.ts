@@ -26,7 +26,7 @@ vi.mock('@/services/p4xService', () => ({
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -37,13 +37,13 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 2,
+    p4x_account_id: '2',
     p4x_account_cn: 'Kasse Wien',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -74,7 +74,7 @@ const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.b
 
 async function selectPartner(
   wrapper: ReturnType<typeof mount>,
-  item: { type: string; id: number; label: string },
+  item: { type: string; id: string; label: string },
 ) {
   const search = wrapper.findComponent({ name: 'SearchField' })
   await search.vm.$emit('select', item)
@@ -106,7 +106,7 @@ describe('TransactionsByPartnerView', () => {
 
   it('forwards the query to searchPartners via the search-fn prop', async () => {
     mockSearchPartners.mockResolvedValue({
-      data: [{ id: 1, label: 'Mitglied: Max', type: 'member' }],
+      data: [{ id: 'member-uuid-1', label: 'Mitglied: Max', type: 'member' }],
     })
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
@@ -115,7 +115,7 @@ describe('TransactionsByPartnerView', () => {
     const found = await (search.props('searchFn') as (q: string) => Promise<unknown>)('Max')
 
     expect(mockSearchPartners).toHaveBeenCalledWith('Max')
-    expect(found).toEqual([{ id: 1, label: 'Mitglied: Max', type: 'member' }])
+    expect(found).toEqual([{ id: 'member-uuid-1', label: 'Mitglied: Max', type: 'member' }])
     wrapper.unmount()
   })
 
@@ -123,10 +123,14 @@ describe('TransactionsByPartnerView', () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
 
-    await selectPartner(wrapper, { type: 'member', id: 5, label: 'Mitglied: Max Mustermann' })
+    await selectPartner(wrapper, {
+      type: 'member',
+      id: 'member-uuid-5',
+      label: 'Mitglied: Max Mustermann',
+    })
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenCalledWith(2, 'member', 5, 1)
+    expect(mockGetTransactionsByPartner).toHaveBeenCalledWith('2', 'member', 'member-uuid-5', 1)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.exists()).toBe(true)
     wrapper.unmount()
@@ -136,7 +140,11 @@ describe('TransactionsByPartnerView', () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
 
-    await selectPartner(wrapper, { type: 'member', id: 5, label: 'Mitglied: Max Mustermann' })
+    await selectPartner(wrapper, {
+      type: 'member',
+      id: 'member-uuid-5',
+      label: 'Mitglied: Max Mustermann',
+    })
     await flushPromises()
 
     const infoRow = wrapper.find('.info-row')
@@ -150,7 +158,7 @@ describe('TransactionsByPartnerView', () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
 
-    await selectPartner(wrapper, { type: 'member', id: 5, label: 'Mitglied: Max' })
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-5', label: 'Mitglied: Max' })
     await flushPromises()
 
     expect(wrapper.findComponent({ name: 'TransactionTable' }).props('admin')).toBe(true)
@@ -160,14 +168,14 @@ describe('TransactionsByPartnerView', () => {
   it('reloads with the new page when TransactionTable emits pageChange', async () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
-    await selectPartner(wrapper, { type: 'member', id: 5, label: 'Mitglied: Max' })
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-5', label: 'Mitglied: Max' })
     await flushPromises()
 
     mockGetTransactionsByPartner.mockResolvedValue({ data: buildResult({ page: 2 }) })
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith(2, 'member', 5, 2)
+    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 2)
     wrapper.unmount()
   })
 
@@ -175,13 +183,13 @@ describe('TransactionsByPartnerView', () => {
     mockGetTransactionsByPartner.mockResolvedValue({ data: buildResult({ page: 3 }) })
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()
-    await selectPartner(wrapper, { type: 'member', id: 5, label: 'Mitglied: Max' })
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-5', label: 'Mitglied: Max' })
     await flushPromises()
 
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith(2, 'member', 5, 3)
+    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 3)
     wrapper.unmount()
   })
 })

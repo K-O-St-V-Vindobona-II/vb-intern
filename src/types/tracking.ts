@@ -1,5 +1,5 @@
 export interface SentEmailListItem {
-  id: number
+  id: string
   created_at: string | null
   to: string | null
   subject: string | null
@@ -25,7 +25,7 @@ export interface EmailTemplateStats {
 export interface ActivityLogItem {
   id: number
   created_at: string | null
-  member_id: number | null
+  member_id: string | null
   member_name: string | null
   action_label: string
   request_method: string
@@ -41,7 +41,7 @@ export interface ActivityLogDetail extends ActivityLogItem {
 }
 
 export interface ActivitySession {
-  member_id: number
+  member_id: string
   member_name: string
   started_at: string
   ended_at: string

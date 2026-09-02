@@ -38,17 +38,17 @@ export default {
   },
 
   updateAccount(
-    id: number,
+    id: string,
     data: { iban: string; bic: string; label: string; init_date: string; init_balance: number },
   ) {
     return api.put<P4xAccount>(`/p4x/admin/accounts/${id}`, data)
   },
 
-  deleteAccount(id: number) {
+  deleteAccount(id: string) {
     return api.delete(`/p4x/admin/accounts/${id}`)
   },
 
-  importTransactions(accountId: number, file: File) {
+  importTransactions(accountId: string, file: File) {
     const formData = new FormData()
     formData.append('file', file)
     return api.post<ImportResult>(`/p4x/admin/accounts/${accountId}/import`, formData, {
@@ -56,39 +56,39 @@ export default {
     })
   },
 
-  getTransactionsByMonth(accountId: number, year: number, month: number, page = 1) {
+  getTransactionsByMonth(accountId: string, year: number, month: number, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-month/${year}/${month}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByPartner(accountId: number, type: string, partnerId: number, page = 1) {
+  getTransactionsByPartner(accountId: string, type: string, partnerId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-partner/${type}/${partnerId}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByCategory(accountId: number, categoryId: number, page = 1) {
+  getTransactionsByCategory(accountId: string, categoryId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-category/${categoryId}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByFilter(accountId: number, filterId: number, page = 1) {
+  getTransactionsByFilter(accountId: string, filterId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/admin/accounts/${accountId}/transactions/by-filter/${filterId}`,
       { params: { page } },
     )
   },
 
-  getTransactionRaw(accountId: number, transactionId: number) {
+  getTransactionRaw(accountId: string, transactionId: string) {
     return api.get<{ raw: string }>(`/p4x/accounts/${accountId}/transactions/raw/${transactionId}`)
   },
 
-  getTransactionAttachment(accountId: number, transactionId: number) {
+  getTransactionAttachment(accountId: string, transactionId: string) {
     return api.get(`/p4x/accounts/${accountId}/transactions/attachment/${transactionId}`, {
       responseType: 'blob',
     })
@@ -98,11 +98,11 @@ export default {
     return api.get<PartnerSearchResult[]>('/p4x/partner/search', { params: { q } })
   },
 
-  setTransactionPartner(transactionId: number, data: object) {
+  setTransactionPartner(transactionId: string, data: object) {
     return api.post(`/p4x/admin/transactions/${transactionId}/set-partner`, data)
   },
 
-  updateTransaction(transactionId: number, formData: FormData) {
+  updateTransaction(transactionId: string, formData: FormData) {
     return api.put(`/p4x/admin/transactions/${transactionId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -122,13 +122,13 @@ export default {
   },
 
   updateCategory(
-    id: number,
+    id: string,
     data: { name: string; label: string; background_color: string; text_color: string },
   ) {
     return api.put<CategoryWithUsage>(`/p4x/admin/categories/${id}`, data)
   },
 
-  deleteCategory(id: number) {
+  deleteCategory(id: string) {
     return api.delete(`/p4x/admin/categories/${id}`)
   },
 
@@ -140,27 +140,27 @@ export default {
     return api.post<CategoryFilter>('/p4x/admin/category-filters', data)
   },
 
-  updateCategoryFilter(id: number, data: object) {
+  updateCategoryFilter(id: string, data: object) {
     return api.put<CategoryFilter>(`/p4x/admin/category-filters/${id}`, data)
   },
 
-  deleteCategoryFilter(id: number) {
+  deleteCategoryFilter(id: string) {
     return api.delete(`/p4x/admin/category-filters/${id}`)
   },
 
-  getFilter2DirectPreview(filterId: number) {
+  getFilter2DirectPreview(filterId: string) {
     return api.get(`/p4x/admin/category-filters/${filterId}/filter2direct`)
   },
 
-  processFilter2Direct(filterId: number) {
+  processFilter2Direct(filterId: string) {
     return api.post(`/p4x/admin/category-filters/${filterId}/filter2direct`)
   },
 
-  setCategoryDirect(transactionId: number, data: object[]) {
+  setCategoryDirect(transactionId: string, data: object[]) {
     return api.post(`/p4x/admin/transactions/${transactionId}/set-category-direct`, data)
   },
 
-  unsetCategoryDirect(transactionId: number) {
+  unsetCategoryDirect(transactionId: string) {
     return api.delete(`/p4x/admin/transactions/${transactionId}/unset-category-direct`)
   },
 
@@ -177,16 +177,16 @@ export default {
   },
 
   searchFeeMembers(q: string) {
-    return api.get<{ data: { id: number; label: string }[] }>('/p4x/fee-members/search', {
+    return api.get<{ data: { id: string; label: string }[] }>('/p4x/fee-members/search', {
       params: { q },
     })
   },
 
-  getFeeMember(id: number) {
+  getFeeMember(id: string) {
     return api.get<FeeMember>(`/p4x/fee-members/${id}`)
   },
 
-  exportFeeMember(id: number) {
+  exportFeeMember(id: string) {
     return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
   },
 
@@ -198,7 +198,7 @@ export default {
     return api.get('/p4x/fee-members/me/export', { responseType: 'blob' })
   },
 
-  updateFeeMember(id: number, data: object) {
+  updateFeeMember(id: string, data: object) {
     return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
   },
 

@@ -55,7 +55,7 @@ vi.stubGlobal('IntersectionObserver', NoopIntersectionObserver)
 function buildFile(overrides: Partial<FileShort> = {}): FileShort {
   return {
     type: 'file',
-    id: 1,
+    id: '1',
     name: 'Bericht',
     extension: 'pdf',
     description: 'Jahresbericht',
@@ -124,30 +124,30 @@ describe('FileList', () => {
   })
 
   it('navigates to the file when its name link is clicked', async () => {
-    const wrapper = mountFileList({ items: [buildFile({ id: 7 })], title: 'Einsicht' })
+    const wrapper = mountFileList({ items: [buildFile({ id: '7' })], title: 'Einsicht' })
     await wrapper.find('.file-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: 7 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: '7' } })
   })
 
   it('still navigates to the file when its name link is clicked in trash mode, but hides the download icon', async () => {
     const wrapper = mountFileList({
-      items: [buildFile({ id: 7, name: 'Bericht', extension: 'pdf' })],
+      items: [buildFile({ id: '7', name: 'Bericht', extension: 'pdf' })],
       title: 'Papierkorb',
       trash: true,
     })
     expect(wrapper.find('.download-icon').exists()).toBe(false)
 
     await wrapper.find('.file-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: 7 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: '7' } })
   })
 
   it('triggers a download when the download icon is clicked', async () => {
     const wrapper = mountFileList({
-      items: [buildFile({ id: 3, name: 'Bericht', extension: 'pdf' })],
+      items: [buildFile({ id: '3', name: 'Bericht', extension: 'pdf' })],
       title: 'Einsicht',
     })
     await wrapper.find('.download-icon').trigger('click')
-    expect(mockTriggerDownload).toHaveBeenCalledWith(3, 'Bericht.pdf')
+    expect(mockTriggerDownload).toHaveBeenCalledWith('3', 'Bericht.pdf')
   })
 
   it('does not show selection checkboxes or the clipboard button for non-admins', () => {
@@ -158,7 +158,7 @@ describe('FileList', () => {
   it('copies selected files to the clipboard for admins and clears the selection', async () => {
     const store = useArchiveStore()
     const wrapper = mountFileList({
-      items: [buildFile({ id: 1 }), buildFile({ id: 2 })],
+      items: [buildFile({ id: '1' }), buildFile({ id: '2' })],
       title: 'Einsicht',
       admin: true,
     })
@@ -172,7 +172,11 @@ describe('FileList', () => {
   })
 
   it('asks for confirmation before deleting a file and emits changed on accept', async () => {
-    const wrapper = mountFileList({ items: [buildFile({ id: 5 })], title: 'Einsicht', admin: true })
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '5' })],
+      title: 'Einsicht',
+      admin: true,
+    })
 
     await wrapper.find('tbody button').trigger('click')
     expect(mockConfirmRequire.mock.calls[0]![0].message).toBe('Datei wirklich löschen?')
@@ -180,13 +184,13 @@ describe('FileList', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockDeleteFile).toHaveBeenCalledWith(5)
+    expect(mockDeleteFile).toHaveBeenCalledWith('5')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
 
   it('restores a trashed file on confirmation', async () => {
     const wrapper = mountFileList({
-      items: [buildFile({ id: 5 })],
+      items: [buildFile({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -198,12 +202,16 @@ describe('FileList', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockRestoreFile).toHaveBeenCalledWith(5)
+    expect(mockRestoreFile).toHaveBeenCalledWith('5')
   })
 
   it('shows an error toast when the delete/restore action fails', async () => {
     mockDeleteFile.mockRejectedValueOnce(new Error('failed'))
-    const wrapper = mountFileList({ items: [buildFile({ id: 5 })], title: 'Einsicht', admin: true })
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '5' })],
+      title: 'Einsicht',
+      admin: true,
+    })
 
     await wrapper.find('tbody button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -215,7 +223,7 @@ describe('FileList', () => {
   it('emits a debounced preview after hovering an image file', async () => {
     vi.useFakeTimers()
     const wrapper = mountFileList({
-      items: [buildFile({ id: 9, is_image: true })],
+      items: [buildFile({ id: '9', is_image: true })],
       title: 'Einsicht',
     })
 
@@ -227,13 +235,13 @@ describe('FileList', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
 
-    expect(wrapper.emitted('preview')).toEqual([[null], [9]])
+    expect(wrapper.emitted('preview')).toEqual([[null], ['9']])
   })
 
   it('cancels the pending preview and emits null on mouseleave', async () => {
     vi.useFakeTimers()
     const wrapper = mountFileList({
-      items: [buildFile({ id: 9, is_image: true })],
+      items: [buildFile({ id: '9', is_image: true })],
       title: 'Einsicht',
     })
 
@@ -250,7 +258,7 @@ describe('FileList', () => {
   it('does not start a preview for non-image files', async () => {
     vi.useFakeTimers()
     const wrapper = mountFileList({
-      items: [buildFile({ id: 9, is_image: false })],
+      items: [buildFile({ id: '9', is_image: false })],
       title: 'Einsicht',
     })
 
@@ -264,7 +272,7 @@ describe('FileList', () => {
   it('also starts a preview for trashed image files', async () => {
     vi.useFakeTimers()
     const wrapper = mountFileList({
-      items: [buildFile({ id: 9, is_image: true })],
+      items: [buildFile({ id: '9', is_image: true })],
       title: 'Papierkorb',
       trash: true,
     })
@@ -273,6 +281,6 @@ describe('FileList', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
 
-    expect(wrapper.emitted('preview')).toEqual([[null], [9]])
+    expect(wrapper.emitted('preview')).toEqual([[null], ['9']])
   })
 })

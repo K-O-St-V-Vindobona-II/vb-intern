@@ -8,7 +8,7 @@ import type { FileDetail } from '@/types/archive'
 function buildFile(overrides: Partial<FileDetail> = {}): FileDetail {
   return {
     type: 'file',
-    id: 1,
+    id: '1',
     archive_dir_id: 5,
     name: 'Bericht',
     extension: 'pdf',
@@ -18,7 +18,7 @@ function buildFile(overrides: Partial<FileDetail> = {}): FileDetail {
     mime_type: 'application/pdf',
     path: [],
     active_version: {
-      id: 1,
+      id: '1',
       name: 'Bericht',
       description: null,
       extension: 'pdf',
@@ -104,7 +104,7 @@ describe('ArchiveFileView', () => {
     const wrapper = await mountAt('/archive/files/1')
     await flushPromises()
 
-    expect(mockGetFileDetail).toHaveBeenCalledWith(1)
+    expect(mockGetFileDetail).toHaveBeenCalledWith('1')
     expect(wrapper.text()).toContain('Bericht.pdf')
   })
 
@@ -148,7 +148,7 @@ describe('ArchiveFileView', () => {
 
     await wrapper.find('.download-link').trigger('click')
 
-    expect(mockTriggerDownload).toHaveBeenCalledWith(1, 'Bericht.pdf')
+    expect(mockTriggerDownload).toHaveBeenCalledWith('1', 'Bericht.pdf')
   })
 
   it('does not show the path row when the file has no path entries', async () => {
@@ -209,7 +209,7 @@ describe('ArchiveFileView', () => {
     saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockUpdateFile).toHaveBeenCalledWith(1, { description: 'Neue Beschreibung' })
+    expect(mockUpdateFile).toHaveBeenCalledWith('1', { description: 'Neue Beschreibung' })
     expect(mockGetFileDetail).toHaveBeenCalledTimes(2)
   })
 

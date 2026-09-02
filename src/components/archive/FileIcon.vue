@@ -6,7 +6,7 @@ import { useThumbnailLoadQueue } from '@/composables/useThumbnailLoadQueue'
 const props = defineProps<{
   extension: string | null
   isImage: boolean
-  fileId?: number
+  fileId?: string
   size?: 'xs' | 'md'
 }>()
 

@@ -1,11 +1,11 @@
 export interface User {
-  id: number
+  id: string
   email?: string
   vorname?: string
   nachname?: string
   couleurname?: string
   cn: string
-  default_image: number | null
+  default_image: string | null
   org_id: string
   auth_locked: boolean
   permissions: string[]

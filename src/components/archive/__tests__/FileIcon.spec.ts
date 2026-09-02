@@ -67,7 +67,7 @@ describe('FileIcon', () => {
   })
 
   it('does not observe or load a thumbnail when isImage is false', () => {
-    mount(FileIcon, { props: { extension: 'png', isImage: false, fileId: 1 } })
+    mount(FileIcon, { props: { extension: 'png', isImage: false, fileId: '1' } })
     expect(observe).not.toHaveBeenCalled()
   })
 
@@ -79,14 +79,14 @@ describe('FileIcon', () => {
   it('loads and displays the thumbnail once the icon becomes visible', async () => {
     mockLoadPresignedUrl.mockResolvedValue('https://minio.test/thumb.jpg')
     const wrapper = mount(FileIcon, {
-      props: { extension: 'png', isImage: true, fileId: 7 },
+      props: { extension: 'png', isImage: true, fileId: '7' },
     })
 
     expect(observe).toHaveBeenCalledOnce()
     triggerIntersect(true)
     await vi.waitUntil(() => wrapper.find('img').exists())
 
-    expect(mockLoadPresignedUrl).toHaveBeenCalledWith(7, 'xs')
+    expect(mockLoadPresignedUrl).toHaveBeenCalledWith('7', 'xs')
     expect(wrapper.find('img').attributes('src')).toBe('https://minio.test/thumb.jpg')
     expect(disconnect).toHaveBeenCalledOnce()
   })
@@ -94,15 +94,15 @@ describe('FileIcon', () => {
   it('requests the md size when size prop is set', async () => {
     mockLoadPresignedUrl.mockResolvedValue('https://minio.test/thumb-md.jpg')
     mount(FileIcon, {
-      props: { extension: 'png', isImage: true, fileId: 7, size: 'md' },
+      props: { extension: 'png', isImage: true, fileId: '7', size: 'md' },
     })
 
     triggerIntersect(true)
-    await vi.waitFor(() => expect(mockLoadPresignedUrl).toHaveBeenCalledWith(7, 'md'))
+    await vi.waitFor(() => expect(mockLoadPresignedUrl).toHaveBeenCalledWith('7', 'md'))
   })
 
   it('ignores non-intersecting observer entries', () => {
-    mount(FileIcon, { props: { extension: 'png', isImage: true, fileId: 7 } })
+    mount(FileIcon, { props: { extension: 'png', isImage: true, fileId: '7' } })
 
     triggerIntersect(false)
 
@@ -112,14 +112,14 @@ describe('FileIcon', () => {
   it('reloads the thumbnail when fileId changes after becoming visible', async () => {
     mockLoadPresignedUrl.mockResolvedValue('https://minio.test/a.jpg')
     const wrapper = mount(FileIcon, {
-      props: { extension: 'png', isImage: true, fileId: 7 },
+      props: { extension: 'png', isImage: true, fileId: '7' },
     })
     triggerIntersect(true)
     await vi.waitFor(() => expect(mockLoadPresignedUrl).toHaveBeenCalledTimes(1))
 
     mockLoadPresignedUrl.mockResolvedValue('https://minio.test/b.jpg')
-    await wrapper.setProps({ fileId: 8 })
+    await wrapper.setProps({ fileId: '8' })
 
-    expect(mockLoadPresignedUrl).toHaveBeenCalledWith(8, 'xs')
+    expect(mockLoadPresignedUrl).toHaveBeenCalledWith('8', 'xs')
   })
 })

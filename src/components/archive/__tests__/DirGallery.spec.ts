@@ -16,7 +16,7 @@ vi.mock('@/composables/useArchiveDownload', () => ({
 function buildFile(overrides: Partial<FileShort> = {}): FileShort {
   return {
     type: 'file',
-    id: 1,
+    id: '1',
     name: 'Bild',
     extension: 'jpg',
     description: null,
@@ -49,7 +49,7 @@ describe('DirGallery', () => {
   it('ignores non-image files for the gallery', () => {
     const wrapper = mount(DirGallery, {
       props: {
-        files: [buildFile({ id: 1, is_image: false }), buildFile({ id: 2, is_image: true })],
+        files: [buildFile({ id: '1', is_image: false }), buildFile({ id: '2', is_image: true })],
       },
       ...mountOpts,
     })
@@ -59,14 +59,14 @@ describe('DirGallery', () => {
 
   it('opens the dialog and loads the first image', async () => {
     const wrapper = mount(DirGallery, {
-      props: { files: [buildFile({ id: 1, name: 'Erstes' })] },
+      props: { files: [buildFile({ id: '1', name: 'Erstes' })] },
       ...mountOpts,
     })
 
     await wrapper.find('.gallery-btn').trigger('click')
     await flushPromises()
 
-    expect(mockLoadPresignedUrl).toHaveBeenCalledWith(1, 'lg')
+    expect(mockLoadPresignedUrl).toHaveBeenCalledWith('1', 'lg')
     expect(document.body.innerHTML).toContain('Erstes.jpg')
     expect(document.querySelector('.gallery-counter')?.textContent).toContain('1 / 1')
 
@@ -76,7 +76,7 @@ describe('DirGallery', () => {
   it('navigates to the next image and wraps around to the first', async () => {
     const wrapper = mount(DirGallery, {
       props: {
-        files: [buildFile({ id: 1, name: 'A' }), buildFile({ id: 2, name: 'B' })],
+        files: [buildFile({ id: '1', name: 'A' }), buildFile({ id: '2', name: 'B' })],
       },
       ...mountOpts,
     })
@@ -86,11 +86,11 @@ describe('DirGallery', () => {
     const nextBtn = document.querySelector('.gallery-nav button:nth-child(2)') as HTMLElement
     nextBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
-    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith(2, 'lg')
+    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith('2', 'lg')
 
     nextBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
-    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith(1, 'lg')
+    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith('1', 'lg')
 
     wrapper.unmount()
   })
@@ -98,7 +98,7 @@ describe('DirGallery', () => {
   it('navigates to the previous image and wraps around to the last', async () => {
     const wrapper = mount(DirGallery, {
       props: {
-        files: [buildFile({ id: 1, name: 'A' }), buildFile({ id: 2, name: 'B' })],
+        files: [buildFile({ id: '1', name: 'A' }), buildFile({ id: '2', name: 'B' })],
       },
       ...mountOpts,
     })
@@ -109,14 +109,14 @@ describe('DirGallery', () => {
     prevBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith(2, 'lg')
+    expect(mockLoadPresignedUrl).toHaveBeenLastCalledWith('2', 'lg')
 
     wrapper.unmount()
   })
 
   it('downloads the current image with its name and extension', async () => {
     const wrapper = mount(DirGallery, {
-      props: { files: [buildFile({ id: 7, name: 'Urlaub', extension: 'png' })] },
+      props: { files: [buildFile({ id: '7', name: 'Urlaub', extension: 'png' })] },
       ...mountOpts,
     })
     await wrapper.find('.gallery-btn').trigger('click')
@@ -127,7 +127,7 @@ describe('DirGallery', () => {
     ) as HTMLElement
     downloadBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
-    expect(mockTriggerDownload).toHaveBeenCalledWith(7, 'Urlaub.png')
+    expect(mockTriggerDownload).toHaveBeenCalledWith('7', 'Urlaub.png')
 
     wrapper.unmount()
   })
@@ -142,7 +142,7 @@ describe('DirGallery', () => {
 
     const wrapper = mount(DirGallery, {
       props: {
-        files: [buildFile({ id: 1, name: 'A' }), buildFile({ id: 2, name: 'B' })],
+        files: [buildFile({ id: '1', name: 'A' }), buildFile({ id: '2', name: 'B' })],
       },
       ...mountOpts,
     })

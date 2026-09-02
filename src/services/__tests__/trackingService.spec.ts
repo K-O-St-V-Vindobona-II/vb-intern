@@ -26,10 +26,11 @@ describe('trackingService', () => {
   })
 
   it('getSentEmailDetail fetches a single email', async () => {
-    mockGet.mockResolvedValueOnce({ data: { id: 5 } })
-    const result = await trackingService.getSentEmailDetail(5)
-    expect(result).toEqual({ id: 5 })
-    expect(mockGet).toHaveBeenCalledWith('/tracking/sent-emails/5')
+    const id = '11111111-1111-1111-1111-111111111111'
+    mockGet.mockResolvedValueOnce({ data: { id } })
+    const result = await trackingService.getSentEmailDetail(id)
+    expect(result).toEqual({ id })
+    expect(mockGet).toHaveBeenCalledWith(`/tracking/sent-emails/${id}`)
   })
 
   it('getEmailTemplates fetches template stats', async () => {
@@ -48,8 +49,10 @@ describe('trackingService', () => {
 
   it('getActivity forwards filter params', async () => {
     mockGet.mockResolvedValueOnce({ data: { items: [], total: 0 } })
-    await trackingService.getActivity({ member_id: 3 })
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity', { params: { member_id: 3 } })
+    await trackingService.getActivity({ member_id: 'member-uuid-3' })
+    expect(mockGet).toHaveBeenCalledWith('/tracking/activity', {
+      params: { member_id: 'member-uuid-3' },
+    })
   })
 
   it('getActivityDetail fetches a single activity entry', async () => {

@@ -36,7 +36,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
   return {
-    id: 1,
+    id: 'account-uuid-1',
     iban: 'AT001234',
     bic: null,
     label: 'Kasse Wien',
@@ -51,7 +51,7 @@ function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -62,16 +62,17 @@ const categories: P4xCategory[] = [
 
 function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
-    id: 1,
+    id: '1',
     name: 'Filter A',
-    p4x_account_id: 1,
+    p4x_account_id: 'account-uuid-1',
+    account_id: 1,
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 4,
     ...overrides,
   }
@@ -97,7 +98,9 @@ describe('CategoryFilterFormView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Filter erstellen')
-    expect(wrapper.findAllComponents({ name: 'Select' })[0]!.props('modelValue')).toBe(1)
+    expect(wrapper.findAllComponents({ name: 'Select' })[0]!.props('modelValue')).toBe(
+      'account-uuid-1',
+    )
     wrapper.unmount()
   })
 
@@ -189,7 +192,7 @@ describe('CategoryFilterFormView', () => {
     await flushPromises()
 
     expect(mockUpdateCategoryFilter).toHaveBeenCalledWith(
-      1,
+      '1',
       expect.objectContaining({ name: 'Filter A' }),
     )
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -224,7 +227,7 @@ describe('CategoryFilterFormView', () => {
     clickButton('Löschen')
     await flushPromises()
 
-    expect(mockDeleteCategoryFilter).toHaveBeenCalledWith(1)
+    expect(mockDeleteCategoryFilter).toHaveBeenCalledWith('1')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Gelöscht' }),
     )

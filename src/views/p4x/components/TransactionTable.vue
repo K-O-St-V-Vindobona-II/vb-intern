@@ -39,7 +39,7 @@ const catEditorRef = ref<InstanceType<typeof CategoryDirectEditor> | null>(null)
 const partnerEditorRef = ref<InstanceType<typeof PartnerEditor> | null>(null)
 const editingTx = ref<P4xTransaction | null>(null)
 
-const findCategory = (id: number): P4xCategory | undefined =>
+const findCategory = (id: string): P4xCategory | undefined =>
   props.categories.find((c) => c.id === id)
 
 const showRaw = async (tx: P4xTransaction) => {

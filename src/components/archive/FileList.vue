@@ -24,7 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'changed'): void
-  (e: 'preview', id: number | null): void
+  (e: 'preview', id: string | null): void
 }>()
 
 const router = useRouter()
@@ -32,11 +32,13 @@ const toast = useToast()
 const confirm = useConfirm()
 const store = useArchiveStore()
 const { triggerDownload } = useArchiveDownload()
-const { isSelected, toggle, toggleAll, allSelected, selectedItems, deselectAll } =
-  useShiftSelect<FileShort>(toRef(props, 'items'), (f) => f.id)
+const { isSelected, toggle, toggleAll, allSelected, selectedItems, deselectAll } = useShiftSelect<
+  FileShort,
+  string
+>(toRef(props, 'items'), (f) => f.id)
 let previewTimer: ReturnType<typeof setTimeout> | null = null
 
-const startPreview = (id: number) => {
+const startPreview = (id: string) => {
   cancelPreview()
   previewTimer = setTimeout(() => emit('preview', id), 300)
 }
@@ -50,7 +52,7 @@ const cancelPreview = () => {
 }
 const touchDevice = computed(() => typeof window !== 'undefined' && 'ontouchstart' in window)
 
-const goToFile = (id: number) => {
+const goToFile = (id: string) => {
   router.push({
     name: 'archive-file',
     params: { id },

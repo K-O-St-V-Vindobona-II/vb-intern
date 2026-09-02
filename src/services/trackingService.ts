@@ -22,7 +22,7 @@ export default {
     return data
   },
 
-  async getSentEmailDetail(id: number): Promise<SentEmailDetail> {
+  async getSentEmailDetail(id: string): Promise<SentEmailDetail> {
     const { data } = await api.get(`/tracking/sent-emails/${id}`)
     return data
   },
@@ -44,7 +44,7 @@ export default {
   async getActivity(params: {
     page?: number
     page_size?: number
-    member_id?: number
+    member_id?: string
     date_from?: string
     date_to?: string
   }): Promise<PaginatedResponse<ActivityLogItem>> {
@@ -59,7 +59,7 @@ export default {
 
   async getActivitySessions(params: {
     date_str?: string
-    member_id?: number
+    member_id?: string
     page?: number
     page_size?: number
   }): Promise<PaginatedResponse<ActivitySession>> {

@@ -27,7 +27,7 @@ const load = async () => {
   }
 }
 
-const findCategory = (id: number): P4xCategory | undefined =>
+const findCategory = (id: string): P4xCategory | undefined =>
   categories.value.find((c) => c.id === id)
 
 onMounted(load)

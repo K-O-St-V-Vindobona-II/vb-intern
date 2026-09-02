@@ -18,7 +18,7 @@ const downloading = ref(false)
 const keyNames = ref<string[]>([])
 const members = ref<KeysListMember[]>([])
 
-const goToMember = (id: number) => {
+const goToMember = (id: string) => {
   router.push({
     name: 'standesdb-member-show',
     params: { id },

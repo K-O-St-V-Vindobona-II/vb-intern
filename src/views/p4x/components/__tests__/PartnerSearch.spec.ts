@@ -15,7 +15,9 @@ describe('PartnerSearch', () => {
   })
 
   it('forwards the query to p4xService.searchPartners and returns the results', async () => {
-    const results: PartnerSearchResult[] = [{ id: 1, label: 'Max Mustermann', type: 'member' }]
+    const results: PartnerSearchResult[] = [
+      { id: 'member-uuid-1', label: 'Max Mustermann', type: 'member' },
+    ]
     mockSearchPartners.mockResolvedValue({ data: results })
 
     const wrapper = mount(PartnerSearch, {
@@ -37,7 +39,7 @@ describe('PartnerSearch', () => {
       global: { plugins: [PrimeVue] },
     })
     const field = wrapper.findComponent({ name: 'SearchField' })
-    const selected = { id: 1, label: 'Max Mustermann', type: 'member' }
+    const selected = { id: 'member-uuid-1', label: 'Max Mustermann', type: 'member' }
 
     await field.vm.$emit('select', selected)
 

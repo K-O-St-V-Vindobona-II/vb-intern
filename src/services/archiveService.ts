@@ -3,7 +3,7 @@ import type { DirDetail, FileDetail, FileShort, UploadConfig, Comment } from '@/
 
 export interface ArchiveSearchResult {
   type: 'file' | 'dir'
-  id: number
+  id: string
   name: string | null
   description: string | null
   extension?: string | null
@@ -20,7 +20,7 @@ export default {
     return api.get<DirDetail>('/archive/dirs')
   },
 
-  getDirDetail(id: number) {
+  getDirDetail(id: string) {
     return api.get<DirDetail>(`/archive/dirs/${id}`)
   },
 
@@ -29,13 +29,13 @@ export default {
     description?: string | null
     permissions: string[]
     recursive_permissions: boolean
-    parentId?: number | null
+    parentId?: string | null
   }) {
     return api.post('/archive/dirs', data)
   },
 
   updateDir(
-    id: number,
+    id: string,
     data: {
       name: string
       description?: string | null
@@ -46,59 +46,59 @@ export default {
     return api.put(`/archive/dirs/${id}`, data)
   },
 
-  deleteDir(id: number) {
+  deleteDir(id: string) {
     return api.delete(`/archive/dirs/${id}`)
   },
 
-  restoreDir(id: number) {
+  restoreDir(id: string) {
     return api.patch(`/archive/dirs/${id}/restore`)
   },
 
-  purgeDir(id: number) {
+  purgeDir(id: string) {
     return api.delete(`/archive/dirs/${id}/purge`)
   },
 
   receiveItems(
-    dirId: number,
+    dirId: string,
     data: {
       type: string
-      ids: number[]
+      ids: string[]
       action: string
     },
   ) {
     return api.post(`/archive/dirs/${dirId}/receive`, data)
   },
 
-  receiveItemsRoot(data: { type: string; ids: number[]; action: string }) {
+  receiveItemsRoot(data: { type: string; ids: string[]; action: string }) {
     return api.post('/archive/dirs/receive', data)
   },
 
-  getFileDetail(id: number) {
+  getFileDetail(id: string) {
     return api.get<FileDetail>(`/archive/files/${id}`)
   },
 
-  updateFile(id: number, data: { description?: string | null }) {
+  updateFile(id: string, data: { description?: string | null }) {
     return api.put(`/archive/files/${id}`, data)
   },
 
-  deleteFile(id: number) {
+  deleteFile(id: string) {
     return api.delete(`/archive/files/${id}`)
   },
 
-  restoreFile(id: number) {
+  restoreFile(id: string) {
     return api.patch(`/archive/files/${id}/restore`)
   },
 
-  getFileUrl(id: number, size?: string) {
+  getFileUrl(id: string, size?: string) {
     const suffix = size ? `/${size}` : ''
     return api.get<{ url: string }>(`/archive/files/${id}/url${suffix}`)
   },
 
-  createComment(fileId: number, data: { content: string }) {
+  createComment(fileId: string, data: { content: string }) {
     return api.post<{ comment: Comment }>(`/archive/files/${fileId}/comments`, data)
   },
 
-  deleteComment(fileId: number, commentId: number) {
+  deleteComment(fileId: string, commentId: string) {
     return api.delete(`/archive/files/${fileId}/comments/${commentId}`)
   },
 

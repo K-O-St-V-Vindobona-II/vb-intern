@@ -3,9 +3,12 @@ import { mount, flushPromises } from '@vue/test-utils'
 import SetEditor from '../SetEditor.vue'
 import PrimeVue from 'primevue/config'
 
+const BADGE_ID_1 = '11111111-1111-1111-1111-111111111111'
+const BADGE_ID_2 = '22222222-2222-2222-2222-222222222222'
+
 const badges = [
-  { id: 1, name: 'fuxenband', group: 'jubelband', order: 1 },
-  { id: 2, name: 'dankesband', group: 'ehrenzeichen', order: 2 },
+  { id: BADGE_ID_1, name: 'fuxenband', group: 'jubelband', order: 1 },
+  { id: BADGE_ID_2, name: 'dankesband', group: 'ehrenzeichen', order: 2 },
 ]
 
 const mountWith = (props: Record<string, any>) =>
@@ -37,7 +40,7 @@ describe('SetEditor', () => {
 
   it('capitalizes group values', () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: null, presentationdate_accuracy: 0 }],
+      modelValue: [{ id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 }],
       availableItems: badges,
       title: 'Ehrungen',
       withGroup: true,
@@ -49,7 +52,7 @@ describe('SetEditor', () => {
 
   it('capitalizes name values', () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: null, presentationdate_accuracy: 0 }],
+      modelValue: [{ id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 }],
       availableItems: badges,
       title: 'Schlüssel',
       withDate: false,
@@ -87,7 +90,7 @@ describe('SetEditor', () => {
 
   it('shows edit and remove buttons for existing entries', () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: null, presentationdate_accuracy: 0 }],
+      modelValue: [{ id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 }],
       availableItems: badges,
       title: 'Test',
       withDate: false,
@@ -99,7 +102,7 @@ describe('SetEditor', () => {
 
   it('hides buttons in readonly mode', () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: null, presentationdate_accuracy: 0 }],
+      modelValue: [{ id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 }],
       availableItems: badges,
       title: 'Test',
       withDate: false,
@@ -112,14 +115,16 @@ describe('SetEditor', () => {
 
   it('shows date column only when withDate is true', () => {
     const withDate = mountWith({
-      modelValue: [{ id: 1, presentationdate: '2021-09-17', presentationdate_accuracy: 3 }],
+      modelValue: [
+        { id: BADGE_ID_1, presentationdate: '2021-09-17', presentationdate_accuracy: 3 },
+      ],
       availableItems: badges,
       title: 'E',
       withGroup: true,
       withDate: true,
     })
     const withoutDate = mountWith({
-      modelValue: [{ id: 1, presentationdate: null, presentationdate_accuracy: 0 }],
+      modelValue: [{ id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 }],
       availableItems: badges,
       title: 'S',
       withDate: false,
@@ -137,7 +142,7 @@ describe('SetEditor', () => {
 
     expect(document.querySelector('.p-dialog-title')?.textContent).toBe('Hinzufügen')
     const select = w.findComponent({ name: 'Select' })
-    expect(select.props('modelValue')).toBe(1)
+    expect(select.props('modelValue')).toBe(BADGE_ID_1)
     expect(select.props('disabled')).toBe(false)
     w.unmount()
   })
@@ -148,17 +153,17 @@ describe('SetEditor', () => {
     await flushPromises()
 
     const select = w.findComponent({ name: 'Select' })
-    await select.vm.$emit('update:modelValue', 2)
+    await select.vm.$emit('update:modelValue', BADGE_ID_2)
     clickButton('Ok')
     await flushPromises()
 
     const updated = w.emitted('update:modelValue')![0]![0] as Array<{
-      id: number
+      id: string
       name?: string
       presentationdate_accuracy: number
     }>
     expect(updated).toHaveLength(1)
-    expect(updated[0]!.id).toBe(2)
+    expect(updated[0]!.id).toBe(BADGE_ID_2)
     expect(updated[0]!.name).toBe('dankesband')
     expect(updated[0]!.presentationdate_accuracy).toBe(0)
     w.unmount()
@@ -181,7 +186,9 @@ describe('SetEditor', () => {
 
   it('opens the edit dialog for an existing entry with the select disabled', async () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: '2020-05-10', presentationdate_accuracy: 3 }],
+      modelValue: [
+        { id: BADGE_ID_1, presentationdate: '2020-05-10', presentationdate_accuracy: 3 },
+      ],
       availableItems: badges,
       title: 'Test',
       withDate: true,
@@ -196,7 +203,9 @@ describe('SetEditor', () => {
 
   it('updates the FuzzyDatePicker date/accuracy and persists it on save', async () => {
     const w = mountWith({
-      modelValue: [{ id: 1, presentationdate: '2020-05-10', presentationdate_accuracy: 3 }],
+      modelValue: [
+        { id: BADGE_ID_1, presentationdate: '2020-05-10', presentationdate_accuracy: 3 },
+      ],
       availableItems: badges,
       title: 'Test',
       withDate: true,
@@ -223,8 +232,8 @@ describe('SetEditor', () => {
   it('removes the clicked entry and emits the filtered list', async () => {
     const w = mountWith({
       modelValue: [
-        { id: 1, presentationdate: null, presentationdate_accuracy: 0 },
-        { id: 2, presentationdate: null, presentationdate_accuracy: 0 },
+        { id: BADGE_ID_1, presentationdate: null, presentationdate_accuracy: 0 },
+        { id: BADGE_ID_2, presentationdate: null, presentationdate_accuracy: 0 },
       ],
       availableItems: badges,
       title: 'Test',
@@ -232,9 +241,9 @@ describe('SetEditor', () => {
     })
     await w.findAll('[aria-label="Entfernen"]')[0]!.trigger('click')
 
-    const updated = w.emitted('update:modelValue')![0]![0] as Array<{ id: number }>
+    const updated = w.emitted('update:modelValue')![0]![0] as Array<{ id: string }>
     expect(updated).toHaveLength(1)
-    expect(updated[0]!.id).toBe(2)
+    expect(updated[0]!.id).toBe(BADGE_ID_2)
     w.unmount()
   })
 

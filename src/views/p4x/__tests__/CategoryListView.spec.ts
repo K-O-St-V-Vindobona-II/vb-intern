@@ -16,7 +16,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildCategory(overrides: Partial<CategoryWithUsage> = {}): CategoryWithUsage {
   return {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -60,13 +60,16 @@ describe('CategoryListView', () => {
   })
 
   it('navigates to the edit view for the clicked category row', async () => {
-    mockGetCategories.mockResolvedValue({ data: [buildCategory({ id: 7 })] })
+    mockGetCategories.mockResolvedValue({ data: [buildCategory({ id: 'category-uuid-7' })] })
     const wrapper = mount(CategoryListView, mountOpts)
     await flushPromises()
 
     await wrapper.find('.pi-pencil').trigger('click')
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-category-edit', params: { id: 7 } })
+    expect(mockPush).toHaveBeenCalledWith({
+      name: 'p4x-category-edit',
+      params: { id: 'category-uuid-7' },
+    })
     wrapper.unmount()
   })
 })

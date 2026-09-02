@@ -89,10 +89,13 @@ describe('p4xService', () => {
   })
 
   it('getTransactionsByPartner builds the type/partner path', () => {
-    p4xService.getTransactionsByPartner(5, 'member', 9)
-    expect(mockGet).toHaveBeenCalledWith('/p4x/accounts/5/transactions/by-partner/member/9', {
-      params: { page: 1 },
-    })
+    p4xService.getTransactionsByPartner(5, 'member', 'partner-uuid-9')
+    expect(mockGet).toHaveBeenCalledWith(
+      '/p4x/accounts/5/transactions/by-partner/member/partner-uuid-9',
+      {
+        params: { page: 1 },
+      },
+    )
   })
 
   it('getTransactionsByCategory builds the category path', () => {

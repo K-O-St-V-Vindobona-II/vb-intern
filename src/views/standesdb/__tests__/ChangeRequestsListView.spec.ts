@@ -25,8 +25,8 @@ function buildSummary(
   overrides: Partial<MemberChangeRequestSummary> = {},
 ): MemberChangeRequestSummary {
   return {
-    id: 1,
-    member_id: 10,
+    id: '11111111-1111-1111-1111-111111111111',
+    member_id: '22222222-2222-2222-2222-222222222222',
     member_cn: 'Max Mustermann',
     member_org_id: 'vbw',
     field_count: 2,
@@ -45,7 +45,12 @@ describe('ChangeRequestsListView', () => {
 
   it('renders exactly what the service returns, without extra client-side filtering', async () => {
     mockListChangeRequests.mockResolvedValue({
-      data: { items: [buildSummary({ id: 1 }), buildSummary({ id: 2, member_cn: 'Erika' })] },
+      data: {
+        items: [
+          buildSummary({ id: '11111111-1111-1111-1111-111111111111' }),
+          buildSummary({ id: '33333333-3333-3333-3333-333333333333', member_cn: 'Erika' }),
+        ],
+      },
     })
 
     const wrapper = mount(ChangeRequestsListView, mountOpts)
@@ -65,7 +70,10 @@ describe('ChangeRequestsListView', () => {
   })
 
   it('navigates to the review view when a row is clicked', async () => {
-    mockListChangeRequests.mockResolvedValue({ data: { items: [buildSummary({ id: 42 })] } })
+    const requestId = '44444444-4444-4444-4444-444444444444'
+    mockListChangeRequests.mockResolvedValue({
+      data: { items: [buildSummary({ id: requestId })] },
+    })
 
     const wrapper = mount(ChangeRequestsListView, mountOpts)
     await flushPromises()
@@ -74,7 +82,7 @@ describe('ChangeRequestsListView', () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       name: 'standesdb-change-request-review',
-      params: { id: 42 },
+      params: { id: requestId },
     })
   })
 

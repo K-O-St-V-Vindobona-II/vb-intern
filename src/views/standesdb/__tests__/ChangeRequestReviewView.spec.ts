@@ -4,7 +4,9 @@ import ChangeRequestReviewView from '../ChangeRequestReviewView.vue'
 import PrimeVue from 'primevue/config'
 import type { MemberChangeRequestDetail } from '@/types/standesdb'
 
-const mockRoute = { params: { id: '7' } }
+const REQUEST_ID = '11111111-1111-1111-1111-111111111111'
+const MEMBER_ID = '22222222-2222-2222-2222-222222222222'
+const mockRoute = { params: { id: REQUEST_ID } }
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(() => mockRoute),
@@ -29,8 +31,8 @@ function buildDetail(
   overrides: Partial<MemberChangeRequestDetail> = {},
 ): MemberChangeRequestDetail {
   return {
-    id: 7,
-    member_id: 10,
+    id: REQUEST_ID,
+    member_id: MEMBER_ID,
     member_cn: 'Max Mustermann',
     status: 'pending',
     created_at: '2026-08-06T10:00:00Z',
@@ -65,7 +67,7 @@ describe('ChangeRequestReviewView', () => {
     const wrapper = mount(ChangeRequestReviewView, mountOpts)
     await flushPromises()
 
-    expect(mockGetChangeRequest).toHaveBeenCalledWith(7)
+    expect(mockGetChangeRequest).toHaveBeenCalledWith(REQUEST_ID)
     expect(wrapper.text()).toContain('Max Mustermann')
     expect(wrapper.text()).toContain('Mustermann')
     expect(wrapper.text()).toContain('Neu')
@@ -119,7 +121,7 @@ describe('ChangeRequestReviewView', () => {
     await submitBtn.trigger('click')
     await flushPromises()
 
-    expect(mockDecideChangeRequest).toHaveBeenCalledWith(7, {
+    expect(mockDecideChangeRequest).toHaveBeenCalledWith(REQUEST_ID, {
       nachname: 'approved',
       email: 'approved',
     })
@@ -157,7 +159,7 @@ describe('ChangeRequestReviewView', () => {
     await findButtonByText(wrapper, 'Entscheidung übernehmen').trigger('click')
     await flushPromises()
 
-    expect(mockDecideChangeRequest).toHaveBeenCalledWith(7, {
+    expect(mockDecideChangeRequest).toHaveBeenCalledWith(REQUEST_ID, {
       nachname: 'rejected',
       email: 'rejected',
     })

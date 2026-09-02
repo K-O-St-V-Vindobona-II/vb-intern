@@ -28,7 +28,7 @@ export interface SiteSettingsUpdateRequest {
 }
 
 export interface ProgrammHintResponse {
-  id: number
+  id: string
   text: string
 }
 
@@ -37,7 +37,7 @@ export interface ProgrammHintRequest {
 }
 
 export interface QuoteResponse {
-  id: number
+  id: string
   quote: string
   author: string
 }
@@ -48,7 +48,7 @@ export interface QuoteRequest {
 }
 
 export interface SocialLinkAdminResponse {
-  id: number
+  id: string
   platform: string
   label: string
   url: string
@@ -101,15 +101,15 @@ export const programmHintsService = {
     return api.post<ProgrammHintResponse>(`${ADMIN_PREFIX}/programm-hints`, data)
   },
 
-  update(hintId: number, data: ProgrammHintRequest) {
+  update(hintId: string, data: ProgrammHintRequest) {
     return api.put<ProgrammHintResponse>(`${ADMIN_PREFIX}/programm-hints/${hintId}`, data)
   },
 
-  move(hintId: number, direction: MoveDirection) {
+  move(hintId: string, direction: MoveDirection) {
     return api.post(`${ADMIN_PREFIX}/programm-hints/${hintId}/move`, { direction })
   },
 
-  remove(hintId: number) {
+  remove(hintId: string) {
     return api.delete(`${ADMIN_PREFIX}/programm-hints/${hintId}`)
   },
 }
@@ -123,15 +123,15 @@ export const quotesService = {
     return api.post<QuoteResponse>(`${ADMIN_PREFIX}/quotes`, data)
   },
 
-  update(quoteId: number, data: QuoteRequest) {
+  update(quoteId: string, data: QuoteRequest) {
     return api.put<QuoteResponse>(`${ADMIN_PREFIX}/quotes/${quoteId}`, data)
   },
 
-  move(quoteId: number, direction: MoveDirection) {
+  move(quoteId: string, direction: MoveDirection) {
     return api.post(`${ADMIN_PREFIX}/quotes/${quoteId}/move`, { direction })
   },
 
-  remove(quoteId: number) {
+  remove(quoteId: string) {
     return api.delete(`${ADMIN_PREFIX}/quotes/${quoteId}`)
   },
 }
@@ -145,15 +145,15 @@ export const socialLinksService = {
     return api.post<SocialLinkAdminResponse>(`${ADMIN_PREFIX}/social-links`, data)
   },
 
-  update(linkId: number, data: SocialLinkUpdateRequest) {
+  update(linkId: string, data: SocialLinkUpdateRequest) {
     return api.put<SocialLinkAdminResponse>(`${ADMIN_PREFIX}/social-links/${linkId}`, data)
   },
 
-  move(linkId: number, direction: MoveDirection) {
+  move(linkId: string, direction: MoveDirection) {
     return api.post(`${ADMIN_PREFIX}/social-links/${linkId}/move`, { direction })
   },
 
-  remove(linkId: number) {
+  remove(linkId: string) {
     return api.delete(`${ADMIN_PREFIX}/social-links/${linkId}`)
   },
 }

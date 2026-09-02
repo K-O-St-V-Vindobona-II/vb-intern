@@ -8,25 +8,25 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 
 const props = defineProps<{
-  parentId: number
+  parentId: string | null
   parentCn: string
-  memberId: number | null
+  memberId: string | null
   label: string
   readonly?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:parentId': [value: number]
+  'update:parentId': [value: string | null]
   'update:parentCn': [value: string]
 }>()
 
 const router = useRouter()
 
 const dialogVisible = ref(false)
-const candidateId = ref(0)
+const candidateId = ref<string | null>(null)
 const candidateCn = ref('')
 const searchQuery = ref('')
-const suggestions = ref<{ id: number; cn: string }[]>([])
+const suggestions = ref<{ id: string; cn: string }[]>([])
 
 const openDialog = () => {
   candidateId.value = props.parentId
@@ -48,14 +48,14 @@ const onSearch = async (event: { query: string }) => {
   }
 }
 
-const onSelectCandidate = (event: { value: { id: number; cn: string } }) => {
+const onSelectCandidate = (event: { value: { id: string; cn: string } }) => {
   candidateId.value = event.value.id
   candidateCn.value = event.value.cn
   searchQuery.value = ''
 }
 
 const clearCandidate = () => {
-  candidateId.value = 0
+  candidateId.value = null
   candidateCn.value = ''
 }
 

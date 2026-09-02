@@ -21,7 +21,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_cn: 'Kasse',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -36,7 +36,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -101,7 +101,9 @@ describe('TransactionTable', () => {
     const wrapper = mount(TransactionTable, {
       props: {
         transactions: [
-          buildTransaction({ partner: { type: 'member', id: 5, cn: 'Max Mustermann' } }),
+          buildTransaction({
+            partner: { type: 'member', id: 'member-uuid-5', cn: 'Max Mustermann' },
+          }),
         ],
         categories,
       },
@@ -123,8 +125,8 @@ describe('TransactionTable', () => {
   it('shows the direct category with its amount when multiple direct splits exist', () => {
     const tx = buildTransaction({
       p4x_category_directs: [
-        { id: 1, p4x_category_id: 1, amount: 4 },
-        { id: 2, p4x_category_id: 1, amount: 6 },
+        { id: 'direct-uuid-1', p4x_category_id: 'category-uuid-1', amount: 4 },
+        { id: 'direct-uuid-2', p4x_category_id: 'category-uuid-1', amount: 6 },
       ],
     })
     const wrapper = mount(TransactionTable, {
@@ -139,8 +141,8 @@ describe('TransactionTable', () => {
   it('warns about ambiguous category filters when more than one applies', () => {
     const tx = buildTransaction({
       p4x_category_filters: [
-        { id: 1, p4x_category_id: 1 },
-        { id: 2, p4x_category_id: 1 },
+        { id: 1, p4x_category_id: 'category-uuid-1' },
+        { id: 2, p4x_category_id: 'category-uuid-1' },
       ],
     })
     const wrapper = mount(TransactionTable, {
@@ -187,7 +189,7 @@ describe('TransactionTable', () => {
   it('fetches and shows the raw transaction data when requested', async () => {
     mockGetTransactionRaw.mockResolvedValue({ data: { raw: JSON.stringify({ foo: 'bar' }) } })
     const wrapper = mount(TransactionTable, {
-      props: { transactions: [buildTransaction({ id: 4, p4x_account_id: 2 })], categories },
+      props: { transactions: [buildTransaction({ id: '4', p4x_account_id: '2' })], categories },
       ...mountOpts,
     })
 
@@ -197,7 +199,7 @@ describe('TransactionTable', () => {
     await wrapper.find('.pi-search').trigger('click')
     await flushPromises()
 
-    expect(mockGetTransactionRaw).toHaveBeenCalledWith(2, 4)
+    expect(mockGetTransactionRaw).toHaveBeenCalledWith('2', '4')
     expect(document.querySelector('.raw-json')?.textContent).toContain('"foo": "bar"')
     wrapper.unmount()
   })
@@ -211,7 +213,7 @@ describe('TransactionTable', () => {
 
     const wrapper = mount(TransactionTable, {
       props: {
-        transactions: [buildTransaction({ id: 4, p4x_account_id: 2, has_attachment: true })],
+        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
         categories,
       },
       ...mountOpts,
@@ -220,7 +222,7 @@ describe('TransactionTable', () => {
     await wrapper.find('.pi-paperclip').trigger('click')
     await flushPromises()
 
-    expect(mockGetTransactionAttachment).toHaveBeenCalledWith(2, 4)
+    expect(mockGetTransactionAttachment).toHaveBeenCalledWith('2', '4')
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(clickSpy).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock')
@@ -272,7 +274,9 @@ describe('TransactionTable', () => {
   })
 
   it('shows the single matching category filter without a warning', () => {
-    const tx = buildTransaction({ p4x_category_filters: [{ id: 1, p4x_category_id: 1 }] })
+    const tx = buildTransaction({
+      p4x_category_filters: [{ id: 1, p4x_category_id: 'category-uuid-1' }],
+    })
     const wrapper = mount(TransactionTable, {
       props: { transactions: [tx], categories },
       ...mountOpts,
@@ -349,7 +353,7 @@ describe('TransactionTable', () => {
   it('clears the raw data when fetching it fails', async () => {
     mockGetTransactionRaw.mockRejectedValue(new Error('boom'))
     const wrapper = mount(TransactionTable, {
-      props: { transactions: [buildTransaction({ id: 4, p4x_account_id: 2 })], categories },
+      props: { transactions: [buildTransaction({ id: '4', p4x_account_id: '2' })], categories },
       ...mountOpts,
     })
     await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
@@ -364,7 +368,7 @@ describe('TransactionTable', () => {
     mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
     const wrapper = mount(TransactionTable, {
       props: {
-        transactions: [buildTransaction({ id: 4, p4x_account_id: 2, has_attachment: true })],
+        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
         categories,
       },
       ...mountOpts,

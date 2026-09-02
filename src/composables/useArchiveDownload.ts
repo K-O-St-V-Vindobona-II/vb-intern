@@ -35,7 +35,7 @@ function evictLeastUsed(): void {
 }
 
 export function useArchiveDownload() {
-  const loadPresignedUrl = async (fileId: number, size?: string): Promise<string | null> => {
+  const loadPresignedUrl = async (fileId: string, size?: string): Promise<string | null> => {
     const key = `${fileId}_${size || 'orig'}`
     const cached = urlCache.get(key)
     if (cached && cached.expires > Date.now()) {
@@ -62,7 +62,7 @@ export function useArchiveDownload() {
     }
   }
 
-  const triggerDownload = async (fileId: number, filename: string): Promise<void> => {
+  const triggerDownload = async (fileId: string, filename: string): Promise<void> => {
     try {
       const resp = await api.get<{ url: string }>(`/archive/files/${fileId}/url`)
       const a = document.createElement('a')

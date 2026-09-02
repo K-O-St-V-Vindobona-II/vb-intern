@@ -7,7 +7,7 @@ import archiveService from '@/services/archiveService'
 import Button from 'primevue/button'
 
 const props = defineProps<{
-  targetDirId: number
+  targetDirId: string | null
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +21,7 @@ const store = useArchiveStore()
 const dirs = computed(() => store.clipboard.filter((i) => i.startsWith('dir:')))
 const files = computed(() => store.clipboard.filter((i) => i.startsWith('file:')))
 
-const idsFromItems = (items: string[]) => items.map((i) => Number(i.split(':')[1]))
+const idsFromItems = (items: string[]) => items.map((i) => i.split(':')[1] ?? '')
 
 const moveItems = (type: string, items: string[]) => {
   const label = type === 'dir' ? 'Verzeichnisse' : 'Dateien'

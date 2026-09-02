@@ -7,12 +7,12 @@ import TransactionTable from './components/TransactionTable.vue'
 import Select from 'primevue/select'
 
 const route = useRoute()
-const accountId = Number(route.params['accountId'])
+const accountId = String(route.params['accountId'])
 
 const loading = ref(false)
 const categories = ref<P4xCategory[]>([])
 const filters = ref<CategoryFilter[]>([])
-const selectedFilterId = ref<number | null>(null)
+const selectedFilterId = ref<string | null>(null)
 const result = ref<PaginatedTransactions | null>(null)
 
 const loadTransactions = async (page = 1) => {
@@ -41,8 +41,8 @@ onMounted(async () => {
   filters.value = fResp.data.filter((f) => f.p4x_account_id === accountId)
   categories.value = dResp.data.categories
 
-  const queryFilterId = Number(route.query['filterId'])
-  if (queryFilterId && filters.value.some((f) => f.id === queryFilterId)) {
+  const queryFilterId = route.query['filterId']
+  if (typeof queryFilterId === 'string' && filters.value.some((f) => f.id === queryFilterId)) {
     selectedFilterId.value = queryFilterId
     loadTransactions()
   }

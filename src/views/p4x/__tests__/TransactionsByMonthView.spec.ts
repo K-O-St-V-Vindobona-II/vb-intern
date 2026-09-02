@@ -27,7 +27,7 @@ vi.mock('@/services/p4xService', () => ({
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -38,13 +38,13 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 2,
+    p4x_account_id: '2',
     p4x_account_cn: 'Kasse Wien',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -94,7 +94,7 @@ describe('TransactionsByMonthView', () => {
     const wrapper = mount(TransactionsByMonthView, mountOpts)
     await flushPromises()
 
-    expect(mockGetTransactionsByMonth).toHaveBeenCalledWith(2, 2026, 6, 1)
+    expect(mockGetTransactionsByMonth).toHaveBeenCalledWith('2', 2026, 6, 1)
     expect(mockGetDashboard).toHaveBeenCalledOnce()
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.props('transactions')).toEqual([buildTx()])
@@ -128,7 +128,7 @@ describe('TransactionsByMonthView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith(2, 2026, 6, 2)
+    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith('2', 2026, 6, 2)
     expect(mockGetDashboard).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
@@ -141,7 +141,7 @@ describe('TransactionsByMonthView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith(2, 2026, 6, 3)
+    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith('2', 2026, 6, 3)
     wrapper.unmount()
   })
 
@@ -157,9 +157,9 @@ describe('TransactionsByMonthView', () => {
 
     expect(mockReplace).toHaveBeenCalledWith({
       name: 'p4x-transactions-month',
-      params: { accountId: 2, year: 2026, month: 7 },
+      params: { accountId: '2', year: 2026, month: 7 },
     })
-    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith(2, 2026, 7, 1)
+    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith('2', 2026, 7, 1)
     wrapper.unmount()
   })
 })

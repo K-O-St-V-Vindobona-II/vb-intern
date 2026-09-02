@@ -31,7 +31,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildCategory(overrides: Partial<CategoryWithUsage> = {}): CategoryWithUsage {
   return {
-    id: 1,
+    id: '1',
     name: 'spende',
     label: 'Spende',
     background_color: '#336600',
@@ -78,7 +78,7 @@ describe('CategoryFormView', () => {
   it('loads the existing category in edit mode and pre-fills the form', async () => {
     mockRoute.params = { id: '1' }
     mockGetCategories.mockResolvedValue({
-      data: [buildCategory(), buildCategory({ id: 2, label: 'Beitrag' })],
+      data: [buildCategory(), buildCategory({ id: '2', label: 'Beitrag' })],
     })
     const wrapper = mount(CategoryFormView, mountOpts)
     await flushPromises()
@@ -116,7 +116,10 @@ describe('CategoryFormView', () => {
     clickButton('Speichern')
     await flushPromises()
 
-    expect(mockUpdateCategory).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'spende' }))
+    expect(mockUpdateCategory).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ name: 'spende' }),
+    )
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Gespeichert' }),
     )
@@ -151,7 +154,7 @@ describe('CategoryFormView', () => {
     clickButton('Löschen')
     await flushPromises()
 
-    expect(mockDeleteCategory).toHaveBeenCalledWith(1)
+    expect(mockDeleteCategory).toHaveBeenCalledWith('1')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Gelöscht' }),
     )

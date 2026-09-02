@@ -20,16 +20,16 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
-    id: 1,
+    id: '1',
     name: 'Filter A',
-    p4x_account_id: 1,
+    p4x_account_id: 'account-uuid-1',
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 4,
     ...overrides,
   }
@@ -37,7 +37,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -81,7 +81,7 @@ describe('CategoryFilterListView', () => {
 
   it('navigates to the transactions-by-filter view for the clicked filter row', async () => {
     mockGetCategoryFilters.mockResolvedValue({
-      data: [buildFilter({ id: 9, p4x_account_id: 3 })],
+      data: [buildFilter({ id: '9' })],
     })
     const wrapper = mount(CategoryFilterListView, mountOpts)
     await flushPromises()
@@ -90,31 +90,31 @@ describe('CategoryFilterListView', () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       name: 'p4x-transactions-filter',
-      params: { accountId: 3 },
-      query: { filterId: 9 },
+      params: { accountId: 'account-uuid-1' },
+      query: { filterId: '9' },
     })
     wrapper.unmount()
   })
 
   it('navigates to the edit view for the clicked filter row', async () => {
-    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter({ id: 9 })] })
+    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter({ id: '9' })] })
     const wrapper = mount(CategoryFilterListView, mountOpts)
     await flushPromises()
 
     await wrapper.find('.pi-pencil').trigger('click')
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter-edit', params: { id: 9 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter-edit', params: { id: '9' } })
     wrapper.unmount()
   })
 
   it('navigates to the filter2direct view for the clicked filter row', async () => {
-    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter({ id: 9 })] })
+    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter({ id: '9' })] })
     const wrapper = mount(CategoryFilterListView, mountOpts)
     await flushPromises()
 
     await wrapper.find('.pi-hammer').trigger('click')
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter2direct', params: { id: 9 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter2direct', params: { id: '9' } })
     wrapper.unmount()
   })
 })

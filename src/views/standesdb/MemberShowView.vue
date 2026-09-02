@@ -36,7 +36,7 @@ const authActivity = ref<{
   auth_lastlogout: string | null
 } | null>(null)
 
-const loadAuthActivity = async (memberId: number) => {
+const loadAuthActivity = async (memberId: string) => {
   if (!canEdit.value) return
   try {
     const resp = await standesdbService.getMemberAuthActivity(memberId)
@@ -98,7 +98,7 @@ const actionSeverity = (action: string) => {
   return 'info'
 }
 
-const loadMember = async (id: number) => {
+const loadMember = async (id: string) => {
   loading.value = true
   member.value = null
   isDismissed.value = false
@@ -127,7 +127,7 @@ const loadMember = async (id: number) => {
 
 watch(
   () => route.params['id'],
-  (id) => loadMember(Number(id)),
+  (id) => loadMember(String(id)),
   { immediate: true },
 )
 

@@ -55,7 +55,7 @@ const reloadWarnings = async () => {
 
 onMounted(loadDashboard)
 
-const menuRef = ref<Record<number, InstanceType<typeof Menu>>>({})
+const menuRef = ref<Record<string, InstanceType<typeof Menu>>>({})
 
 const getMenuItems = (account: P4xAccount) => {
   const now = new Date()
@@ -133,7 +133,7 @@ const getMenuItems = (account: P4xAccount) => {
   return items
 }
 
-const toggleMenu = (event: Event, accountId: number) => {
+const toggleMenu = (event: Event, accountId: string) => {
   menuRef.value[accountId]?.toggle(event)
 }
 </script>

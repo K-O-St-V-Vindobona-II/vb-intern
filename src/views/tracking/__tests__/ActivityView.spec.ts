@@ -57,7 +57,7 @@ function buildAction(overrides: Partial<ActivityLogItem> = {}): ActivityLogItem 
   return {
     id: 1,
     created_at: '2026-06-01T10:00:00Z',
-    member_id: 1,
+    member_id: 'member-uuid-1',
     member_name: 'Max Mustermann',
     action_label: 'Anmeldung',
     request_method: 'POST',
@@ -70,7 +70,7 @@ function buildAction(overrides: Partial<ActivityLogItem> = {}): ActivityLogItem 
 
 function buildSession(overrides: Partial<ActivitySession> = {}): ActivitySession {
   return {
-    member_id: 1,
+    member_id: 'member-uuid-1',
     member_name: 'Max Mustermann',
     started_at: '2026-06-01T10:00:00Z',
     ended_at: '2026-06-01T10:05:00Z',

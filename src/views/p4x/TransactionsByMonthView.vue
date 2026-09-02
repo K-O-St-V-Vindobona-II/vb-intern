@@ -13,7 +13,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const accountId = Number(route.params['accountId'])
+const accountId = String(route.params['accountId'])
 const loading = ref(true)
 const categories = ref<P4xCategory[]>([])
 const result = ref<PaginatedTransactions | null>(null)

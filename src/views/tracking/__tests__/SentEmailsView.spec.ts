@@ -39,9 +39,12 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const EMAIL_ID_A = '11111111-1111-1111-1111-111111111111'
+const EMAIL_ID_B = '22222222-2222-2222-2222-222222222222'
+
 function buildItem(overrides: Partial<SentEmailListItem> = {}): SentEmailListItem {
   return {
-    id: 1,
+    id: EMAIL_ID_A,
     created_at: '2026-06-25T12:00:00+00:00',
     to: 'test@vb.at',
     subject: 'Passwort Reset',
@@ -122,7 +125,10 @@ describe('SentEmailsView.vue', () => {
 
   it('shows the smtp tag with success severity and others with info', async () => {
     mockGetSentEmails.mockResolvedValue({
-      items: [buildItem({ id: 1, mailer: 'smtp' }), buildItem({ id: 2, mailer: 'sendmail' })],
+      items: [
+        buildItem({ id: EMAIL_ID_A, mailer: 'smtp' }),
+        buildItem({ id: EMAIL_ID_B, mailer: 'sendmail' }),
+      ],
       total: 2,
       page: 1,
       page_size: 25,
@@ -145,7 +151,7 @@ describe('SentEmailsView.vue', () => {
     await table.vm.$emit('row-click', { data: buildItem() })
     await flushPromises()
 
-    expect(mockGetSentEmailDetail).toHaveBeenCalledWith(1)
+    expect(mockGetSentEmailDetail).toHaveBeenCalledWith(EMAIL_ID_A)
     expect(document.body.textContent).toContain('cc@vb.at')
     expect(document.body.textContent).toContain('bcc@vb.at')
     wrapper.unmount()

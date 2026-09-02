@@ -108,12 +108,12 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/dirs/:id(\\d+)',
+          path: 'archive/dirs/:id',
           name: 'archive-dir',
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/files/:id(\\d+)',
+          path: 'archive/files/:id',
           name: 'archive-file',
           component: () => import('../views/archive/ArchiveFileView.vue'),
         },
@@ -123,11 +123,11 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveUploadView.vue'),
         },
         {
-          path: 'standesdb/members/:id(\\d+)',
-          name: 'standesdb-member-show',
-          component: () => import('../views/standesdb/MemberShowView.vue'),
-        },
-        {
+          // Registered before the bare :id route below: id is a UUID, not
+          // a digit-constrained segment, so "new" must be a static
+          // sibling Vue Router's matcher can rank ahead of a same-shape
+          // dynamic segment, not rely on it (same fix as
+          // standesdb/contacts/new further below).
           path: 'standesdb/members/new',
           name: 'standesdb-member-new',
           component: () => import('../views/standesdb/MemberEditView.vue'),
@@ -136,7 +136,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/members/:id(\\d+)/edit',
+          path: 'standesdb/members/:id',
+          name: 'standesdb-member-show',
+          component: () => import('../views/standesdb/MemberShowView.vue'),
+        },
+        {
+          path: 'standesdb/members/:id/edit',
           name: 'standesdb-member-edit',
           component: () => import('../views/standesdb/MemberEditView.vue'),
           meta: {
@@ -157,7 +162,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/change-requests/:id(\\d+)',
+          path: 'standesdb/change-requests/:id',
           name: 'standesdb-change-request-review',
           component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
           meta: {
@@ -165,11 +170,11 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/contacts/:id(\\d+)',
-          name: 'standesdb-contact-show',
-          component: () => import('../views/standesdb/ContactShowView.vue'),
-        },
-        {
+          // Registered before the bare :id route below: id is a UUID, not
+          // a digit-constrained segment, so "new" must be a static
+          // sibling Vue Router's matcher can rank ahead of a same-shape
+          // dynamic segment, not rely on it (same fix as
+          // standesdb/members/new further above).
           path: 'standesdb/contacts/new',
           name: 'standesdb-contact-new',
           component: () => import('../views/standesdb/ContactEditView.vue'),
@@ -178,7 +183,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/contacts/:id(\\d+)/edit',
+          path: 'standesdb/contacts/:id',
+          name: 'standesdb-contact-show',
+          component: () => import('../views/standesdb/ContactShowView.vue'),
+        },
+        {
+          path: 'standesdb/contacts/:id/edit',
           name: 'standesdb-contact-edit',
           component: () => import('../views/standesdb/ContactEditView.vue'),
           meta: {
@@ -191,12 +201,12 @@ const router = createRouter({
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/members/:id(\\d+)/images',
+          path: 'standesdb/members/:id/images',
           name: 'standesdb-member-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/contacts/:id(\\d+)/images',
+          path: 'standesdb/contacts/:id/images',
           name: 'standesdb-contact-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
@@ -211,7 +221,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId(\\d+)/transactions/by-month/:year(\\d+)/:month(\\d+)',
+          path: 'p4x/accounts/:accountId/transactions/by-month/:year(\\d+)/:month(\\d+)',
           name: 'p4x-transactions-month',
           component: () => import('../views/p4x/TransactionsByMonthView.vue'),
           meta: {
@@ -219,7 +229,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId(\\d+)/transactions/by-partner',
+          path: 'p4x/accounts/:accountId/transactions/by-partner',
           name: 'p4x-transactions-partner',
           component: () => import('../views/p4x/TransactionsByPartnerView.vue'),
           meta: {
@@ -227,7 +237,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId(\\d+)/transactions/by-category',
+          path: 'p4x/accounts/:accountId/transactions/by-category',
           name: 'p4x-transactions-category',
           component: () => import('../views/p4x/TransactionsByCategoryView.vue'),
           meta: {
@@ -235,7 +245,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id(\\d+)?',
+          path: 'p4x/fee-members/:id?',
           name: 'p4x-fee-member',
           component: () => import('../views/p4x/FeeMemberView.vue'),
           meta: {
@@ -243,7 +253,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id(\\d+)/edit',
+          path: 'p4x/fee-members/:id/edit',
           name: 'p4x-fee-member-edit',
           component: () => import('../views/p4x/FeeMemberFormView.vue'),
           meta: {
@@ -277,7 +287,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:id(\\d+)/edit',
+          path: 'p4x/admin/accounts/:id/edit',
           name: 'p4x-account-edit',
           component: () => import('../views/p4x/AccountFormView.vue'),
           meta: {
@@ -285,7 +295,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId(\\d+)/import',
+          path: 'p4x/admin/accounts/:accountId/import',
           name: 'p4x-account-import',
           component: () => import('../views/p4x/ImportView.vue'),
           meta: {
@@ -293,7 +303,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId(\\d+)/transactions/by-filter',
+          path: 'p4x/admin/accounts/:accountId/transactions/by-filter',
           name: 'p4x-transactions-filter',
           component: () => import('../views/p4x/TransactionsByFilterView.vue'),
           meta: {
@@ -317,7 +327,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/categories/:id(\\d+)/edit',
+          path: 'p4x/admin/categories/:id/edit',
           name: 'p4x-category-edit',
           component: () => import('../views/p4x/CategoryFormView.vue'),
           meta: {
@@ -341,7 +351,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id(\\d+)/edit',
+          path: 'p4x/admin/category-filters/:id/edit',
           name: 'p4x-filter-edit',
           component: () => import('../views/p4x/CategoryFilterFormView.vue'),
           meta: {
@@ -349,7 +359,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id(\\d+)/filter2direct',
+          path: 'p4x/admin/category-filters/:id/filter2direct',
           name: 'p4x-filter2direct',
           component: () => import('../views/p4x/Filter2DirectView.vue'),
           meta: {

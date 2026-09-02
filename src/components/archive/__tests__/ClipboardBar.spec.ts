@@ -36,14 +36,14 @@ describe('ClipboardBar', () => {
   })
 
   it('renders nothing when the clipboard is empty', () => {
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 1 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '1' }, ...mountOpts })
     expect(wrapper.find('.clipboard-bar').exists()).toBe(false)
   })
 
   it('shows separate counts for directories and files', () => {
     const store = useArchiveStore()
     store.addToClipboard(['dir:1', 'dir:2', 'file:3'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 1 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '1' }, ...mountOpts })
 
     expect(wrapper.text()).toContain('Verzeichnisse: 2')
     expect(wrapper.text()).toContain('Dateien: 1')
@@ -52,7 +52,7 @@ describe('ClipboardBar', () => {
   it('empties the clipboard when the clear button is clicked', async () => {
     const store = useArchiveStore()
     store.addToClipboard(['dir:1'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 1 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '1' }, ...mountOpts })
 
     await wrapper.find('.clipboard-header button').trigger('click')
 
@@ -62,7 +62,7 @@ describe('ClipboardBar', () => {
   it('asks for confirmation before moving directories into a target dir', async () => {
     const store = useArchiveStore()
     store.addToClipboard(['dir:1'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 9 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '9' }, ...mountOpts })
 
     await wrapper.find('.clipboard-row button').trigger('click')
 
@@ -75,13 +75,17 @@ describe('ClipboardBar', () => {
   it('moves items into the target directory on confirmation, removes them from the clipboard and emits moved', async () => {
     const store = useArchiveStore()
     store.addToClipboard(['dir:1', 'dir:2'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 9 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '9' }, ...mountOpts })
 
     await wrapper.find('.clipboard-row button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockReceiveItems).toHaveBeenCalledWith(9, { type: 'dir', ids: [1, 2], action: 'move' })
+    expect(mockReceiveItems).toHaveBeenCalledWith('9', {
+      type: 'dir',
+      ids: ['1', '2'],
+      action: 'move',
+    })
     expect(store.clipboard).toEqual([])
     expect(wrapper.emitted('moved')).toHaveLength(1)
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
@@ -89,14 +93,18 @@ describe('ClipboardBar', () => {
 
   it('moves items into the archive root when targetDirId is falsy', async () => {
     const store = useArchiveStore()
-    store.addToClipboard(['file:5'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 0 }, ...mountOpts })
+    store.addToClipboard(['file:01a060b3-1ddb-7439-a166-6b5d77ff021c'])
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: null }, ...mountOpts })
 
     await wrapper.find('.clipboard-row button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockReceiveItemsRoot).toHaveBeenCalledWith({ type: 'file', ids: [5], action: 'move' })
+    expect(mockReceiveItemsRoot).toHaveBeenCalledWith({
+      type: 'file',
+      ids: ['01a060b3-1ddb-7439-a166-6b5d77ff021c'],
+      action: 'move',
+    })
     expect(mockReceiveItems).not.toHaveBeenCalled()
   })
 
@@ -104,7 +112,7 @@ describe('ClipboardBar', () => {
     mockReceiveItems.mockRejectedValueOnce(new Error('failed'))
     const store = useArchiveStore()
     store.addToClipboard(['dir:1'])
-    const wrapper = mount(ClipboardBar, { props: { targetDirId: 9 }, ...mountOpts })
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '9' }, ...mountOpts })
 
     await wrapper.find('.clipboard-row button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()

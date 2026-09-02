@@ -24,7 +24,7 @@ vi.mock('@/services/p4xService', () => ({
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -32,7 +32,7 @@ const categories: P4xCategory[] = [
     protected: false,
   },
   {
-    id: 2,
+    id: 'category-uuid-2',
     name: 'beitrag',
     label: 'Beitrag',
     background_color: '#fff',
@@ -43,13 +43,13 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 2,
+    p4x_account_id: '2',
     p4x_account_cn: 'Kasse Wien',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -78,7 +78,7 @@ const stubs = {
 
 const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.body }
 
-async function selectCategory(wrapper: ReturnType<typeof mount>, id: number) {
+async function selectCategory(wrapper: ReturnType<typeof mount>, id: string) {
   const select = wrapper.findComponent({ name: 'Select' })
   await select.vm.$emit('update:modelValue', id)
   await select.vm.$emit('change')
@@ -113,10 +113,10 @@ describe('TransactionsByCategoryView', () => {
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
 
-    await selectCategory(wrapper, 1)
+    await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenCalledWith(2, 1, 1)
+    expect(mockGetTransactionsByCategory).toHaveBeenCalledWith('2', 'category-uuid-1', 1)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.exists()).toBe(true)
     expect(table.props('categories')).toEqual(categories)
@@ -127,7 +127,7 @@ describe('TransactionsByCategoryView', () => {
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
 
-    await selectCategory(wrapper, 2)
+    await selectCategory(wrapper, 'category-uuid-2')
     await flushPromises()
 
     expect(wrapper.find('.info-card').exists()).toBe(true)
@@ -140,7 +140,7 @@ describe('TransactionsByCategoryView', () => {
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
 
-    await selectCategory(wrapper, 1)
+    await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
     expect(wrapper.findComponent({ name: 'TransactionTable' }).props('admin')).toBe(true)
@@ -150,14 +150,14 @@ describe('TransactionsByCategoryView', () => {
   it('reloads with the new page when TransactionTable emits pageChange', async () => {
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
-    await selectCategory(wrapper, 1)
+    await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
     mockGetTransactionsByCategory.mockResolvedValue({ data: buildResult({ page: 2 }) })
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 1, 2)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-1', 2)
     wrapper.unmount()
   })
 
@@ -165,31 +165,31 @@ describe('TransactionsByCategoryView', () => {
     mockGetTransactionsByCategory.mockResolvedValue({ data: buildResult({ page: 3 }) })
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
-    await selectCategory(wrapper, 1)
+    await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 1, 3)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-1', 3)
     wrapper.unmount()
   })
 
   it('clears the result and reloads when switching to a different category', async () => {
     const wrapper = mount(TransactionsByCategoryView, mountOpts)
     await flushPromises()
-    await selectCategory(wrapper, 1)
+    await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
     mockGetTransactionsByCategory.mockResolvedValue({
-      data: buildResult({ items: [buildTx({ id: 2 })] }),
+      data: buildResult({ items: [buildTx({ id: '2' })] }),
     })
-    await selectCategory(wrapper, 2)
+    await selectCategory(wrapper, 'category-uuid-2')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 2, 1)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-2', 1)
     expect(wrapper.findComponent({ name: 'TransactionTable' }).props('transactions')).toEqual([
-      buildTx({ id: 2 }),
+      buildTx({ id: '2' }),
     ])
     wrapper.unmount()
   })

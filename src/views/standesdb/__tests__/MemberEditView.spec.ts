@@ -20,7 +20,7 @@ function buildReferenceData(): ReferenceData {
 
 function buildMember(overrides: Partial<MemberDetail> = {}): MemberDetail {
   return {
-    id: 1,
+    id: '1',
     cn: 'Max Mustermann',
     vortitel: null,
     vorname: 'Max',
@@ -36,7 +36,7 @@ function buildMember(overrides: Partial<MemberDetail> = {}): MemberDetail {
     entlassen: false,
     verstorben: false,
     grabadresse: null,
-    parent_id: 0,
+    parent_id: null,
     parent_cn: '',
     default_image: null,
     chroniclemail: false,
@@ -146,7 +146,7 @@ describe('MemberEditView', () => {
     mockAuthStore.user = { org_id: 'vbw', permissions: ['standesdbVbwAdmin'] }
     mockGetReferenceData.mockResolvedValue({ data: buildReferenceData() })
     mockGetMember.mockResolvedValue({ data: buildMember() })
-    mockCreateMember.mockResolvedValue({ data: { id: 9 } })
+    mockCreateMember.mockResolvedValue({ data: { id: '9' } })
     mockUpdateMember.mockResolvedValue({})
   })
 
@@ -162,7 +162,7 @@ describe('MemberEditView', () => {
     const wrapper = await mountAt('/standesdb/members/1/edit')
     await flushPromises()
 
-    expect(mockGetMember).toHaveBeenCalledWith(1)
+    expect(mockGetMember).toHaveBeenCalledWith('1')
     expect(wrapper.text()).toContain('Mitglied bearbeiten')
     const inputs = wrapper.findAll('input[type="text"]')
     expect(inputs.some((i) => (i.element as HTMLInputElement).value === 'Max')).toBe(true)
@@ -240,7 +240,7 @@ describe('MemberEditView', () => {
     await saveBtn.trigger('click')
     await flushPromises()
 
-    expect(mockUpdateMember).toHaveBeenCalledWith(1, expect.objectContaining({ vorname: 'Max' }))
+    expect(mockUpdateMember).toHaveBeenCalledWith('1', expect.objectContaining({ vorname: 'Max' }))
     expect(router.currentRoute.value.name).toBe('standesdb-member-show')
     expect(router.currentRoute.value.params.id).toBe('1')
   })

@@ -18,7 +18,7 @@ function buildConfig(overrides: Partial<UploadConfig> = {}): UploadConfig {
 function buildUnfiled(overrides: Partial<FileShort> = {}): FileShort {
   return {
     type: 'file',
-    id: 1,
+    id: '1',
     name: 'Unsortiert',
     extension: 'pdf',
     description: null,

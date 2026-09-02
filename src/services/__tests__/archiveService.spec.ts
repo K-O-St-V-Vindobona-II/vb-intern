@@ -68,7 +68,7 @@ describe('archiveService', () => {
   })
 
   it('receiveItems posts to the dir-scoped receive endpoint', () => {
-    const data = { type: 'file', ids: [1, 2], action: 'move' }
+    const data = { type: 'file', ids: ['1', '2'], action: 'move' }
     archiveService.receiveItems(7, data)
     expect(mockPost).toHaveBeenCalledWith('/archive/dirs/7/receive', data)
   })
@@ -80,45 +80,45 @@ describe('archiveService', () => {
   })
 
   it('getFileDetail fetches a single file', () => {
-    archiveService.getFileDetail(42)
+    archiveService.getFileDetail('42')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/42')
   })
 
   it('updateFile puts the updated description', () => {
-    archiveService.updateFile(42, { description: 'neu' })
+    archiveService.updateFile('42', { description: 'neu' })
     expect(mockPut).toHaveBeenCalledWith('/archive/files/42', { description: 'neu' })
   })
 
   it('deleteFile deletes the file', () => {
-    archiveService.deleteFile(42)
+    archiveService.deleteFile('42')
     expect(mockDelete).toHaveBeenCalledWith('/archive/files/42')
   })
 
   it('restoreFile patches the restore endpoint', () => {
-    archiveService.restoreFile(42)
+    archiveService.restoreFile('42')
     expect(mockPatch).toHaveBeenCalledWith('/archive/files/42/restore')
   })
 
   it('getFileUrl without size omits the suffix', () => {
-    archiveService.getFileUrl(42)
+    archiveService.getFileUrl('42')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/42/url')
   })
 
   it('getFileUrl with size appends the suffix', () => {
-    archiveService.getFileUrl(42, 'thumb')
+    archiveService.getFileUrl('42', 'thumb')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/42/url/thumb')
   })
 
   it('createComment posts the comment content', () => {
-    archiveService.createComment(42, { content: 'Schöner Schnappschuss' })
+    archiveService.createComment('42', { content: 'Schöner Schnappschuss' })
     expect(mockPost).toHaveBeenCalledWith('/archive/files/42/comments', {
       content: 'Schöner Schnappschuss',
     })
   })
 
   it('deleteComment deletes the comment', () => {
-    archiveService.deleteComment(42, 9)
-    expect(mockDelete).toHaveBeenCalledWith('/archive/files/42/comments/9')
+    archiveService.deleteComment('42', 'comment-uuid-9')
+    expect(mockDelete).toHaveBeenCalledWith('/archive/files/42/comments/comment-uuid-9')
   })
 
   it('getUploadConfig fetches upload limits', () => {

@@ -5,9 +5,13 @@ import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import QuotesAdminView from '../QuotesAdminView.vue'
 
+const FIRST_QUOTE_ID = '0199a1c2-0000-7000-8000-000000000001'
+const SECOND_QUOTE_ID = '0199a1c2-0000-7000-8000-000000000002'
+const THIRD_QUOTE_ID = '0199a1c2-0000-7000-8000-000000000003'
+
 const baseQuotes = [
-  { id: 1, quote: 'Erstes Zitat.', author: 'Autor Eins' },
-  { id: 2, quote: 'Zweites Zitat.', author: 'Autor Zwei' },
+  { id: FIRST_QUOTE_ID, quote: 'Erstes Zitat.', author: 'Autor Eins' },
+  { id: SECOND_QUOTE_ID, quote: 'Zweites Zitat.', author: 'Autor Zwei' },
 ]
 
 const mockList = vi.fn()
@@ -31,7 +35,9 @@ describe('QuotesAdminView', () => {
 
   beforeEach(() => {
     mockList.mockReset().mockResolvedValue({ data: structuredClone(baseQuotes) })
-    mockCreate.mockReset().mockResolvedValue({ data: { id: 3, quote: 'Neu', author: 'X' } })
+    mockCreate
+      .mockReset()
+      .mockResolvedValue({ data: { id: THIRD_QUOTE_ID, quote: 'Neu', author: 'X' } })
     mockUpdate.mockReset().mockResolvedValue({ data: baseQuotes[0] })
     mockMove.mockReset().mockResolvedValue({ data: { status: 'ok' } })
     mockRemove.mockReset().mockResolvedValue({ data: undefined })
@@ -94,7 +100,7 @@ describe('QuotesAdminView', () => {
     await downButtons[0]?.trigger('click')
     await flushPromises()
 
-    expect(mockMove).toHaveBeenCalledWith(1, 'down')
+    expect(mockMove).toHaveBeenCalledWith(FIRST_QUOTE_ID, 'down')
   })
 
   it('saves an edited quote', async () => {
@@ -113,7 +119,7 @@ describe('QuotesAdminView', () => {
     saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockUpdate).toHaveBeenCalledWith(1, {
+    expect(mockUpdate).toHaveBeenCalledWith(FIRST_QUOTE_ID, {
       quote: 'Geändertes Zitat',
       author: 'Autor Eins',
     })
@@ -131,6 +137,6 @@ describe('QuotesAdminView', () => {
     confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockRemove).toHaveBeenCalledWith(1)
+    expect(mockRemove).toHaveBeenCalledWith(FIRST_QUOTE_ID)
   })
 })

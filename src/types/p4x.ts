@@ -1,37 +1,37 @@
 export interface PartnerRef {
   type: string
-  id: number
+  id: string
   cn: string
 }
 
 export interface CategoryDirect {
-  id: number
-  p4x_category_id: number
+  id: string
+  p4x_category_id: string
   amount: number
 }
 
 export interface CategoryFilterShort {
-  id: number
+  id: string
   name: string
-  p4x_account_id: number
+  p4x_account_id: string
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
   max_amount: number | null
   subject: string | null
   subject_mode: string
-  p4x_category_id: number
+  p4x_category_id: string
   hitCount: number
 }
 
 export interface P4xTransaction {
-  id: number
+  id: string
   booking: string | null
   valuation: string | null
   iban: string
   amount: number
   subject: string
-  p4x_account_id: number
+  p4x_account_id: string
   p4x_account_cn: string
   p4x_account_iban: string
   comment: string | null
@@ -43,7 +43,7 @@ export interface P4xTransaction {
 }
 
 export interface P4xAccount {
-  id: number
+  id: string
   iban: string
   bic: string | null
   label: string | null
@@ -55,7 +55,7 @@ export interface P4xAccount {
 }
 
 export interface P4xCategory {
-  id: number
+  id: string
   name: string
   label: string
   background_color: string
@@ -68,16 +68,16 @@ export interface CategoryWithUsage extends P4xCategory {
 }
 
 export interface CategoryFilter {
-  id: number
+  id: string
   name: string
-  p4x_account_id: number
+  p4x_account_id: string
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
   max_amount: number | null
   subject: string | null
   subject_mode: string
-  p4x_category_id: number
+  p4x_category_id: string
   hitCount: number
 }
 
@@ -110,7 +110,7 @@ export interface PaginatedTransactions {
 }
 
 export interface ImportResult {
-  given: { p4x_account_id: number; parsed: boolean }
+  given: { p4x_account_id: string; parsed: boolean }
   summary: Record<string, number>
   message?: string | null
   account?: P4xAccount
@@ -140,7 +140,7 @@ export interface FeeBalance {
 }
 
 export interface FeeMember {
-  id: number
+  id: string
   cn: string
   p4x_init_date: string | null
   p4x_init_balance: number | null
@@ -155,7 +155,7 @@ export interface FeeMember {
 export type FeeMemberSelf = Omit<FeeMember, 'p4x_comment'>
 
 export interface FeeBalanceEntry {
-  id: number
+  id: string
   cn: string
   p4x_freed: boolean
   balance: number
@@ -163,7 +163,7 @@ export interface FeeBalanceEntry {
 
 export interface PartnerSearchResult {
   type: string
-  id: number
+  id: string
   label: string
   [key: string]: unknown
 }

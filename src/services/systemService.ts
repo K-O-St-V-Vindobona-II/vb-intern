@@ -40,7 +40,7 @@ export interface ScheduledJobRunSummary {
 }
 
 export interface ScheduledJobRunListItem extends ScheduledJobRunSummary {
-  id: number
+  id: string
   job_id: string
 }
 

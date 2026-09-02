@@ -47,7 +47,7 @@ describe('DirEditor', () => {
     const wrapper = mount(DirEditor, {
       props: {
         sets,
-        dirId: 5,
+        dirId: '5',
         dirName: 'Fotos',
         dirDescription: 'Urlaubsfotos',
         dirPermissions: ['vbw_active'],
@@ -69,7 +69,7 @@ describe('DirEditor', () => {
 
   it('creates a new directory with the entered values', async () => {
     const wrapper = mount(DirEditor, {
-      props: { sets, create: true, parentId: 3 },
+      props: { sets, create: true, parentId: '3' },
       global: { plugins: [PrimeVue] },
       attachTo: document.body,
     })
@@ -89,7 +89,7 @@ describe('DirEditor', () => {
     await flushPromises()
 
     expect(mockCreateDir).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Neues Verzeichnis', parentId: 3 }),
+      expect.objectContaining({ name: 'Neues Verzeichnis', parentId: '3' }),
     )
     expect(wrapper.emitted('saved')).toHaveLength(1)
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
@@ -99,7 +99,7 @@ describe('DirEditor', () => {
 
   it('updates an existing directory', async () => {
     const wrapper = mount(DirEditor, {
-      props: { sets, dirId: 5, dirName: 'Fotos' },
+      props: { sets, dirId: '5', dirName: 'Fotos' },
       global: { plugins: [PrimeVue] },
       attachTo: document.body,
     })
@@ -113,7 +113,7 @@ describe('DirEditor', () => {
     saveButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockUpdateDir).toHaveBeenCalledWith(5, expect.objectContaining({ name: 'Fotos' }))
+    expect(mockUpdateDir).toHaveBeenCalledWith('5', expect.objectContaining({ name: 'Fotos' }))
 
     wrapper.unmount()
   })

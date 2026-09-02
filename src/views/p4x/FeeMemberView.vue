@@ -34,7 +34,7 @@ const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
 const onMemberSelect = async (item: SearchResult) => {
   loading.value = true
   try {
-    const resp = await p4xService.getFeeMember(item.id)
+    const resp = await p4xService.getFeeMember(String(item.id))
     member.value = resp.data
   } finally {
     loading.value = false
@@ -82,7 +82,7 @@ const doExport = async () => {
 }
 
 onMounted(async () => {
-  const id = route.params['id'] ? Number(route.params['id']) : null
+  const id = route.params['id'] ? String(route.params['id']) : null
   if (id) {
     loading.value = true
     try {

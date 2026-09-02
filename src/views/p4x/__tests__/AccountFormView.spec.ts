@@ -29,7 +29,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
   return {
-    id: 1,
+    id: '1',
     iban: 'AT001234',
     bic: 'GIBAATWWXXX',
     label: 'Kasse Wien',
@@ -115,7 +115,10 @@ describe('AccountFormView', () => {
     clickButton('Speichern')
     await flushPromises()
 
-    expect(mockUpdateAccount).toHaveBeenCalledWith(1, expect.objectContaining({ iban: 'AT001234' }))
+    expect(mockUpdateAccount).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ iban: 'AT001234' }),
+    )
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Gespeichert' }),
     )
@@ -136,7 +139,7 @@ describe('AccountFormView', () => {
     await flushPromises()
 
     expect(mockUpdateAccount).toHaveBeenCalledWith(
-      1,
+      '1',
       expect.objectContaining({ init_date: '2021-05-15' }),
     )
     wrapper.unmount()

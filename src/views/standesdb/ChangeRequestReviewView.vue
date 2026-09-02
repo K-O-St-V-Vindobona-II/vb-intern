@@ -57,7 +57,7 @@ const setAllDecisions = (decision: 'approved' | 'rejected') => {
 }
 
 onMounted(async () => {
-  const id = Number(route.params['id'])
+  const id = route.params['id'] as string
   try {
     const resp = await standesdbService.getChangeRequest(id)
     request.value = resp.data

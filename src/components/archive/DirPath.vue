@@ -8,8 +8,8 @@ defineProps<{
 
 const router = useRouter()
 
-const goToDir = (id: number) => {
-  if (id === 0) {
+const goToDir = (id: string | null) => {
+  if (id === null) {
     router.push({ name: 'archive-root' })
   } else {
     router.push({
@@ -22,7 +22,7 @@ const goToDir = (id: number) => {
 
 <template>
   <span class="dir-path">
-    <a class="path-link" @click.prevent="goToDir(0)"> Archiv </a>
+    <a class="path-link" @click.prevent="goToDir(null)"> Archiv </a>
     <template v-for="entry in path" :key="entry.id">
       <span class="path-sep"> / </span>
       <a class="path-link" @click.prevent="goToDir(entry.id)">

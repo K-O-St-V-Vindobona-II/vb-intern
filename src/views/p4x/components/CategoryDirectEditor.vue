@@ -19,14 +19,14 @@ const emit = defineEmits<{ changed: [tx: P4xTransaction] }>()
 const router = useRouter()
 const visible = ref(false)
 const loading = ref(false)
-const expandedFilters = ref<Set<number>>(new Set())
+const expandedFilters = ref<Set<string>>(new Set())
 
 const form = ref({
-  cat0: null as number | null,
+  cat0: null as string | null,
   amt0: 0,
-  cat1: null as number | null,
+  cat1: null as string | null,
   amt1: 0,
-  cat2: null as number | null,
+  cat2: null as string | null,
   amt2: 0,
 })
 
@@ -37,11 +37,11 @@ const categoryOptions = computed(() =>
 )
 
 interface SplitForm {
-  cat0: number | null
+  cat0: string | null
   amt0: number
-  cat1: number | null
+  cat1: string | null
   amt1: number
-  cat2: number | null
+  cat2: string | null
   amt2: number
 }
 
@@ -65,7 +65,7 @@ function isSplitValid(txAmount: number, form: SplitForm): boolean {
 function slotFromDirect(
   direct: CategoryDirect | undefined,
   defaultAmount: number,
-): { cat: number | null; amt: number } {
+): { cat: string | null; amt: number } {
   if (!direct) {
     return { cat: null, amt: defaultAmount }
   }
@@ -123,7 +123,7 @@ const deleteDirect = async () => {
   }
 }
 
-const toggleDetails = (filterId: number) => {
+const toggleDetails = (filterId: string) => {
   if (expandedFilters.value.has(filterId)) {
     expandedFilters.value.delete(filterId)
   } else {
@@ -137,12 +137,12 @@ const subjectModeLabel = (mode: string): string => {
   return 'lautet:'
 }
 
-const navigateToFilterEdit = (filterId: number) => {
+const navigateToFilterEdit = (filterId: string) => {
   visible.value = false
   router.push({ name: 'p4x-filter-edit', params: { id: filterId } })
 }
 
-const navigateToFilter2Direct = (filterId: number) => {
+const navigateToFilter2Direct = (filterId: string) => {
   visible.value = false
   router.push({ name: 'p4x-filter2direct', params: { id: filterId } })
 }

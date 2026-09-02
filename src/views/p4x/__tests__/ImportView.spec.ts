@@ -24,7 +24,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
   return {
-    id: 3,
+    id: '3',
     iban: 'AT001234',
     bic: 'GIBAATWWXXX',
     label: 'Kasse Wien',
@@ -39,7 +39,7 @@ function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
 
 function buildImportResult(overrides: Partial<ImportResult> = {}): ImportResult {
   return {
-    given: { p4x_account_id: 3, parsed: true },
+    given: { p4x_account_id: '3', parsed: true },
     summary: { giventotal: 10, existing: 4, new: 6 },
     ...overrides,
   }
@@ -106,7 +106,7 @@ describe('ImportView', () => {
     button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockImportTransactions).toHaveBeenCalledWith(3, file)
+    expect(mockImportTransactions).toHaveBeenCalledWith('3', file)
     expect(mockGetDashboard).toHaveBeenCalledTimes(2)
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Import abgeschlossen' }),
@@ -119,7 +119,7 @@ describe('ImportView', () => {
   it('shows an error toast and the parse-error card when parsing fails', async () => {
     mockImportTransactions.mockResolvedValue({
       data: {
-        given: { p4x_account_id: 3, parsed: false },
+        given: { p4x_account_id: '3', parsed: false },
         summary: {},
         message: 'Ungültiges Format',
       },

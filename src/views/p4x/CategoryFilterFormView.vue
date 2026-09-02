@@ -27,13 +27,13 @@ const useMax = ref(false)
 
 const form = ref({
   name: '',
-  p4x_account_id: null as number | null,
+  p4x_account_id: null as string | null,
   iban: '',
   min_amount: 0,
   max_amount: 0,
   subject_mode: 'equals',
   subject: '',
-  p4x_category_id: null as number | null,
+  p4x_category_id: null as string | null,
 })
 
 const subjectModeOptions = [
@@ -56,6 +56,13 @@ const categoryOptions = computed(() =>
   })),
 )
 
+function resolveAccountIdFromQuery(
+  query: LocationQuery,
+  defaultAccountId: string | null,
+): string | null {
+  return query['accountId'] ? String(query['accountId']) : defaultAccountId
+}
+
 function buildFormFromQuery(
   query: LocationQuery,
   accounts: P4xAccount[],
@@ -69,7 +76,7 @@ function buildFormFromQuery(
   const result = {
     form: {
       name: '',
-      p4x_account_id: query['accountId'] ? Number(query['accountId']) : defaultAccountId,
+      p4x_account_id: resolveAccountIdFromQuery(query, defaultAccountId),
       iban: '',
       min_amount: 0,
       max_amount: 0,
@@ -107,7 +114,7 @@ onMounted(async () => {
 
     if (isEdit.value) {
       const fResp = await p4xService.getCategoryFilters()
-      const filter = fResp.data.find((f) => f.id === Number(route.params['id']))
+      const filter = fResp.data.find((f) => f.id === String(route.params['id']))
       if (filter) {
         form.value = {
           name: filter.name,
@@ -145,7 +152,7 @@ const save = async () => {
     }
 
     if (isEdit.value) {
-      await p4xService.updateCategoryFilter(Number(route.params['id']), data)
+      await p4xService.updateCategoryFilter(String(route.params['id']), data)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createCategoryFilter(data)
@@ -162,7 +169,7 @@ const save = async () => {
 
 const deleteFilter = async () => {
   try {
-    await p4xService.deleteCategoryFilter(Number(route.params['id']))
+    await p4xService.deleteCategoryFilter(String(route.params['id']))
     toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
     router.push({ name: 'p4x-filters' })
   } catch (e: unknown) {

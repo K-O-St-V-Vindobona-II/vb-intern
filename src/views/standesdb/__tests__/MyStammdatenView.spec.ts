@@ -90,7 +90,7 @@ describe('MyStammdatenView', () => {
 
   it('overlays proposed values and shows the pending banner when a request exists', async () => {
     const pending: MyChangeRequest = {
-      id: 5,
+      id: '55555555-5555-5555-5555-555555555555',
       created_at: '2026-08-06T10:00:00Z',
       proposed_fields: { nachname: 'Geaendert' },
     }

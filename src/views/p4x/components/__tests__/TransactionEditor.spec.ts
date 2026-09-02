@@ -17,7 +17,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_cn: 'Kasse',
     p4x_account_iban: 'AT00',
     comment: 'Bestehender Kommentar',

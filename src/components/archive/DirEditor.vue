@@ -12,8 +12,8 @@ import Button from 'primevue/button'
 const props = defineProps<{
   sets: Sets
   create?: boolean
-  parentId?: number
-  dirId?: number
+  parentId?: string | null
+  dirId?: string
   dirName?: string
   dirDescription?: string | null
   dirPermissions?: string[]

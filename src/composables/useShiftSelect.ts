@@ -1,7 +1,10 @@
-import { ref, computed, type Ref } from 'vue'
+import { shallowRef, computed, type Ref } from 'vue'
 
-export function useShiftSelect<T>(items: Ref<T[]>, idFn: (item: T) => number) {
-  const selected = ref(new Set<number>())
+export function useShiftSelect<T, Id = number>(items: Ref<T[]>, idFn: (item: T) => Id) {
+  // shallowRef, not ref: the Set is always replaced wholesale (never
+  // mutated in place), and Vue's ref<T>() can't safely unwrap an
+  // unconstrained generic Id, which shallowRef sidesteps entirely.
+  const selected = shallowRef(new Set<Id>())
   let lastClickedIndex: number | null = null
 
   const isSelected = (item: T): boolean => selected.value.has(idFn(item))

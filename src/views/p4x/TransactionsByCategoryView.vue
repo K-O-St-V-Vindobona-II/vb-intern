@@ -11,12 +11,12 @@ import Select from 'primevue/select'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const accountId = Number(route.params['accountId'])
+const accountId = String(route.params['accountId'])
 
 const loading = ref(false)
 const categories = ref<P4xCategory[]>([])
 const allCategories = ref<P4xCategory[]>([])
-const selectedCategoryId = ref<number | null>(null)
+const selectedCategoryId = ref<string | null>(null)
 const selectedCategory = ref<P4xCategory | null>(null)
 const result = ref<PaginatedTransactions | null>(null)
 

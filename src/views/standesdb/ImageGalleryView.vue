@@ -27,9 +27,9 @@ const ownerType = computed(() => {
   if (isOwnRoute.value) return 'member'
   return String(route.name).includes('member') ? 'member' : 'contact'
 })
-const ownerId = computed(() => {
-  if (isOwnRoute.value) return authStore.user?.id ?? 0
-  return Number(route.params['id'])
+const ownerId = computed<string>(() => {
+  if (isOwnRoute.value) return authStore.user?.id ?? ''
+  return String(route.params['id'])
 })
 const backRoute = computed(() =>
   ownerType.value === 'member'
@@ -42,19 +42,19 @@ const uploading = ref(false)
 const ownerCn = ref('')
 const ownerOrgId = ref('')
 const images = ref<StandesdbImage[]>([])
-const imageUrls = ref<Record<number, string>>({})
+const imageUrls = ref<Record<string, string>>({})
 
 const uploadFile = ref<File | null>(null)
 const uploadDescription = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const editDialogVisible = ref(false)
-const editImageId = ref(0)
+const editImageId = ref('')
 const editDescription = ref<string | null>(null)
 const editDefault = ref(false)
 
 const deleteDialogVisible = ref(false)
-const deleteImageId = ref(0)
+const deleteImageId = ref('')
 
 const isAdmin = computed(() => {
   const perms = authStore.user?.permissions ?? []

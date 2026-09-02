@@ -59,7 +59,7 @@ const previewUrl = ref<string | null>(null)
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
 const extensionStatsExpanded = ref(false)
 
-const onPreview = async (id: number | null) => {
+const onPreview = async (id: string | null) => {
   if (!id) {
     previewUrl.value = null
     return
@@ -71,7 +71,7 @@ const loadDir = async () => {
   loading.value = true
   loadError.value = false
   try {
-    const id = route.params['id'] ? Number(route.params['id']) : null
+    const id = typeof route.params['id'] === 'string' ? route.params['id'] : null
     const resp = id ? await archiveService.getDirDetail(id) : await archiveService.getDirRoot()
     dir.value = resp.data
   } catch (err: unknown) {

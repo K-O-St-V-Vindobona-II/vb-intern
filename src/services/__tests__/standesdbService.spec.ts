@@ -155,15 +155,20 @@ describe('standesdbService', () => {
   })
 
   it('getChangeRequest fetches a single change request with its diff', () => {
-    standesdbService.getChangeRequest(7)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/member-change-requests/7')
+    standesdbService.getChangeRequest('11111111-1111-1111-1111-111111111111')
+    expect(mockGet).toHaveBeenCalledWith(
+      '/standesdb/member-change-requests/11111111-1111-1111-1111-111111111111',
+    )
   })
 
   it('decideChangeRequest posts the field decisions', () => {
-    standesdbService.decideChangeRequest(7, { nachname: 'approved' })
-    expect(mockPost).toHaveBeenCalledWith('/standesdb/member-change-requests/7/decide', {
-      field_decisions: { nachname: 'approved' },
+    standesdbService.decideChangeRequest('11111111-1111-1111-1111-111111111111', {
+      nachname: 'approved',
     })
+    expect(mockPost).toHaveBeenCalledWith(
+      '/standesdb/member-change-requests/11111111-1111-1111-1111-111111111111/decide',
+      { field_decisions: { nachname: 'approved' } },
+    )
   })
 
   it('createContact posts the new contact payload', () => {
@@ -239,39 +244,44 @@ describe('standesdbService', () => {
   })
 
   it('updateImage puts the updated image metadata for a member', () => {
-    standesdbService.updateImage('member', 1, 5, { description: 'neu', default: true })
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/members/1/images/5', {
+    standesdbService.updateImage('member', 1, 'image-uuid-5', { description: 'neu', default: true })
+    expect(mockPut).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5', {
       description: 'neu',
       default: true,
     })
   })
 
   it('updateImage puts the updated image metadata for a contact', () => {
-    standesdbService.updateImage('contact', 2, 5, { description: 'neu', default: false })
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/contacts/2/images/5', {
+    standesdbService.updateImage('contact', 2, 'image-uuid-5', {
+      description: 'neu',
+      default: false,
+    })
+    expect(mockPut).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5', {
       description: 'neu',
       default: false,
     })
   })
 
   it('deleteImage deletes the image for a member', () => {
-    standesdbService.deleteImage('member', 1, 5)
-    expect(mockDelete).toHaveBeenCalledWith('/standesdb/members/1/images/5')
+    standesdbService.deleteImage('member', 1, 'image-uuid-5')
+    expect(mockDelete).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5')
   })
 
   it('deleteImage deletes the image for a contact', () => {
-    standesdbService.deleteImage('contact', 2, 5)
-    expect(mockDelete).toHaveBeenCalledWith('/standesdb/contacts/2/images/5')
+    standesdbService.deleteImage('contact', 2, 'image-uuid-5')
+    expect(mockDelete).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5')
   })
 
   it('getImageUrl without thumb omits the thumb param', () => {
-    standesdbService.getImageUrl('member', 1, 5)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/images/5/url', { params: undefined })
+    standesdbService.getImageUrl('member', 1, 'image-uuid-5')
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5/url', {
+      params: undefined,
+    })
   })
 
   it('getImageUrl with thumb=true forwards the thumb param', () => {
-    standesdbService.getImageUrl('contact', 2, 5, true)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/images/5/url', {
+    standesdbService.getImageUrl('contact', 2, 'image-uuid-5', true)
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5/url', {
       params: { thumb: true },
     })
   })
