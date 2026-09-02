@@ -3,7 +3,7 @@ import type { DirDetail, FileDetail, FileShort, UploadConfig, Comment } from '@/
 
 export interface ArchiveSearchResult {
   type: 'file' | 'dir'
-  id: number
+  id: number | string
   name: string | null
   description: string | null
   extension?: string | null
@@ -62,43 +62,43 @@ export default {
     dirId: number,
     data: {
       type: string
-      ids: number[]
+      ids: (number | string)[]
       action: string
     },
   ) {
     return api.post(`/archive/dirs/${dirId}/receive`, data)
   },
 
-  receiveItemsRoot(data: { type: string; ids: number[]; action: string }) {
+  receiveItemsRoot(data: { type: string; ids: (number | string)[]; action: string }) {
     return api.post('/archive/dirs/receive', data)
   },
 
-  getFileDetail(id: number) {
+  getFileDetail(id: string) {
     return api.get<FileDetail>(`/archive/files/${id}`)
   },
 
-  updateFile(id: number, data: { description?: string | null }) {
+  updateFile(id: string, data: { description?: string | null }) {
     return api.put(`/archive/files/${id}`, data)
   },
 
-  deleteFile(id: number) {
+  deleteFile(id: string) {
     return api.delete(`/archive/files/${id}`)
   },
 
-  restoreFile(id: number) {
+  restoreFile(id: string) {
     return api.patch(`/archive/files/${id}/restore`)
   },
 
-  getFileUrl(id: number, size?: string) {
+  getFileUrl(id: string, size?: string) {
     const suffix = size ? `/${size}` : ''
     return api.get<{ url: string }>(`/archive/files/${id}/url${suffix}`)
   },
 
-  createComment(fileId: number, data: { content: string }) {
+  createComment(fileId: string, data: { content: string }) {
     return api.post<{ comment: Comment }>(`/archive/files/${fileId}/comments`, data)
   },
 
-  deleteComment(fileId: number, commentId: string) {
+  deleteComment(fileId: string, commentId: string) {
     return api.delete(`/archive/files/${fileId}/comments/${commentId}`)
   },
 

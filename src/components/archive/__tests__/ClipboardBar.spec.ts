@@ -89,14 +89,18 @@ describe('ClipboardBar', () => {
 
   it('moves items into the archive root when targetDirId is falsy', async () => {
     const store = useArchiveStore()
-    store.addToClipboard(['file:5'])
+    store.addToClipboard(['file:01a060b3-1ddb-7439-a166-6b5d77ff021c'])
     const wrapper = mount(ClipboardBar, { props: { targetDirId: 0 }, ...mountOpts })
 
     await wrapper.find('.clipboard-row button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockReceiveItemsRoot).toHaveBeenCalledWith({ type: 'file', ids: [5], action: 'move' })
+    expect(mockReceiveItemsRoot).toHaveBeenCalledWith({
+      type: 'file',
+      ids: ['01a060b3-1ddb-7439-a166-6b5d77ff021c'],
+      action: 'move',
+    })
     expect(mockReceiveItems).not.toHaveBeenCalled()
   })
 

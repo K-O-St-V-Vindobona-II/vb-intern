@@ -59,7 +59,7 @@ const previewUrl = ref<string | null>(null)
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
 const extensionStatsExpanded = ref(false)
 
-const onPreview = async (id: number | null) => {
+const onPreview = async (id: string | null) => {
   if (!id) {
     previewUrl.value = null
     return

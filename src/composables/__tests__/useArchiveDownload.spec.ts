@@ -16,7 +16,7 @@ describe('useArchiveDownload', () => {
       data: { url: 'https://minio.test/file?sig=abc' },
     })
     const { loadPresignedUrl } = useArchiveDownload()
-    const url = await loadPresignedUrl(42, 'md')
+    const url = await loadPresignedUrl('42', 'md')
     expect(url).toBe('https://minio.test/file?sig=abc')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/42/url/md')
   })
@@ -26,7 +26,7 @@ describe('useArchiveDownload', () => {
       data: { url: 'https://minio.test/orig' },
     })
     const { loadPresignedUrl } = useArchiveDownload()
-    const url = await loadPresignedUrl(7)
+    const url = await loadPresignedUrl('7')
     expect(url).toBe('https://minio.test/orig')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/7/url')
   })
@@ -34,7 +34,7 @@ describe('useArchiveDownload', () => {
   it('loadPresignedUrl returns null on error', async () => {
     mockGet.mockRejectedValueOnce(new Error('network'))
     const { loadPresignedUrl } = useArchiveDownload()
-    const url = await loadPresignedUrl(99)
+    const url = await loadPresignedUrl('99')
     expect(url).toBeNull()
   })
 
@@ -50,14 +50,14 @@ describe('useArchiveDownload', () => {
     } as unknown as HTMLAnchorElement)
 
     const { triggerDownload } = useArchiveDownload()
-    await triggerDownload(1, 'test.pdf')
+    await triggerDownload('1', 'test.pdf')
     expect(clickSpy).toHaveBeenCalled()
   })
 
   it('triggerDownload handles error silently', async () => {
     mockGet.mockRejectedValueOnce(new Error('fail'))
     const { triggerDownload } = useArchiveDownload()
-    await expect(triggerDownload(1, 'test.pdf')).resolves.toBeUndefined()
+    await expect(triggerDownload('1', 'test.pdf')).resolves.toBeUndefined()
   })
 
   it('returns the cached URL without calling the API again within the TTL', async () => {
@@ -66,8 +66,8 @@ describe('useArchiveDownload', () => {
     })
     const { loadPresignedUrl } = useArchiveDownload()
 
-    const first = await loadPresignedUrl(555, 'sm')
-    const second = await loadPresignedUrl(555, 'sm')
+    const first = await loadPresignedUrl('555', 'sm')
+    const second = await loadPresignedUrl('555', 'sm')
 
     expect(first).toBe('https://minio.test/cached')
     expect(second).toBe('https://minio.test/cached')
@@ -82,12 +82,12 @@ describe('useArchiveDownload', () => {
 
     // Insert well past MAX_CACHE_SIZE (50) with file ids unused by any other test.
     for (let i = 20000; i < 20000 + 55; i++) {
-      await loadPresignedUrl(i)
+      await loadPresignedUrl(String(i))
     }
 
     // The most recently inserted entry must still be cached (no extra API call).
     mockGet.mockClear()
-    const result = await loadPresignedUrl(20054)
+    const result = await loadPresignedUrl('20054')
 
     expect(result).toBe('resolved:/archive/files/20054/url')
     expect(mockGet).not.toHaveBeenCalled()

@@ -113,7 +113,7 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/files/:id(\\d+)',
+          path: 'archive/files/:id',
           name: 'archive-file',
           component: () => import('../views/archive/ArchiveFileView.vue'),
         },

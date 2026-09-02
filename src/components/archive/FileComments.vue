@@ -11,7 +11,7 @@ import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
 
 const props = defineProps<{
-  fileId: number
+  fileId: string
   comments: Comment[]
   admin?: boolean
 }>()

@@ -39,7 +39,7 @@ const loadFile = async () => {
   loading.value = true
   loadError.value = false
   try {
-    const id = Number(route.params['id'])
+    const id = String(route.params['id'])
     const resp = await archiveService.getFileDetail(id)
     file.value = resp.data
   } catch (err: unknown) {

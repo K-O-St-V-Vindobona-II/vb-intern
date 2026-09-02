@@ -14,7 +14,7 @@ export interface StateRef {
 }
 
 export interface StoreItem {
-  id: number
+  id: string
   name: string
   description: string | null
   extension: string
@@ -43,7 +43,7 @@ export interface DirShort {
 
 export interface FileShort {
   type: 'file'
-  id: number
+  id: string
   name: string | null
   extension: string | null
   description: string | null
@@ -110,7 +110,7 @@ export interface DirDetail {
 
 export interface FileDetail {
   type: 'file'
-  id: number
+  id: string
   archive_dir_id: number
   name: string | null
   extension: string | null
