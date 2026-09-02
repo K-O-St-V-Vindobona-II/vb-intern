@@ -63,7 +63,7 @@ export interface KeyEntry {
 }
 
 export interface TreeNode {
-  id: number
+  id: string
   cn: string
   gruender: boolean
   org_id: string | null
@@ -74,7 +74,7 @@ export interface TreeNode {
 }
 
 export interface MemberDetail {
-  id: number
+  id: string
   cn: string
   vortitel: string | null
   vorname: string | null
@@ -90,7 +90,7 @@ export interface MemberDetail {
   entlassen: boolean
   verstorben: boolean
   grabadresse: string | null
-  parent_id: number
+  parent_id: string | null
   parent_cn: string
   default_image: string | null
   chroniclemail: boolean
@@ -182,7 +182,7 @@ export interface MemberSelfServiceFormData {
 }
 
 export interface MemberSelfServiceDetail extends MemberSelfServiceFormData {
-  id: number
+  id: string
   cn: string
 }
 
@@ -222,7 +222,7 @@ export interface MemberChangeRequestDetail {
 }
 
 export interface MemberDismissed {
-  id: number
+  id: string
   cn: string
   org_id: string | null
   dataprotection: string
@@ -273,7 +273,7 @@ export interface ApiValidationErrorItem {
 }
 
 export interface RoleMemberEntry {
-  id: number
+  id: string
   cn: string
   startdate: string
   enddate: string | null
@@ -306,7 +306,7 @@ export interface ExportConfig {
 
 export interface SearchResult {
   type: 'member' | 'contact'
-  id: number | string
+  id: string
   label: string
   [key: string]: unknown
 }
@@ -330,7 +330,7 @@ export interface Stats {
 }
 
 export interface KeysListMember {
-  id: number
+  id: string
   nachname: string | null
   vorname: string | null
   keys: Record<string, boolean>

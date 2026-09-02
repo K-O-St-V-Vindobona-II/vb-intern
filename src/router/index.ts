@@ -123,11 +123,11 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveUploadView.vue'),
         },
         {
-          path: 'standesdb/members/:id(\\d+)',
-          name: 'standesdb-member-show',
-          component: () => import('../views/standesdb/MemberShowView.vue'),
-        },
-        {
+          // Registered before the bare :id route below: members.id lost
+          // its digit constraint with its own Final-Cutover, so "new"
+          // must be a static sibling Vue Router's matcher can rank ahead
+          // of a same-shape dynamic segment, not rely on it (same fix as
+          // standesdb/contacts/new above).
           path: 'standesdb/members/new',
           name: 'standesdb-member-new',
           component: () => import('../views/standesdb/MemberEditView.vue'),
@@ -136,7 +136,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/members/:id(\\d+)/edit',
+          path: 'standesdb/members/:id',
+          name: 'standesdb-member-show',
+          component: () => import('../views/standesdb/MemberShowView.vue'),
+        },
+        {
+          path: 'standesdb/members/:id/edit',
           name: 'standesdb-member-edit',
           component: () => import('../views/standesdb/MemberEditView.vue'),
           meta: {
@@ -195,7 +200,7 @@ const router = createRouter({
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/members/:id(\\d+)/images',
+          path: 'standesdb/members/:id/images',
           name: 'standesdb-member-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
@@ -239,7 +244,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id(\\d+)?',
+          path: 'p4x/fee-members/:id?',
           name: 'p4x-fee-member',
           component: () => import('../views/p4x/FeeMemberView.vue'),
           meta: {
@@ -247,7 +252,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id(\\d+)/edit',
+          path: 'p4x/fee-members/:id/edit',
           name: 'p4x-fee-member-edit',
           component: () => import('../views/p4x/FeeMemberFormView.vue'),
           meta: {

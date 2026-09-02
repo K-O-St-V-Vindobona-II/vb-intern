@@ -177,16 +177,16 @@ export default {
   },
 
   searchFeeMembers(q: string) {
-    return api.get<{ data: { id: number; label: string }[] }>('/p4x/fee-members/search', {
+    return api.get<{ data: { id: string; label: string }[] }>('/p4x/fee-members/search', {
       params: { q },
     })
   },
 
-  getFeeMember(id: number) {
+  getFeeMember(id: string) {
     return api.get<FeeMember>(`/p4x/fee-members/${id}`)
   },
 
-  exportFeeMember(id: number) {
+  exportFeeMember(id: string) {
     return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
   },
 
@@ -198,7 +198,7 @@ export default {
     return api.get('/p4x/fee-members/me/export', { responseType: 'blob' })
   },
 
-  updateFeeMember(id: number, data: object) {
+  updateFeeMember(id: string, data: object) {
     return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
   },
 

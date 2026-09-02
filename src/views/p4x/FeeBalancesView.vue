@@ -17,7 +17,7 @@ const toast = useToast()
 const loading = ref(true)
 const balances = ref<FeeBalanceEntry[]>([])
 
-const goToMember = (id: number) => {
+const goToMember = (id: string) => {
   router.push({ name: 'p4x-fee-member', params: { id } })
 }
 

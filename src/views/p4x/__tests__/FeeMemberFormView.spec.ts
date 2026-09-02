@@ -27,7 +27,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
   return {
-    id: 1,
+    id: '1',
     cn: 'Max Mustermann',
     p4x_init_date: '2020-01-01',
     p4x_init_balance: 10,
@@ -56,7 +56,7 @@ describe('FeeMemberFormView', () => {
     const wrapper = mount(FeeMemberFormView, mountOpts)
     await flushPromises()
 
-    expect(mockGetFeeMember).toHaveBeenCalledWith(1)
+    expect(mockGetFeeMember).toHaveBeenCalledWith('1')
     expect(wrapper.text()).toContain('Max Mustermann bearbeiten')
     wrapper.unmount()
   })
@@ -83,7 +83,7 @@ describe('FeeMemberFormView', () => {
     await flushPromises()
 
     expect(mockUpdateFeeMember).toHaveBeenCalledWith(
-      1,
+      '1',
       expect.objectContaining({
         p4x_init_date: '2020-01-01',
         p4x_init_balance: 10,
@@ -92,7 +92,7 @@ describe('FeeMemberFormView', () => {
       }),
     )
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: 1 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: '1' } })
     wrapper.unmount()
   })
 
@@ -106,7 +106,7 @@ describe('FeeMemberFormView', () => {
     await flushPromises()
 
     expect(mockUpdateFeeMember).toHaveBeenCalledWith(
-      1,
+      '1',
       expect.objectContaining({ p4x_comment: 'Hinweis' }),
     )
     wrapper.unmount()
@@ -150,7 +150,7 @@ describe('FeeMemberFormView', () => {
 
     clickButton('Abbrechen')
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: 1 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: '1' } })
     expect(mockUpdateFeeMember).not.toHaveBeenCalled()
     wrapper.unmount()
   })

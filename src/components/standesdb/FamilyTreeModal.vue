@@ -9,7 +9,7 @@ const props = defineProps<{
   visible: boolean
   ancestry: TreeNode[]
   children: TreeNode[]
-  memberId: number
+  memberId: string
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
-const collapsed = ref<Record<number, boolean>>({})
+const collapsed = ref<Record<string, boolean>>({})
 
 watch(
   () => props.visible,
@@ -33,11 +33,11 @@ watch(
   },
 )
 
-const toggleCollapse = (id: number) => {
+const toggleCollapse = (id: string) => {
   collapsed.value[id] = !collapsed.value[id]
 }
 
-const goToMember = (id: number) => {
+const goToMember = (id: string) => {
   emit('update:visible', false)
   router.push({
     name: 'standesdb-member-show',

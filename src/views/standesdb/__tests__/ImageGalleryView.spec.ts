@@ -40,10 +40,10 @@ vi.mock('@/services/api', () => ({
 }))
 
 let mockPermissions: string[] = ['standesdbVbwAdmin', 'standesdbContactAdmin']
-// Deliberately different from the mocked gallery owner id (1) by default -
+// Deliberately different from the mocked gallery owner id ('1') by default -
 // most existing tests exercise the "viewing someone else's gallery" case,
-// tests that need "isSelf" true set this explicitly to 1.
-let mockUserId = 99
+// tests that need "isSelf" true set this explicitly to '1'.
+let mockUserId = '99'
 const mockFetchUser = vi.fn()
 vi.mock('@/stores/auth', () => ({
   useAuthStore: vi.fn(() => ({
@@ -143,7 +143,7 @@ describe('ImageGalleryView', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     mockPermissions = ['standesdbVbwAdmin', 'standesdbContactAdmin']
-    mockUserId = 99
+    mockUserId = '99'
     mockGetMemberImages.mockResolvedValue({
       data: {
         owner: { cn: 'Max Muster', default_image: 'image-uuid-1', org_id: 'vbw' },
@@ -271,7 +271,7 @@ describe('ImageGalleryView', () => {
 
   it('shows upload/edit/delete for the resource owner even without admin permission', async () => {
     mockPermissions = []
-    mockUserId = 1 // matches the mocked gallery owner id
+    mockUserId = '1' // matches the mocked gallery owner id
     const w = await mountMemberGallery()
     expect(w.text()).toContain('Neues Bild hochladen')
     expect(w.text()).toContain('Bearbeiten')
@@ -280,14 +280,14 @@ describe('ImageGalleryView', () => {
 
   it('grants no self-service management on a contact gallery, even with a matching id', async () => {
     mockPermissions = []
-    mockUserId = 1 // numerically matches the mocked contact id, but contacts have no self-service concept
+    mockUserId = '1' // numerically matches the mocked contact id, but contacts have no self-service concept
     const w = await mountContactGallery()
     expect(w.text()).not.toContain('Neues Bild hochladen')
   })
 
   it('uses the self-service upload endpoint for the owner, not the admin one', async () => {
     mockPermissions = []
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountMemberGallery(document.body)
     const input = w.find('.upload-file-input').element as HTMLInputElement
     setInputFiles(input, [makeFile('pic.jpg', 1000)])
@@ -304,7 +304,7 @@ describe('ImageGalleryView', () => {
 
   it('uses the self-service update endpoint for the owner, not the admin one', async () => {
     mockPermissions = []
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountMemberGallery(document.body)
     clickButton('Bearbeiten')
     await flushPromises()
@@ -321,7 +321,7 @@ describe('ImageGalleryView', () => {
 
   it('uses the self-service delete endpoint for the owner, not the admin one', async () => {
     mockPermissions = []
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountMemberGallery(document.body)
     clickButton('Löschen')
     await flushPromises()
@@ -335,7 +335,7 @@ describe('ImageGalleryView', () => {
 
   it('uses the self-service endpoint even for an admin who is also the owner', async () => {
     mockPermissions = ['standesdbVbwAdmin']
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountMemberGallery(document.body)
     const input = w.find('.upload-file-input').element as HTMLInputElement
     setInputFiles(input, [makeFile('pic.jpg', 1000)])
@@ -351,7 +351,7 @@ describe('ImageGalleryView', () => {
 
   it('refreshes the auth store user after a self-service upload, so the navbar avatar updates', async () => {
     mockPermissions = []
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountMemberGallery(document.body)
     const input = w.find('.upload-file-input').element as HTMLInputElement
     setInputFiles(input, [makeFile('pic.jpg', 1000)])
@@ -376,7 +376,7 @@ describe('ImageGalleryView', () => {
   })
 
   it('loads via the dedicated self-service read endpoint, not the id-based one', async () => {
-    mockUserId = 42
+    mockUserId = '42'
     await mountOwnGallery()
     expect(mockGetOwnImages).toHaveBeenCalled()
     expect(mockGetMemberImages).not.toHaveBeenCalled()
@@ -384,7 +384,7 @@ describe('ImageGalleryView', () => {
 
   it('resolves the owner id from the auth store on the dedicated self-service route', async () => {
     mockPermissions = []
-    mockUserId = 42
+    mockUserId = '42'
     const w = await mountOwnGallery()
     // ownerId (= authStore.user.id) feeds isSelf, which alone (no admin
     // permission) must already unlock management actions.
@@ -398,7 +398,7 @@ describe('ImageGalleryView', () => {
 
   it('shows upload/edit/delete on the dedicated self-service route without admin permission', async () => {
     mockPermissions = []
-    mockUserId = 1
+    mockUserId = '1'
     const w = await mountOwnGallery()
     expect(w.text()).toContain('Neues Bild hochladen')
   })
@@ -479,7 +479,7 @@ describe('ImageGalleryView', () => {
     clickButton('Hochladen')
     await flushPromises()
 
-    expect(mockUploadImage).toHaveBeenCalledWith('member', 1, expect.any(File), null)
+    expect(mockUploadImage).toHaveBeenCalledWith('member', '1', expect.any(File), null)
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Gespeichert' }),
     )
@@ -515,7 +515,7 @@ describe('ImageGalleryView', () => {
     clickButton('Speichern')
     await flushPromises()
 
-    expect(mockUpdateImage).toHaveBeenCalledWith('member', 1, 'image-uuid-1', {
+    expect(mockUpdateImage).toHaveBeenCalledWith('member', '1', 'image-uuid-1', {
       description: 'Profilbild',
       default: true,
     })
@@ -560,7 +560,7 @@ describe('ImageGalleryView', () => {
     clickDialogButton('Löschen')
     await flushPromises()
 
-    expect(mockDeleteImage).toHaveBeenCalledWith('member', 1, 'image-uuid-1')
+    expect(mockDeleteImage).toHaveBeenCalledWith('member', '1', 'image-uuid-1')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', detail: 'Profilbild gelöscht.' }),
     )
@@ -589,7 +589,7 @@ describe('ImageGalleryView', () => {
     clickButton('Download')
     await flushPromises()
 
-    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 1, 'image-uuid-1')
+    expect(mockGetImageUrl).toHaveBeenCalledWith('member', '1', 'image-uuid-1')
     expect(clickSpy).toHaveBeenCalled()
     clickSpy.mockRestore()
     w.unmount()

@@ -140,7 +140,7 @@ export interface FeeBalance {
 }
 
 export interface FeeMember {
-  id: number
+  id: string
   cn: string
   p4x_init_date: string | null
   p4x_init_balance: number | null
@@ -155,7 +155,7 @@ export interface FeeMember {
 export type FeeMemberSelf = Omit<FeeMember, 'p4x_comment'>
 
 export interface FeeBalanceEntry {
-  id: number
+  id: string
   cn: string
   p4x_freed: boolean
   balance: number

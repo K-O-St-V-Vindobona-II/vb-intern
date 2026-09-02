@@ -14,7 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const memberId = Number(route.params['id'])
+const memberId = String(route.params['id'])
 
 const loading = ref(true)
 const saving = ref(false)

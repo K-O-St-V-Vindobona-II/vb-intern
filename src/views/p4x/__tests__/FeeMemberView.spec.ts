@@ -38,7 +38,7 @@ vi.stubGlobal('URL', {
 
 function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
   return {
-    id: 1,
+    id: '1',
     cn: 'Max Mustermann',
     p4x_init_date: '2020-01-01',
     p4x_init_balance: 10,
@@ -97,7 +97,7 @@ describe('FeeMemberView', () => {
     const wrapper = mount(FeeMemberView, mountOpts)
     await flushPromises()
 
-    expect(mockGetFeeMember).toHaveBeenCalledWith(1)
+    expect(mockGetFeeMember).toHaveBeenCalledWith('1')
     expect(wrapper.find('.member-name').text()).toBe('Max Mustermann')
     wrapper.unmount()
   })
@@ -128,13 +128,13 @@ describe('FeeMemberView', () => {
   it('loads a member when selected via the search field', async () => {
     const wrapper = mount(FeeMemberView, mountOpts)
     await flushPromises()
-    mockGetFeeMember.mockResolvedValue({ data: buildMember({ id: 5, cn: 'Erika Beispiel' }) })
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ id: '5', cn: 'Erika Beispiel' }) })
 
     const search = wrapper.findComponent({ name: 'SearchField' })
-    await search.vm.$emit('select', { id: 5, label: 'Erika Beispiel', type: 'member' })
+    await search.vm.$emit('select', { id: '5', label: 'Erika Beispiel', type: 'member' })
     await flushPromises()
 
-    expect(mockGetFeeMember).toHaveBeenCalledWith(5)
+    expect(mockGetFeeMember).toHaveBeenCalledWith('5')
     expect(wrapper.find('.member-name').text()).toBe('Erika Beispiel')
     wrapper.unmount()
   })
@@ -205,7 +205,7 @@ describe('FeeMemberView', () => {
     await findButtonByText(wrapper, 'Export Excel').trigger('click')
     await flushPromises()
 
-    expect(mockExportFeeMember).toHaveBeenCalledWith(1)
+    expect(mockExportFeeMember).toHaveBeenCalledWith('1')
     expect(mockCreateObjectURL).toHaveBeenCalled()
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
     wrapper.unmount()
@@ -257,7 +257,7 @@ describe('FeeMemberView', () => {
 
     await findButtonByText(wrapper, 'Bearbeiten').trigger('click')
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member-edit', params: { id: 1 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member-edit', params: { id: '1' } })
     wrapper.unmount()
   })
 

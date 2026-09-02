@@ -92,7 +92,7 @@ const loadSemester = () => {
   })
 }
 
-const goToMember = (id: number) => {
+const goToMember = (id: string) => {
   router.push({
     name: 'standesdb-member-show',
     params: { id },

@@ -33,7 +33,7 @@ const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
 
 const isNew = computed(() => route.name === 'standesdb-member-new')
-const memberId = computed(() => (isNew.value ? null : Number(route.params['id'])))
+const memberId = computed(() => (isNew.value ? null : String(route.params['id'])))
 
 const form = ref<MemberFormData>({
   vortitel: null,
@@ -47,7 +47,7 @@ const form = ref<MemberFormData>({
   gruender: false,
   entlassen: false,
   verstorben: false,
-  parent_id: 0,
+  parent_id: null,
   parent_cn: '',
   grabadresse: null,
   geburtsdatum: null,

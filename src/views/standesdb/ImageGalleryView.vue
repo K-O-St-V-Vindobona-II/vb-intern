@@ -27,10 +27,9 @@ const ownerType = computed(() => {
   if (isOwnRoute.value) return 'member'
   return String(route.name).includes('member') ? 'member' : 'contact'
 })
-const ownerId = computed<number | string>(() => {
-  if (isOwnRoute.value) return authStore.user?.id ?? 0
-  const rawId = String(route.params['id'])
-  return ownerType.value === 'member' ? Number(rawId) : rawId
+const ownerId = computed<string>(() => {
+  if (isOwnRoute.value) return authStore.user?.id ?? ''
+  return String(route.params['id'])
 })
 const backRoute = computed(() =>
   ownerType.value === 'member'
@@ -78,8 +77,8 @@ const loadGallery = async () => {
     const resp = isOwnRoute.value
       ? await standesdbService.getOwnImages()
       : ownerType.value === 'member'
-        ? await standesdbService.getMemberImages(Number(ownerId.value))
-        : await standesdbService.getContactImages(String(ownerId.value))
+        ? await standesdbService.getMemberImages(ownerId.value)
+        : await standesdbService.getContactImages(ownerId.value)
     ownerCn.value = resp.data.owner.cn ?? ''
     ownerOrgId.value = resp.data.owner.org_id ?? ''
     images.value = resp.data.images

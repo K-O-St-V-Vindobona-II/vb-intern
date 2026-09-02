@@ -4,13 +4,13 @@ import type { TreeNode } from '@/types/standesdb'
 defineProps<{
   node: TreeNode
   depth: number
-  collapsed: Record<number, boolean>
-  memberId: number
+  collapsed: Record<string, boolean>
+  memberId: string
 }>()
 
 const emit = defineEmits<{
-  (e: 'toggle', id: number): void
-  (e: 'navigate', id: number): void
+  (e: 'toggle', id: string): void
+  (e: 'navigate', id: string): void
 }>()
 </script>
 

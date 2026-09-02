@@ -55,7 +55,7 @@ export default {
     return api.get<ReferenceData>('/standesdb/reference-data')
   },
 
-  getMember(id: number) {
+  getMember(id: string) {
     return api.get<MemberDetail | MemberDismissed>(`/standesdb/members/${id}`)
   },
 
@@ -63,13 +63,13 @@ export default {
     return api.post('/standesdb/members', data)
   },
 
-  updateMember(id: number, data: Record<string, unknown>) {
+  updateMember(id: string, data: Record<string, unknown>) {
     return api.put(`/standesdb/members/${id}`, data)
   },
 
-  searchParent(memberId: number, q: string) {
+  searchParent(memberId: string, q: string) {
     return api.get<{
-      data: { id: number; cn: string }[]
+      data: { id: string; cn: string }[]
     }>(`/standesdb/members/${memberId}/searchparent`, {
       params: { q },
     })
@@ -119,7 +119,7 @@ export default {
     return api.delete(`/standesdb/contacts/${id}`)
   },
 
-  getMemberAuthActivity(memberId: number) {
+  getMemberAuthActivity(memberId: string) {
     return api.get<{
       auth_lastlogin: string | null
       auth_lastsignal: string | null
@@ -129,7 +129,7 @@ export default {
 
   getChangelog(
     type: 'member' | 'contact',
-    id: number | string,
+    id: string,
     params: { page?: number; page_size?: number } = {},
   ) {
     const segment = type === 'member' ? 'members' : 'contacts'
@@ -149,7 +149,7 @@ export default {
     }>(`/standesdb/${segment}/${id}/changelog`, { params })
   },
 
-  getMemberImages(memberId: number) {
+  getMemberImages(memberId: string) {
     return api.get<{
       owner: ImageOwnerRef
       images: StandesdbImage[]
@@ -163,7 +163,7 @@ export default {
     }>(`/standesdb/contacts/${contactId}/images`)
   },
 
-  uploadImage(ownerType: string, ownerId: number | string, file: File, description: string | null) {
+  uploadImage(ownerType: string, ownerId: string, file: File, description: string | null) {
     const formData = new FormData()
     formData.append('file', file)
     if (description) formData.append('description', description)
@@ -175,7 +175,7 @@ export default {
 
   updateImage(
     ownerType: string,
-    ownerId: number | string,
+    ownerId: string,
     imageId: string,
     data: { description: string | null; default: boolean },
   ) {
@@ -183,7 +183,7 @@ export default {
     return api.put(`/standesdb/${plural}/${ownerId}/images/${imageId}`, data)
   },
 
-  deleteImage(ownerType: string, ownerId: number | string, imageId: string) {
+  deleteImage(ownerType: string, ownerId: string, imageId: string) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.delete(`/standesdb/${plural}/${ownerId}/images/${imageId}`)
   },
@@ -212,7 +212,7 @@ export default {
     return api.delete(`/standesdb/members/me/images/${imageId}`)
   },
 
-  getImageUrl(ownerType: string, ownerId: number | string, imageId: string, thumb = false) {
+  getImageUrl(ownerType: string, ownerId: string, imageId: string, thumb = false) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.get<{ url: string }>(`/standesdb/${plural}/${ownerId}/images/${imageId}/url`, {
       params: thumb ? { thumb: true } : undefined,

@@ -6,7 +6,7 @@ import PrimeVue from 'primevue/config'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
 const fullMemberData = {
-  id: 1,
+  id: '1',
   cn: 'Max Muster v/o Testikus',
   vortitel: 'Diakon',
   vorname: 'Max',
@@ -21,7 +21,7 @@ const fullMemberData = {
   entlassen: false,
   verstorben: false,
   grabadresse: null,
-  parent_id: 0,
+  parent_id: null,
   parent_cn: '',
   default_image: null,
   chroniclemail: true,
@@ -240,7 +240,7 @@ describe('MemberShowView', () => {
 
   it('shows dismissed message for entlassene Mitglieder', async () => {
     mockGetMember.mockResolvedValueOnce({
-      data: { id: 99, cn: 'Entlassener Test', org_id: 'vbw', dataprotection: 'dismissed' },
+      data: { id: '99', cn: 'Entlassener Test', org_id: 'vbw', dataprotection: 'dismissed' },
     })
     const w = await mountView()
     expect(w.text()).toContain('Entlassene Personen werden aus Datenschutzgründen nicht angezeigt.')
@@ -265,7 +265,7 @@ describe('MemberShowView', () => {
 
   it('shows the auth-activity section for a matching standesdb org admin', async () => {
     const w = await mountView()
-    expect(mockGetMemberAuthActivity).toHaveBeenCalledWith(1)
+    expect(mockGetMemberAuthActivity).toHaveBeenCalledWith('1')
     expect(w.text()).toContain('Letzte Aktivität')
     expect(w.text()).toContain('Letzter Login')
     expect(w.text()).toContain('Letztes Signal')
