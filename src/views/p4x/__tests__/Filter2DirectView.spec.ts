@@ -26,7 +26,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
-    id: 7,
+    id: '7',
     name: 'Filter A',
     p4x_account_id: 1,
     p4x_account_label: 'Kasse',
@@ -35,14 +35,14 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 2,
     ...overrides,
   }
 }
 
 const category: P4xCategory = {
-  id: 1,
+  id: 'category-uuid-1',
   name: 'spende',
   label: 'Spende',
   background_color: '#fff',
@@ -76,7 +76,7 @@ describe('Filter2DirectView', () => {
     const wrapper = mount(Filter2DirectView, mountOpts)
     await flushPromises()
 
-    expect(mockGetFilter2DirectPreview).toHaveBeenCalledWith(7)
+    expect(mockGetFilter2DirectPreview).toHaveBeenCalledWith('7')
     expect(wrapper.text()).toContain('Filter A')
     expect(wrapper.text()).toContain('Spende')
     wrapper.unmount()
@@ -133,7 +133,7 @@ describe('Filter2DirectView', () => {
     convertBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockProcessFilter2Direct).toHaveBeenCalledWith(7)
+    expect(mockProcessFilter2Direct).toHaveBeenCalledWith('7')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Konvertierung abgeschlossen' }),
     )

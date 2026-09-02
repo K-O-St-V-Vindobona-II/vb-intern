@@ -70,25 +70,25 @@ export default {
     )
   },
 
-  getTransactionsByCategory(accountId: number, categoryId: number, page = 1) {
+  getTransactionsByCategory(accountId: number, categoryId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-category/${categoryId}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByFilter(accountId: number, filterId: number, page = 1) {
+  getTransactionsByFilter(accountId: number, filterId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/admin/accounts/${accountId}/transactions/by-filter/${filterId}`,
       { params: { page } },
     )
   },
 
-  getTransactionRaw(accountId: number, transactionId: number) {
+  getTransactionRaw(accountId: number, transactionId: string) {
     return api.get<{ raw: string }>(`/p4x/accounts/${accountId}/transactions/raw/${transactionId}`)
   },
 
-  getTransactionAttachment(accountId: number, transactionId: number) {
+  getTransactionAttachment(accountId: number, transactionId: string) {
     return api.get(`/p4x/accounts/${accountId}/transactions/attachment/${transactionId}`, {
       responseType: 'blob',
     })
@@ -98,11 +98,11 @@ export default {
     return api.get<PartnerSearchResult[]>('/p4x/partner/search', { params: { q } })
   },
 
-  setTransactionPartner(transactionId: number, data: object) {
+  setTransactionPartner(transactionId: string, data: object) {
     return api.post(`/p4x/admin/transactions/${transactionId}/set-partner`, data)
   },
 
-  updateTransaction(transactionId: number, formData: FormData) {
+  updateTransaction(transactionId: string, formData: FormData) {
     return api.put(`/p4x/admin/transactions/${transactionId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -122,13 +122,13 @@ export default {
   },
 
   updateCategory(
-    id: number,
+    id: string,
     data: { name: string; label: string; background_color: string; text_color: string },
   ) {
     return api.put<CategoryWithUsage>(`/p4x/admin/categories/${id}`, data)
   },
 
-  deleteCategory(id: number) {
+  deleteCategory(id: string) {
     return api.delete(`/p4x/admin/categories/${id}`)
   },
 
@@ -140,27 +140,27 @@ export default {
     return api.post<CategoryFilter>('/p4x/admin/category-filters', data)
   },
 
-  updateCategoryFilter(id: number, data: object) {
+  updateCategoryFilter(id: string, data: object) {
     return api.put<CategoryFilter>(`/p4x/admin/category-filters/${id}`, data)
   },
 
-  deleteCategoryFilter(id: number) {
+  deleteCategoryFilter(id: string) {
     return api.delete(`/p4x/admin/category-filters/${id}`)
   },
 
-  getFilter2DirectPreview(filterId: number) {
+  getFilter2DirectPreview(filterId: string) {
     return api.get(`/p4x/admin/category-filters/${filterId}/filter2direct`)
   },
 
-  processFilter2Direct(filterId: number) {
+  processFilter2Direct(filterId: string) {
     return api.post(`/p4x/admin/category-filters/${filterId}/filter2direct`)
   },
 
-  setCategoryDirect(transactionId: number, data: object[]) {
+  setCategoryDirect(transactionId: string, data: object[]) {
     return api.post(`/p4x/admin/transactions/${transactionId}/set-category-direct`, data)
   },
 
-  unsetCategoryDirect(transactionId: number) {
+  unsetCategoryDirect(transactionId: string) {
     return api.delete(`/p4x/admin/transactions/${transactionId}/unset-category-direct`)
   },
 

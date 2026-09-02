@@ -27,7 +27,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
-    id: 1,
+    id: '1',
     name: 'Filter A',
     p4x_account_id: 'account-uuid-2',
     account_id: 2,
@@ -45,8 +45,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
-    id_uuid: 'category-uuid-1',
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -57,7 +56,7 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
@@ -99,7 +98,7 @@ const stubs = {
 
 const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.body }
 
-async function selectFilter(wrapper: ReturnType<typeof mount>, id: number) {
+async function selectFilter(wrapper: ReturnType<typeof mount>, id: string) {
   const select = wrapper.findComponent({ name: 'Select' })
   await select.vm.$emit('update:modelValue', id)
   await select.vm.$emit('change')
@@ -110,7 +109,7 @@ describe('TransactionsByFilterView', () => {
     vi.clearAllMocks()
     mockRoute.query = {}
     mockGetCategoryFilters.mockResolvedValue({
-      data: [buildFilter({ id: 1, account_id: 2 }), buildFilter({ id: 2, account_id: 9 })],
+      data: [buildFilter({ id: '1', account_id: 2 }), buildFilter({ id: '2', account_id: 9 })],
     })
     mockGetDashboard.mockResolvedValue({ data: { categories } })
     mockGetTransactionsByFilter.mockResolvedValue({ data: buildResult() })
@@ -123,7 +122,7 @@ describe('TransactionsByFilterView', () => {
     const options = wrapper.findComponent({ name: 'Select' }).props('options') as Array<{
       label: string
     }>
-    expect(options).toEqual([{ label: 'Filter A', value: 1 }])
+    expect(options).toEqual([{ label: 'Filter A', value: '1' }])
     wrapper.unmount()
   })
 
@@ -140,9 +139,9 @@ describe('TransactionsByFilterView', () => {
     const wrapper = mount(TransactionsByFilterView, mountOpts)
     await flushPromises()
 
-    expect(mockGetTransactionsByFilter).toHaveBeenCalledWith(2, 1, 1)
+    expect(mockGetTransactionsByFilter).toHaveBeenCalledWith(2, '1', 1)
     const select = wrapper.findComponent({ name: 'Select' })
-    expect(select.props('modelValue')).toBe(1)
+    expect(select.props('modelValue')).toBe('1')
     wrapper.unmount()
   })
 
@@ -160,10 +159,10 @@ describe('TransactionsByFilterView', () => {
     const wrapper = mount(TransactionsByFilterView, mountOpts)
     await flushPromises()
 
-    await selectFilter(wrapper, 1)
+    await selectFilter(wrapper, '1')
     await flushPromises()
 
-    expect(mockGetTransactionsByFilter).toHaveBeenCalledWith(2, 1, 1)
+    expect(mockGetTransactionsByFilter).toHaveBeenCalledWith(2, '1', 1)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.props('admin')).toBe(true)
     wrapper.unmount()
@@ -172,14 +171,14 @@ describe('TransactionsByFilterView', () => {
   it('reloads with the new page when TransactionTable emits pageChange', async () => {
     const wrapper = mount(TransactionsByFilterView, mountOpts)
     await flushPromises()
-    await selectFilter(wrapper, 1)
+    await selectFilter(wrapper, '1')
     await flushPromises()
 
     mockGetTransactionsByFilter.mockResolvedValue({ data: buildResult({ page: 2 }) })
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith(2, 1, 2)
+    expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith(2, '1', 2)
     wrapper.unmount()
   })
 
@@ -187,13 +186,13 @@ describe('TransactionsByFilterView', () => {
     mockGetTransactionsByFilter.mockResolvedValue({ data: buildResult({ page: 3 }) })
     const wrapper = mount(TransactionsByFilterView, mountOpts)
     await flushPromises()
-    await selectFilter(wrapper, 1)
+    await selectFilter(wrapper, '1')
     await flushPromises()
 
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith(2, 1, 3)
+    expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith(2, '1', 3)
     wrapper.unmount()
   })
 })

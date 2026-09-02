@@ -38,8 +38,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
-    id_uuid: 'category-uuid-1',
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',

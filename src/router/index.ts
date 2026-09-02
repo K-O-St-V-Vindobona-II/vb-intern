@@ -317,7 +317,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/categories/:id(\\d+)/edit',
+          path: 'p4x/admin/categories/:id/edit',
           name: 'p4x-category-edit',
           component: () => import('../views/p4x/CategoryFormView.vue'),
           meta: {
@@ -341,7 +341,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id(\\d+)/edit',
+          path: 'p4x/admin/category-filters/:id/edit',
           name: 'p4x-filter-edit',
           component: () => import('../views/p4x/CategoryFilterFormView.vue'),
           meta: {
@@ -349,7 +349,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id(\\d+)/filter2direct',
+          path: 'p4x/admin/category-filters/:id/filter2direct',
           name: 'p4x-filter2direct',
           component: () => import('../views/p4x/Filter2DirectView.vue'),
           meta: {

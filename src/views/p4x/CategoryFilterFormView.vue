@@ -52,7 +52,7 @@ const accountOptions = computed(() =>
 const categoryOptions = computed(() =>
   categories.value.map((c) => ({
     label: `${c.name} (${c.label})`,
-    value: c.id_uuid,
+    value: c.id,
   })),
 )
 
@@ -78,7 +78,7 @@ function buildFormFromQuery(
   const firstAccount = accounts[0]
   const defaultAccountId = firstAccount ? firstAccount.id_uuid : null
   const firstCategory = categories[0]
-  const defaultCategoryId = firstCategory ? firstCategory.id_uuid : null
+  const defaultCategoryId = firstCategory ? firstCategory.id : null
 
   const result = {
     form: {
@@ -121,7 +121,7 @@ onMounted(async () => {
 
     if (isEdit.value) {
       const fResp = await p4xService.getCategoryFilters()
-      const filter = fResp.data.find((f) => f.id === Number(route.params['id']))
+      const filter = fResp.data.find((f) => f.id === String(route.params['id']))
       if (filter) {
         form.value = {
           name: filter.name,
@@ -159,7 +159,7 @@ const save = async () => {
     }
 
     if (isEdit.value) {
-      await p4xService.updateCategoryFilter(Number(route.params['id']), data)
+      await p4xService.updateCategoryFilter(String(route.params['id']), data)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createCategoryFilter(data)
@@ -176,7 +176,7 @@ const save = async () => {
 
 const deleteFilter = async () => {
   try {
-    await p4xService.deleteCategoryFilter(Number(route.params['id']))
+    await p4xService.deleteCategoryFilter(String(route.params['id']))
     toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
     router.push({ name: 'p4x-filters' })
   } catch (e: unknown) {

@@ -19,7 +19,7 @@ const emit = defineEmits<{ changed: [tx: P4xTransaction] }>()
 const router = useRouter()
 const visible = ref(false)
 const loading = ref(false)
-const expandedFilters = ref<Set<number>>(new Set())
+const expandedFilters = ref<Set<string>>(new Set())
 
 const form = ref({
   cat0: null as string | null,
@@ -33,7 +33,7 @@ const form = ref({
 const categoryOptions = computed(() =>
   [...props.categories]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((c) => ({ label: `${c.name} (${c.label})`, value: c.id_uuid })),
+    .map((c) => ({ label: `${c.name} (${c.label})`, value: c.id })),
 )
 
 interface SplitForm {
@@ -123,7 +123,7 @@ const deleteDirect = async () => {
   }
 }
 
-const toggleDetails = (filterId: number) => {
+const toggleDetails = (filterId: string) => {
   if (expandedFilters.value.has(filterId)) {
     expandedFilters.value.delete(filterId)
   } else {
@@ -137,12 +137,12 @@ const subjectModeLabel = (mode: string): string => {
   return 'lautet:'
 }
 
-const navigateToFilterEdit = (filterId: number) => {
+const navigateToFilterEdit = (filterId: string) => {
   visible.value = false
   router.push({ name: 'p4x-filter-edit', params: { id: filterId } })
 }
 
-const navigateToFilter2Direct = (filterId: number) => {
+const navigateToFilter2Direct = (filterId: string) => {
   visible.value = false
   router.push({ name: 'p4x-filter2direct', params: { id: filterId } })
 }
@@ -205,9 +205,7 @@ defineExpose({ open })
                 <td>{{ f.hitCount }}</td>
                 <td>{{ f.name }}</td>
                 <td>
-                  <CategoryLabel
-                    :category="categories.find((c) => c.id_uuid === f.p4x_category_id)"
-                  />
+                  <CategoryLabel :category="categories.find((c) => c.id === f.p4x_category_id)" />
                 </td>
               </tr>
               <tr v-if="expandedFilters.has(f.id)">
@@ -228,7 +226,7 @@ defineExpose({ open })
                     </div>
                     <div>
                       <CategoryLabel
-                        :category="categories.find((c) => c.id_uuid === f.p4x_category_id)"
+                        :category="categories.find((c) => c.id === f.p4x_category_id)"
                       />
                     </div>
                   </div>

@@ -41,7 +41,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
@@ -49,7 +49,7 @@ const categories: P4xCategory[] = [
     protected: false,
   },
   {
-    id: 2,
+    id: 'category-uuid-2',
     name: 'beitrag',
     label: 'Beitrag',
     background_color: '#fff',
@@ -69,7 +69,7 @@ function buildFilter(overrides: Partial<CategoryFilterShort> = {}): CategoryFilt
     max_amount: null,
     subject: null,
     subject_mode: 'equals',
-    p4x_category_id: 1,
+    p4x_category_id: 'category-uuid-1',
     hitCount: 3,
     ...overrides,
   }
@@ -198,7 +198,9 @@ describe('CategoryDirectEditor', () => {
   it('saves the direct categorization and emits changed', async () => {
     const updated = buildTransaction({
       id: 5,
-      p4x_category_directs: [{ id: 1, p4x_category_id: 1, amount: 10 }],
+      p4x_category_directs: [
+        { id: 'direct-uuid-1', p4x_category_id: 'category-uuid-1', amount: 10 },
+      ],
     })
     mockSetCategoryDirect.mockResolvedValue({ data: updated })
     const wrapper = mount(CategoryDirectEditor, {
@@ -208,8 +210,8 @@ describe('CategoryDirectEditor', () => {
     ;(wrapper.vm as unknown as { open: () => void }).open()
     await flushPromises()
 
-    const form = (wrapper.vm as unknown as { form: { cat0: number | null; amt0: number } }).form
-    form.cat0 = 1
+    const form = (wrapper.vm as unknown as { form: { cat0: string | null; amt0: number } }).form
+    form.cat0 = 'category-uuid-1'
     await flushPromises()
 
     const saveBtn = Array.from(document.querySelectorAll('button')).find(
@@ -219,7 +221,7 @@ describe('CategoryDirectEditor', () => {
     await flushPromises()
 
     expect(mockSetCategoryDirect).toHaveBeenCalledWith(5, [
-      { p4x_category_id: 1, amount: 10 },
+      { p4x_category_id: 'category-uuid-1', amount: 10 },
       { p4x_category_id: null, amount: 0 },
       { p4x_category_id: null, amount: 0 },
     ])

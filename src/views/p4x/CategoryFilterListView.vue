@@ -27,10 +27,8 @@ const load = async () => {
   }
 }
 
-// CategoryFilter.p4x_category_id is now id_uuid, not the category's own
-// (still-integer) id.
 const findCategory = (id: string): P4xCategory | undefined =>
-  categories.value.find((c) => c.id_uuid === id)
+  categories.value.find((c) => c.id === id)
 
 onMounted(load)
 </script>

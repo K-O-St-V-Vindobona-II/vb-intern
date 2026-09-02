@@ -11,7 +11,7 @@ export interface CategoryDirect {
 }
 
 export interface CategoryFilterShort {
-  id: number
+  id: string
   name: string
   p4x_account_id: string
   // The account's own (still-integer) primary key, distinct from
@@ -29,7 +29,7 @@ export interface CategoryFilterShort {
 }
 
 export interface P4xTransaction {
-  id: number
+  id: string
   booking: string | null
   valuation: string | null
   iban: string
@@ -62,10 +62,7 @@ export interface P4xAccount {
 }
 
 export interface P4xCategory {
-  id: number
-  // Additive alongside the still-integer id - the identifier
-  // p4x_category_filters.p4x_category_id now actually stores.
-  id_uuid: string
+  id: string
   name: string
   label: string
   background_color: string
@@ -78,7 +75,7 @@ export interface CategoryWithUsage extends P4xCategory {
 }
 
 export interface CategoryFilter {
-  id: number
+  id: string
   name: string
   p4x_account_id: string
   // See CategoryFilterShort.account_id above.

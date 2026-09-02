@@ -26,7 +26,7 @@ vi.mock('@/services/p4xService', () => ({
 
 const categories: P4xCategory[] = [
   {
-    id: 1,
+    id: 'category-uuid-1',
     name: 'spende',
     label: 'Spende',
     background_color: '#fff',
