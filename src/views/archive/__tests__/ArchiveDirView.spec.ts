@@ -10,7 +10,7 @@ import type { DirDetail } from '@/types/archive'
 function buildDir(overrides: Partial<DirDetail> = {}): DirDetail {
   return {
     type: 'dir',
-    id: 1,
+    id: '1',
     name: 'Fotos',
     description: null,
     path: [],
@@ -94,8 +94,8 @@ describe('ArchiveDirView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthStore.user = { permissions: [] }
-    mockGetDirRoot.mockResolvedValue({ data: buildDir({ id: 0, name: 'Archiv' }) })
-    mockGetDirDetail.mockResolvedValue({ data: buildDir({ id: 5, name: 'Fotos' }) })
+    mockGetDirRoot.mockResolvedValue({ data: buildDir({ id: null, name: 'Archiv' }) })
+    mockGetDirDetail.mockResolvedValue({ data: buildDir({ id: '5', name: 'Fotos' }) })
     mockSearchArchive.mockResolvedValue({ data: [] })
   })
 
@@ -121,13 +121,13 @@ describe('ArchiveDirView', () => {
     await mountAt('/archive/dirs/5')
     await flushPromises()
 
-    expect(mockGetDirDetail).toHaveBeenCalledWith(5)
+    expect(mockGetDirDetail).toHaveBeenCalledWith('5')
   })
 
   it('shows archive-wide stats at the root, with the by-extension table collapsed by default', async () => {
     mockGetDirRoot.mockResolvedValue({
       data: buildDir({
-        id: 0,
+        id: null,
         name: 'Archiv',
         stats: {
           file_count: 42,
@@ -187,7 +187,7 @@ describe('ArchiveDirView', () => {
     expect(wrapper.text()).toContain('Verzeichnis konnte nicht geladen werden.')
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
 
-    mockGetDirDetail.mockResolvedValueOnce({ data: buildDir({ id: 5, name: 'Fotos' }) })
+    mockGetDirDetail.mockResolvedValueOnce({ data: buildDir({ id: '5', name: 'Fotos' }) })
     await wrapper.find('.archive-error button').trigger('click')
     await flushPromises()
 
@@ -215,7 +215,7 @@ describe('ArchiveDirView', () => {
 
   it('searches once the query reaches the 2-character minimum (lower than the app default, since the archive has meaningful 2-letter abbreviations like "BC")', async () => {
     mockSearchArchive.mockResolvedValue({
-      data: [{ type: 'dir', id: 9, name: 'BC-Protokolle', description: null, path: '/Archiv' }],
+      data: [{ type: 'dir', id: '9', name: 'BC-Protokolle', description: null, path: '/Archiv' }],
     })
     const wrapper = await mountAt('/archive')
     await flushPromises()
@@ -229,7 +229,7 @@ describe('ArchiveDirView', () => {
 
   it('searches and maps results to labeled suggestions', async () => {
     mockSearchArchive.mockResolvedValue({
-      data: [{ type: 'dir', id: 9, name: 'Treffer', description: null, path: '/Archiv' }],
+      data: [{ type: 'dir', id: '9', name: 'Treffer', description: null, path: '/Archiv' }],
     })
     const wrapper = await mountAt('/archive')
     await flushPromises()
@@ -240,13 +240,13 @@ describe('ArchiveDirView', () => {
 
     expect(mockSearchArchive).toHaveBeenCalledWith('Foto')
     expect(ac.props('suggestions')).toEqual([
-      { id: 9, type: 'dir', label: 'Verzeichnis: Treffer (/Archiv)' },
+      { id: '9', type: 'dir', label: 'Verzeichnis: Treffer (/Archiv)' },
     ])
   })
 
   it('navigates to the result when a search result is selected', async () => {
     mockSearchArchive.mockResolvedValue({
-      data: [{ type: 'file', id: 9, name: 'Treffer', description: null, path: '/Archiv' }],
+      data: [{ type: 'file', id: '9', name: 'Treffer', description: null, path: '/Archiv' }],
     })
     const wrapper = await mountAt('/archive')
     await flushPromises()

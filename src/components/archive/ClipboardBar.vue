@@ -7,7 +7,7 @@ import archiveService from '@/services/archiveService'
 import Button from 'primevue/button'
 
 const props = defineProps<{
-  targetDirId: number
+  targetDirId: string | null
 }>()
 
 const emit = defineEmits<{
@@ -21,13 +21,7 @@ const store = useArchiveStore()
 const dirs = computed(() => store.clipboard.filter((i) => i.startsWith('dir:')))
 const files = computed(() => store.clipboard.filter((i) => i.startsWith('file:')))
 
-// Directory ids are still plain integers, but file ids are UUIDs since
-// archive_files' own Final-Cutover - only dir ids get the Number() cast.
-const idsFromItems = (items: string[], type: string) =>
-  items.map((i) => {
-    const raw = i.split(':')[1] ?? ''
-    return type === 'dir' ? Number(raw) : raw
-  })
+const idsFromItems = (items: string[]) => items.map((i) => i.split(':')[1] ?? '')
 
 const moveItems = (type: string, items: string[]) => {
   const label = type === 'dir' ? 'Verzeichnisse' : 'Dateien'
@@ -45,7 +39,7 @@ const moveItems = (type: string, items: string[]) => {
     },
     accept: async () => {
       try {
-        const ids = idsFromItems(items, type)
+        const ids = idsFromItems(items)
         const data = { type, ids, action: 'move' }
         if (props.targetDirId) {
           await archiveService.receiveItems(props.targetDirId, data)

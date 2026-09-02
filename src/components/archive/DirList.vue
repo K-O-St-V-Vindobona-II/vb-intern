@@ -28,10 +28,12 @@ const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 const store = useArchiveStore()
-const { isSelected, toggle, toggleAll, allSelected, selectedItems, deselectAll } =
-  useShiftSelect<DirShort>(toRef(props, 'items'), (d) => d.id)
+const { isSelected, toggle, toggleAll, allSelected, selectedItems, deselectAll } = useShiftSelect<
+  DirShort,
+  string
+>(toRef(props, 'items'), (d) => d.id)
 
-const goToDir = (id: number) => {
+const goToDir = (id: string) => {
   router.push({
     name: 'archive-dir',
     params: { id },

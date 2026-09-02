@@ -71,7 +71,7 @@ const loadDir = async () => {
   loading.value = true
   loadError.value = false
   try {
-    const id = route.params['id'] ? Number(route.params['id']) : null
+    const id = typeof route.params['id'] === 'string' ? route.params['id'] : null
     const resp = id ? await archiveService.getDirDetail(id) : await archiveService.getDirRoot()
     dir.value = resp.data
   } catch (err: unknown) {

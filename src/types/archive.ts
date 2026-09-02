@@ -1,5 +1,5 @@
 export interface PathEntry {
-  id: number
+  id: string
   name: string
 }
 
@@ -34,7 +34,7 @@ export interface Comment {
 
 export interface DirShort {
   type: 'dir'
-  id: number
+  id: string
   name: string
   description: string | null
   created_at: string | null
@@ -94,7 +94,8 @@ export interface ArchiveStats {
 
 export interface DirDetail {
   type: 'dir'
-  id: number
+  // null only for the synthetic root - a real directory always has an id.
+  id: string | null
   name: string
   description: string | null
   path: PathEntry[]
@@ -111,7 +112,7 @@ export interface DirDetail {
 export interface FileDetail {
   type: 'file'
   id: string
-  archive_dir_id: number
+  archive_dir_id: string | null
   name: string | null
   extension: string | null
   description: string | null
