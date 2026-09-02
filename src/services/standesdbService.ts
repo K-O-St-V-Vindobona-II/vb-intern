@@ -103,7 +103,7 @@ export default {
     })
   },
 
-  getContact(id: number) {
+  getContact(id: string) {
     return api.get<ContactDetail>(`/standesdb/contacts/${id}`)
   },
 
@@ -111,11 +111,11 @@ export default {
     return api.post('/standesdb/contacts', data)
   },
 
-  updateContact(id: number, data: Record<string, unknown>) {
+  updateContact(id: string, data: Record<string, unknown>) {
     return api.put(`/standesdb/contacts/${id}`, data)
   },
 
-  deleteContact(id: number) {
+  deleteContact(id: string) {
     return api.delete(`/standesdb/contacts/${id}`)
   },
 
@@ -129,7 +129,7 @@ export default {
 
   getChangelog(
     type: 'member' | 'contact',
-    id: number,
+    id: number | string,
     params: { page?: number; page_size?: number } = {},
   ) {
     const segment = type === 'member' ? 'members' : 'contacts'
@@ -156,14 +156,14 @@ export default {
     }>(`/standesdb/members/${memberId}/images`)
   },
 
-  getContactImages(contactId: number) {
+  getContactImages(contactId: string) {
     return api.get<{
       owner: ImageOwnerRef
       images: StandesdbImage[]
     }>(`/standesdb/contacts/${contactId}/images`)
   },
 
-  uploadImage(ownerType: string, ownerId: number, file: File, description: string | null) {
+  uploadImage(ownerType: string, ownerId: number | string, file: File, description: string | null) {
     const formData = new FormData()
     formData.append('file', file)
     if (description) formData.append('description', description)
@@ -175,7 +175,7 @@ export default {
 
   updateImage(
     ownerType: string,
-    ownerId: number,
+    ownerId: number | string,
     imageId: string,
     data: { description: string | null; default: boolean },
   ) {
@@ -183,7 +183,7 @@ export default {
     return api.put(`/standesdb/${plural}/${ownerId}/images/${imageId}`, data)
   },
 
-  deleteImage(ownerType: string, ownerId: number, imageId: string) {
+  deleteImage(ownerType: string, ownerId: number | string, imageId: string) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.delete(`/standesdb/${plural}/${ownerId}/images/${imageId}`)
   },
@@ -212,7 +212,7 @@ export default {
     return api.delete(`/standesdb/members/me/images/${imageId}`)
   },
 
-  getImageUrl(ownerType: string, ownerId: number, imageId: string, thumb = false) {
+  getImageUrl(ownerType: string, ownerId: number | string, imageId: string, thumb = false) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
     return api.get<{ url: string }>(`/standesdb/${plural}/${ownerId}/images/${imageId}/url`, {
       params: thumb ? { thumb: true } : undefined,

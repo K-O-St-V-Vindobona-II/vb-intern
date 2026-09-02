@@ -36,8 +36,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
   return {
-    id: 1,
-    id_uuid: 'account-uuid-1',
+    id: 'account-uuid-1',
     iban: 'AT001234',
     bic: null,
     label: 'Kasse Wien',

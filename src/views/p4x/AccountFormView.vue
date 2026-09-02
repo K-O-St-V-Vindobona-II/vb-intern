@@ -31,7 +31,7 @@ onMounted(async () => {
     try {
       const resp = await p4xService.getDashboard()
       const account = resp.data.accounts.find(
-        (a: P4xAccount) => a.id === Number(route.params['id']),
+        (a: P4xAccount) => a.id === String(route.params['id']),
       )
       if (account) {
         form.value = {
@@ -61,7 +61,7 @@ const save = async () => {
     }
 
     if (isEdit.value) {
-      await p4xService.updateAccount(Number(route.params['id']), data)
+      await p4xService.updateAccount(String(route.params['id']), data)
       toast.add({ severity: 'success', summary: 'Gespeichert', life: 2000 })
     } else {
       await p4xService.createAccount(data)

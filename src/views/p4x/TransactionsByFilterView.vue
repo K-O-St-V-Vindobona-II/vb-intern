@@ -7,7 +7,7 @@ import TransactionTable from './components/TransactionTable.vue'
 import Select from 'primevue/select'
 
 const route = useRoute()
-const accountId = Number(route.params['accountId'])
+const accountId = String(route.params['accountId'])
 
 const loading = ref(false)
 const categories = ref<P4xCategory[]>([])
@@ -38,7 +38,7 @@ onMounted(async () => {
     p4xService.getCategoryFilters(),
     p4xService.getDashboard(),
   ])
-  filters.value = fResp.data.filter((f) => f.account_id === accountId)
+  filters.value = fResp.data.filter((f) => f.p4x_account_id === accountId)
   categories.value = dResp.data.categories
 
   const queryFilterId = route.query['filterId']

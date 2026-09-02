@@ -28,7 +28,7 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
   return {
     id: '7',
     name: 'Filter A',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,

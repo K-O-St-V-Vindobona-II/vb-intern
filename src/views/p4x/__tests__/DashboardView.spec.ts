@@ -37,7 +37,7 @@ const stubs = {
 
 function buildAccount(overrides: Partial<P4xAccount> = {}): P4xAccount {
   return {
-    id: 1,
+    id: '1',
     iban: 'AT001234',
     bic: null,
     label: 'Kasse Wien',
@@ -84,7 +84,7 @@ describe('DashboardView (p4x)', () => {
   it('treats accounts without a transactions_latest date as inactive and hides them by default', async () => {
     mockGetDashboard.mockResolvedValue({
       data: buildDashboard({
-        accounts: [buildAccount({ id: 2, label: 'Altkonto', transactions_latest: null })],
+        accounts: [buildAccount({ id: '2', label: 'Altkonto', transactions_latest: null })],
       }),
     })
     const wrapper = mount(DashboardView, buildMountOpts())
@@ -98,7 +98,7 @@ describe('DashboardView (p4x)', () => {
   it('treats accounts whose last transaction is older than 730 days as inactive', async () => {
     mockGetDashboard.mockResolvedValue({
       data: buildDashboard({
-        accounts: [buildAccount({ id: 2, label: 'Altkonto', transactions_latest: '2000-01-01' })],
+        accounts: [buildAccount({ id: '2', label: 'Altkonto', transactions_latest: '2000-01-01' })],
       }),
     })
     const wrapper = mount(DashboardView, buildMountOpts())
@@ -111,7 +111,7 @@ describe('DashboardView (p4x)', () => {
   it('shows inactive accounts once the toggle link is clicked', async () => {
     mockGetDashboard.mockResolvedValue({
       data: buildDashboard({
-        accounts: [buildAccount({ id: 2, label: 'Altkonto', transactions_latest: null })],
+        accounts: [buildAccount({ id: '2', label: 'Altkonto', transactions_latest: null })],
       }),
     })
     const wrapper = mount(DashboardView, buildMountOpts())
@@ -216,7 +216,7 @@ describe('DashboardView (p4x)', () => {
 
   it('navigates to the monthly transactions view from a menu command', async () => {
     mockGetDashboard.mockResolvedValue({
-      data: buildDashboard({ accounts: [buildAccount({ id: 9 })] }),
+      data: buildDashboard({ accounts: [buildAccount({ id: '9' })] }),
     })
     const wrapper = mount(DashboardView, buildMountOpts())
     await flushPromises()
@@ -229,7 +229,7 @@ describe('DashboardView (p4x)', () => {
     expect(mockPush).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'p4x-transactions-month',
-        params: expect.objectContaining({ accountId: 9 }),
+        params: expect.objectContaining({ accountId: '9' }),
       }),
     )
     wrapper.unmount()

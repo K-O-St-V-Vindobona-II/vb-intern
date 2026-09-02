@@ -100,7 +100,7 @@ const confirmDelete = () => {
   })
 }
 
-const loadContact = async (id: number) => {
+const loadContact = async (id: string) => {
   loading.value = true
   contact.value = null
   try {
@@ -119,7 +119,7 @@ const loadContact = async (id: number) => {
 
 watch(
   () => route.params['id'],
-  (id) => loadContact(Number(id)),
+  (id) => loadContact(String(id)),
   { immediate: true },
 )
 

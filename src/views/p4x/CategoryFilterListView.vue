@@ -54,7 +54,7 @@ onMounted(load)
               @click="
                 router.push({
                   name: 'p4x-transactions-filter',
-                  params: { accountId: data.account_id },
+                  params: { accountId: data.p4x_account_id },
                   query: { filterId: data.id },
                 })
               "

@@ -9,7 +9,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 
 function buildContact(overrides: Record<string, unknown> = {}) {
   return {
-    id: 1,
+    id: '1',
     cn: 'Peter Fiala v/o Nepomuk',
     kontakttyp: 'person',
     anrede: 'Herrn',
@@ -175,7 +175,7 @@ describe('ContactShowView', () => {
 
     const acceptFn = mockConfirmRequire.mock.calls[0][0].accept
     await acceptFn()
-    expect(mockDeleteContact).toHaveBeenCalledWith(1)
+    expect(mockDeleteContact).toHaveBeenCalledWith('1')
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Kontakt gelöscht' }),
     )
@@ -228,7 +228,7 @@ describe('ContactShowView', () => {
     await w.find('.changelog-header').trigger('click')
     await flushPromises()
 
-    expect(mockGetChangelog).toHaveBeenCalledWith('contact', 1, { page: 1, page_size: 25 })
+    expect(mockGetChangelog).toHaveBeenCalledWith('contact', '1', { page: 1, page_size: 25 })
     expect(w.text()).toContain('Admin')
     const tags = w.findAllComponents({ name: 'Tag' })
     const actionTags = tags.filter((t) => ['store', 'delete'].includes(t.props('value')))
@@ -258,7 +258,7 @@ describe('ContactShowView', () => {
     await table.vm.$emit('page', { page: 1 })
     await flushPromises()
 
-    expect(mockGetChangelog).toHaveBeenLastCalledWith('contact', 1, { page: 2, page_size: 25 })
+    expect(mockGetChangelog).toHaveBeenLastCalledWith('contact', '1', { page: 2, page_size: 25 })
   })
 
   it('silently ignores a changelog load failure', async () => {
@@ -306,13 +306,13 @@ describe('ContactShowView', () => {
 
   it('reloads the contact when the route id changes', async () => {
     const w = await mountView()
-    expect(mockGetContact).toHaveBeenCalledWith(1)
+    expect(mockGetContact).toHaveBeenCalledWith('1')
 
-    mockGetContact.mockResolvedValue({ data: buildContact({ id: 2, cn: 'Andere Person' }) })
+    mockGetContact.mockResolvedValue({ data: buildContact({ id: '2', cn: 'Andere Person' }) })
     await router.push('/standesdb/contacts/2')
     await flushPromises()
 
-    expect(mockGetContact).toHaveBeenCalledWith(2)
+    expect(mockGetContact).toHaveBeenCalledWith('2')
     expect(w.text()).toContain('Andere Person')
   })
 })

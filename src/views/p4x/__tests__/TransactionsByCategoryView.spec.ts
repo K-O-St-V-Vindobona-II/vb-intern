@@ -43,13 +43,13 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 2,
+    p4x_account_id: '2',
     p4x_account_cn: 'Kasse Wien',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -116,7 +116,7 @@ describe('TransactionsByCategoryView', () => {
     await selectCategory(wrapper, 'category-uuid-1')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenCalledWith(2, 'category-uuid-1', 1)
+    expect(mockGetTransactionsByCategory).toHaveBeenCalledWith('2', 'category-uuid-1', 1)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.exists()).toBe(true)
     expect(table.props('categories')).toEqual(categories)
@@ -157,7 +157,7 @@ describe('TransactionsByCategoryView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 'category-uuid-1', 2)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-1', 2)
     wrapper.unmount()
   })
 
@@ -171,7 +171,7 @@ describe('TransactionsByCategoryView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 'category-uuid-1', 3)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-1', 3)
     wrapper.unmount()
   })
 
@@ -182,14 +182,14 @@ describe('TransactionsByCategoryView', () => {
     await flushPromises()
 
     mockGetTransactionsByCategory.mockResolvedValue({
-      data: buildResult({ items: [buildTx({ id: 2 })] }),
+      data: buildResult({ items: [buildTx({ id: '2' })] }),
     })
     await selectCategory(wrapper, 'category-uuid-2')
     await flushPromises()
 
-    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith(2, 'category-uuid-2', 1)
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-2', 1)
     expect(wrapper.findComponent({ name: 'TransactionTable' }).props('transactions')).toEqual([
-      buildTx({ id: 2 }),
+      buildTx({ id: '2' }),
     ])
     wrapper.unmount()
   })

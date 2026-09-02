@@ -229,7 +229,7 @@ export interface MemberDismissed {
 }
 
 export interface ContactDetail {
-  id: number
+  id: string
   cn: string
   kontakttyp: string
   anrede: string | null
@@ -306,7 +306,7 @@ export interface ExportConfig {
 
 export interface SearchResult {
   type: 'member' | 'contact'
-  id: number
+  id: number | string
   label: string
   [key: string]: unknown
 }

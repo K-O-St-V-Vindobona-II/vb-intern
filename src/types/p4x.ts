@@ -14,10 +14,6 @@ export interface CategoryFilterShort {
   id: string
   name: string
   p4x_account_id: string
-  // The account's own (still-integer) primary key, distinct from
-  // p4x_account_id above - needed to link into other account-scoped,
-  // integer-keyed views.
-  account_id: number
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
@@ -35,7 +31,7 @@ export interface P4xTransaction {
   iban: string
   amount: number
   subject: string
-  p4x_account_id: number
+  p4x_account_id: string
   p4x_account_cn: string
   p4x_account_iban: string
   comment: string | null
@@ -47,10 +43,7 @@ export interface P4xTransaction {
 }
 
 export interface P4xAccount {
-  id: number
-  // Additive alongside the still-integer id - the identifier
-  // p4x_category_filters.p4x_account_id now actually stores.
-  id_uuid: string
+  id: string
   iban: string
   bic: string | null
   label: string | null
@@ -78,8 +71,6 @@ export interface CategoryFilter {
   id: string
   name: string
   p4x_account_id: string
-  // See CategoryFilterShort.account_id above.
-  account_id: number
   p4x_account_label: string | null
   iban: string | null
   min_amount: number | null
@@ -119,7 +110,7 @@ export interface PaginatedTransactions {
 }
 
 export interface ImportResult {
-  given: { p4x_account_id: number; parsed: boolean }
+  given: { p4x_account_id: string; parsed: boolean }
   summary: Record<string, number>
   message?: string | null
   account?: P4xAccount

@@ -38,17 +38,17 @@ export default {
   },
 
   updateAccount(
-    id: number,
+    id: string,
     data: { iban: string; bic: string; label: string; init_date: string; init_balance: number },
   ) {
     return api.put<P4xAccount>(`/p4x/admin/accounts/${id}`, data)
   },
 
-  deleteAccount(id: number) {
+  deleteAccount(id: string) {
     return api.delete(`/p4x/admin/accounts/${id}`)
   },
 
-  importTransactions(accountId: number, file: File) {
+  importTransactions(accountId: string, file: File) {
     const formData = new FormData()
     formData.append('file', file)
     return api.post<ImportResult>(`/p4x/admin/accounts/${accountId}/import`, formData, {
@@ -56,39 +56,39 @@ export default {
     })
   },
 
-  getTransactionsByMonth(accountId: number, year: number, month: number, page = 1) {
+  getTransactionsByMonth(accountId: string, year: number, month: number, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-month/${year}/${month}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByPartner(accountId: number, type: string, partnerId: string, page = 1) {
+  getTransactionsByPartner(accountId: string, type: string, partnerId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-partner/${type}/${partnerId}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByCategory(accountId: number, categoryId: string, page = 1) {
+  getTransactionsByCategory(accountId: string, categoryId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/accounts/${accountId}/transactions/by-category/${categoryId}`,
       { params: { page } },
     )
   },
 
-  getTransactionsByFilter(accountId: number, filterId: string, page = 1) {
+  getTransactionsByFilter(accountId: string, filterId: string, page = 1) {
     return api.get<PaginatedTransactions>(
       `/p4x/admin/accounts/${accountId}/transactions/by-filter/${filterId}`,
       { params: { page } },
     )
   },
 
-  getTransactionRaw(accountId: number, transactionId: string) {
+  getTransactionRaw(accountId: string, transactionId: string) {
     return api.get<{ raw: string }>(`/p4x/accounts/${accountId}/transactions/raw/${transactionId}`)
   },
 
-  getTransactionAttachment(accountId: number, transactionId: string) {
+  getTransactionAttachment(accountId: string, transactionId: string) {
     return api.get(`/p4x/accounts/${accountId}/transactions/attachment/${transactionId}`, {
       responseType: 'blob',
     })

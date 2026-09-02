@@ -17,7 +17,7 @@ function buildReferenceData(): ReferenceData {
 
 function buildContact(overrides: Partial<ContactDetail> = {}): ContactDetail {
   return {
-    id: 1,
+    id: '1',
     cn: 'Firma GmbH',
     kontakttyp: 'organisation',
     anrede: null,
@@ -106,7 +106,7 @@ describe('ContactEditView', () => {
     const wrapper = await mountAt('/standesdb/contacts/1/edit')
     await flushPromises()
 
-    expect(mockGetContact).toHaveBeenCalledWith(1)
+    expect(mockGetContact).toHaveBeenCalledWith('1')
     expect(wrapper.text()).toContain('Kontakt bearbeiten')
     const emailInput = wrapper.find('input[type="email"]').element as HTMLInputElement
     expect(emailInput.value).toBe('kontakt@firma.at')
@@ -147,7 +147,7 @@ describe('ContactEditView', () => {
     await flushPromises()
 
     expect(mockUpdateContact).toHaveBeenCalledWith(
-      1,
+      '1',
       expect.objectContaining({ name: 'Firma GmbH' }),
     )
     expect(router.currentRoute.value.name).toBe('standesdb-contact-show')

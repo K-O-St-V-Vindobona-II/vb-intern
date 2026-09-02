@@ -26,7 +26,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_cn: 'Kasse',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -62,7 +62,7 @@ function buildFilter(overrides: Partial<CategoryFilterShort> = {}): CategoryFilt
   return {
     id: 1,
     name: 'Filter A',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
@@ -113,7 +113,7 @@ describe('CategoryDirectEditor', () => {
   })
 
   it('navigates to filter creation with transaction data as query params', async () => {
-    const tx = buildTransaction({ p4x_account_id: 3, iban: 'AT999', amount: 12, subject: 'Test' })
+    const tx = buildTransaction({ p4x_account_id: '3', iban: 'AT999', amount: 12, subject: 'Test' })
     const wrapper = mount(CategoryDirectEditor, {
       props: { transaction: tx, categories },
       ...mountOpts,
@@ -128,7 +128,7 @@ describe('CategoryDirectEditor', () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       name: 'p4x-filter-new',
-      query: { accountId: 3, iban: 'AT999', amount: 12, subject: 'Test' },
+      query: { accountId: '3', iban: 'AT999', amount: 12, subject: 'Test' },
     })
     wrapper.unmount()
   })

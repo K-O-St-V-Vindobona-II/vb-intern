@@ -37,13 +37,13 @@ const categories: P4xCategory[] = [
 
 function buildTx(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: '1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 2,
+    p4x_account_id: '2',
     p4x_account_cn: 'Kasse Wien',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -130,7 +130,7 @@ describe('TransactionsByPartnerView', () => {
     })
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenCalledWith(2, 'member', 'member-uuid-5', 1)
+    expect(mockGetTransactionsByPartner).toHaveBeenCalledWith('2', 'member', 'member-uuid-5', 1)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.exists()).toBe(true)
     wrapper.unmount()
@@ -175,7 +175,7 @@ describe('TransactionsByPartnerView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('pageChange', 2)
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith(2, 'member', 'member-uuid-5', 2)
+    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 2)
     wrapper.unmount()
   })
 
@@ -189,7 +189,7 @@ describe('TransactionsByPartnerView', () => {
     await wrapper.findComponent({ name: 'TransactionTable' }).vm.$emit('refresh')
     await flushPromises()
 
-    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith(2, 'member', 'member-uuid-5', 3)
+    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 3)
     wrapper.unmount()
   })
 })

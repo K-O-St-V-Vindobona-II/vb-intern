@@ -28,7 +28,7 @@ const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
 
 const isNew = computed(() => route.name === 'standesdb-contact-new')
-const contactId = computed(() => (isNew.value ? null : Number(route.params['id'])))
+const contactId = computed(() => (isNew.value ? null : String(route.params['id'])))
 
 const form = ref<ContactFormData>({
   kontakttyp: 'person',

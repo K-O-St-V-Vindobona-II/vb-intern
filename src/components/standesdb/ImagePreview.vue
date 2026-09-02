@@ -6,7 +6,7 @@ import Avatar from 'primevue/avatar'
 const props = defineProps<{
   imageId: string | null | undefined
   ownerType: 'member' | 'contact'
-  ownerId: number
+  ownerId: number | string
 }>()
 
 const imageUrl = ref<string | null>(null)

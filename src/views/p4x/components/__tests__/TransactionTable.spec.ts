@@ -21,7 +21,7 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     iban: 'AT001234',
     amount: 10,
     subject: 'Spende',
-    p4x_account_id: 1,
+    p4x_account_id: '1',
     p4x_account_cn: 'Kasse',
     p4x_account_iban: 'AT00',
     comment: null,
@@ -189,7 +189,7 @@ describe('TransactionTable', () => {
   it('fetches and shows the raw transaction data when requested', async () => {
     mockGetTransactionRaw.mockResolvedValue({ data: { raw: JSON.stringify({ foo: 'bar' }) } })
     const wrapper = mount(TransactionTable, {
-      props: { transactions: [buildTransaction({ id: 4, p4x_account_id: 2 })], categories },
+      props: { transactions: [buildTransaction({ id: '4', p4x_account_id: '2' })], categories },
       ...mountOpts,
     })
 
@@ -199,7 +199,7 @@ describe('TransactionTable', () => {
     await wrapper.find('.pi-search').trigger('click')
     await flushPromises()
 
-    expect(mockGetTransactionRaw).toHaveBeenCalledWith(2, 4)
+    expect(mockGetTransactionRaw).toHaveBeenCalledWith('2', '4')
     expect(document.querySelector('.raw-json')?.textContent).toContain('"foo": "bar"')
     wrapper.unmount()
   })
@@ -213,7 +213,7 @@ describe('TransactionTable', () => {
 
     const wrapper = mount(TransactionTable, {
       props: {
-        transactions: [buildTransaction({ id: 4, p4x_account_id: 2, has_attachment: true })],
+        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
         categories,
       },
       ...mountOpts,
@@ -222,7 +222,7 @@ describe('TransactionTable', () => {
     await wrapper.find('.pi-paperclip').trigger('click')
     await flushPromises()
 
-    expect(mockGetTransactionAttachment).toHaveBeenCalledWith(2, 4)
+    expect(mockGetTransactionAttachment).toHaveBeenCalledWith('2', '4')
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(clickSpy).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock')
@@ -353,7 +353,7 @@ describe('TransactionTable', () => {
   it('clears the raw data when fetching it fails', async () => {
     mockGetTransactionRaw.mockRejectedValue(new Error('boom'))
     const wrapper = mount(TransactionTable, {
-      props: { transactions: [buildTransaction({ id: 4, p4x_account_id: 2 })], categories },
+      props: { transactions: [buildTransaction({ id: '4', p4x_account_id: '2' })], categories },
       ...mountOpts,
     })
     await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
@@ -368,7 +368,7 @@ describe('TransactionTable', () => {
     mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
     const wrapper = mount(TransactionTable, {
       props: {
-        transactions: [buildTransaction({ id: 4, p4x_account_id: 2, has_attachment: true })],
+        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
         categories,
       },
       ...mountOpts,

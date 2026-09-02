@@ -45,7 +45,7 @@ const subjectModeOptions = [
 const accountOptions = computed(() =>
   accounts.value.map((a) => ({
     label: `${a.label} (${a.iban})`,
-    value: a.id_uuid,
+    value: a.id,
   })),
 )
 
@@ -56,18 +56,11 @@ const categoryOptions = computed(() =>
   })),
 )
 
-// accountId in the query is still the account's legacy integer id (e.g.
-// from a transaction's own p4x_account_id, which stays integer until
-// its own slice) - resolved here to the matching account's id_uuid, the
-// identifier the form actually submits.
 function resolveAccountIdFromQuery(
   query: LocationQuery,
-  accounts: P4xAccount[],
   defaultAccountId: string | null,
 ): string | null {
-  if (!query['accountId']) return defaultAccountId
-  const match = accounts.find((a) => a.id === Number(query['accountId']))
-  return match ? match.id_uuid : defaultAccountId
+  return query['accountId'] ? String(query['accountId']) : defaultAccountId
 }
 
 function buildFormFromQuery(
@@ -76,14 +69,14 @@ function buildFormFromQuery(
   categories: P4xCategory[],
 ): { form: typeof form.value; useMin: boolean; useMax: boolean } {
   const firstAccount = accounts[0]
-  const defaultAccountId = firstAccount ? firstAccount.id_uuid : null
+  const defaultAccountId = firstAccount ? firstAccount.id : null
   const firstCategory = categories[0]
   const defaultCategoryId = firstCategory ? firstCategory.id : null
 
   const result = {
     form: {
       name: '',
-      p4x_account_id: resolveAccountIdFromQuery(query, accounts, defaultAccountId),
+      p4x_account_id: resolveAccountIdFromQuery(query, defaultAccountId),
       iban: '',
       min_amount: 0,
       max_amount: 0,
