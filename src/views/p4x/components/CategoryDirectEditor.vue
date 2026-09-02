@@ -22,26 +22,26 @@ const loading = ref(false)
 const expandedFilters = ref<Set<number>>(new Set())
 
 const form = ref({
-  cat0: null as number | null,
+  cat0: null as string | null,
   amt0: 0,
-  cat1: null as number | null,
+  cat1: null as string | null,
   amt1: 0,
-  cat2: null as number | null,
+  cat2: null as string | null,
   amt2: 0,
 })
 
 const categoryOptions = computed(() =>
   [...props.categories]
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((c) => ({ label: `${c.name} (${c.label})`, value: c.id })),
+    .map((c) => ({ label: `${c.name} (${c.label})`, value: c.id_uuid })),
 )
 
 interface SplitForm {
-  cat0: number | null
+  cat0: string | null
   amt0: number
-  cat1: number | null
+  cat1: string | null
   amt1: number
-  cat2: number | null
+  cat2: string | null
   amt2: number
 }
 
@@ -65,7 +65,7 @@ function isSplitValid(txAmount: number, form: SplitForm): boolean {
 function slotFromDirect(
   direct: CategoryDirect | undefined,
   defaultAmount: number,
-): { cat: number | null; amt: number } {
+): { cat: string | null; amt: number } {
   if (!direct) {
     return { cat: null, amt: defaultAmount }
   }

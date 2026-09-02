@@ -5,8 +5,8 @@ export interface PartnerRef {
 }
 
 export interface CategoryDirect {
-  id: number
-  p4x_category_id: number
+  id: string
+  p4x_category_id: string
   amount: number
 }
 

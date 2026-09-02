@@ -126,8 +126,8 @@ describe('TransactionTable', () => {
   it('shows the direct category with its amount when multiple direct splits exist', () => {
     const tx = buildTransaction({
       p4x_category_directs: [
-        { id: 1, p4x_category_id: 1, amount: 4 },
-        { id: 2, p4x_category_id: 1, amount: 6 },
+        { id: 'direct-uuid-1', p4x_category_id: 'category-uuid-1', amount: 4 },
+        { id: 'direct-uuid-2', p4x_category_id: 'category-uuid-1', amount: 6 },
       ],
     })
     const wrapper = mount(TransactionTable, {
@@ -275,9 +275,6 @@ describe('TransactionTable', () => {
   })
 
   it('shows the single matching category filter without a warning', () => {
-    // p4x_category_filters is keyed by id_uuid, unlike p4x_category_directs
-    // above (still the category's legacy integer id) - findCategory() must
-    // resolve both id flavors against the same categories list.
     const tx = buildTransaction({
       p4x_category_filters: [{ id: 1, p4x_category_id: 'category-uuid-1' }],
     })
