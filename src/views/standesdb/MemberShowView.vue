@@ -299,11 +299,32 @@ const capitalize = (s: string | null | undefined) =>
             <span>entlassen</span>
           </div>
 
+          <div v-if="member.entlassen" class="show-field">
+            <label>Entlassungsdatum</label>
+            <div class="show-value">
+              {{ fuzzyDisplay(member.entlassungsdatum, member.entlassungsdatum_accuracy) }}
+            </div>
+          </div>
+
           <div class="show-field show-field--check">
             <span class="check-icon" :class="member.verstorben ? 'active' : ''">
               {{ member.verstorben ? '☑' : '☐' }}
             </span>
             <span>verstorben</span>
+          </div>
+
+          <div v-if="member.verstorben" class="show-field">
+            <label>Sterbedatum</label>
+            <div class="show-value">
+              {{ fuzzyDisplay(member.sterbedatum, member.sterbedatum_accuracy) }}
+            </div>
+          </div>
+
+          <div v-if="member.verstorben" class="show-field">
+            <label>Grabadresse</label>
+            <div class="show-value">
+              {{ member.grabadresse ?? '' }}
+            </div>
           </div>
 
           <div class="show-field">
