@@ -211,6 +211,52 @@ describe('MemberShowView', () => {
     expect(w.text()).toContain('1990')
   })
 
+  it('hides entlassungsdatum when the member is not entlassen', async () => {
+    const w = await mountView()
+    expect(w.text()).not.toContain('Entlassungsdatum')
+  })
+
+  it('shows entlassungsdatum when the member is entlassen', async () => {
+    mockGetMember.mockResolvedValue({
+      data: {
+        ...fullMemberData,
+        entlassen: true,
+        entlassungsdatum: '2022-11-05',
+        entlassungsdatum_accuracy: 3,
+      },
+    })
+    const w = await mountView()
+    expect(w.text()).toContain('Entlassungsdatum')
+    expect(w.text()).toContain('05')
+    expect(w.text()).toContain('November')
+    expect(w.text()).toContain('2022')
+  })
+
+  it('hides sterbedatum and grabadresse for a living member', async () => {
+    const w = await mountView()
+    expect(w.text()).not.toContain('Sterbedatum')
+    expect(w.text()).not.toContain('Grabadresse')
+  })
+
+  it('shows sterbedatum and grabadresse for a deceased member', async () => {
+    mockGetMember.mockResolvedValue({
+      data: {
+        ...fullMemberData,
+        verstorben: true,
+        sterbedatum: '2024-03-10',
+        sterbedatum_accuracy: 3,
+        grabadresse: 'Zentralfriedhof, Gruppe 14A',
+      },
+    })
+    const w = await mountView()
+    expect(w.text()).toContain('Sterbedatum')
+    expect(w.text()).toContain('10')
+    expect(w.text()).toContain('März')
+    expect(w.text()).toContain('2024')
+    expect(w.text()).toContain('Grabadresse')
+    expect(w.text()).toContain('Zentralfriedhof, Gruppe 14A')
+  })
+
   it('renders chargen table', async () => {
     const w = await mountView()
     expect(w.text()).toContain('Chargen, Funktionen, Kommissionen')
