@@ -47,34 +47,6 @@ describe('trackingService', () => {
     expect(mockGet).toHaveBeenCalledWith('/tracking/sent-emails/templates/a%20b/preview')
   })
 
-  it('getActivity forwards filter params', async () => {
-    mockGet.mockResolvedValueOnce({ data: { items: [], total: 0 } })
-    await trackingService.getActivity({ member_id: 'member-uuid-3' })
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity', {
-      params: { member_id: 'member-uuid-3' },
-    })
-  })
-
-  it('getActivityDetail fetches a single activity entry', async () => {
-    mockGet.mockResolvedValueOnce({ data: { id: 9 } })
-    await trackingService.getActivityDetail(9)
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity/9')
-  })
-
-  it('getActivitySessions forwards date/member filters', async () => {
-    mockGet.mockResolvedValueOnce({ data: [] })
-    await trackingService.getActivitySessions({ date_str: '2026-06-30' })
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity/sessions', {
-      params: { date_str: '2026-06-30' },
-    })
-  })
-
-  it('getActivityStats fetches /tracking/activity/stats', async () => {
-    mockGet.mockResolvedValueOnce({ data: {} })
-    await trackingService.getActivityStats()
-    expect(mockGet).toHaveBeenCalledWith('/tracking/activity/stats')
-  })
-
   it('getConfig fetches the retention config', async () => {
     mockGet.mockResolvedValueOnce({ data: { retention_months: 24 } })
     const result = await trackingService.getConfig()

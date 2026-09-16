@@ -135,7 +135,7 @@ export default {
     const segment = type === 'member' ? 'members' : 'contacts'
     return api.get<{
       items: {
-        id: number
+        id: string
         modified_at: string | null
         modified_by_name: string | null
         action: string

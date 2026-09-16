@@ -48,7 +48,7 @@ const loadAuthActivity = async (memberId: string) => {
 
 const changelog = ref<
   {
-    id: number
+    id: string
     modified_at: string | null
     modified_by_name: string | null
     action: string
