@@ -26,7 +26,7 @@ const canEdit = computed(() => hasPermission('standesdbContactAdmin'))
 
 const changelog = ref<
   {
-    id: number
+    id: string
     modified_at: string | null
     modified_by_name: string | null
     action: string
