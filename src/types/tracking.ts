@@ -22,39 +22,6 @@ export interface EmailTemplateStats {
   last_sent: string | null
 }
 
-export interface ActivityLogItem {
-  id: number
-  created_at: string | null
-  member_id: string | null
-  member_name: string | null
-  action_label: string
-  request_method: string
-  request_path: string
-  response_status: number
-  client_ip: string
-}
-
-export interface ActivityLogDetail extends ActivityLogItem {
-  request_input: string | null
-  response_content: string | null
-  client_user_agent: string | null
-}
-
-export interface ActivitySession {
-  member_id: string
-  member_name: string
-  started_at: string
-  ended_at: string
-  action_count: number
-  actions: ActivityLogItem[]
-}
-
-export interface ActivityStats {
-  active_users_today: number
-  total_actions_today: number
-  actions_by_type: Record<string, number>
-}
-
 export interface PaginatedResponse<T> {
   items: T[]
   total: number

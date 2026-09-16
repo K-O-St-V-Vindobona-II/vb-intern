@@ -411,7 +411,14 @@ const router = createRouter({
         {
           path: 'tracking/activity',
           name: 'tracking-activity',
-          component: () => import('../views/tracking/ActivityView.vue'),
+          component: () => import('../views/tracking/ActivityLogView.vue'),
+          meta: { requiredPermissions: ['systemAdmin'] },
+        },
+        {
+          path: 'tracking/activity/members/:memberId',
+          name: 'tracking-activity-member',
+          component: () => import('../views/tracking/ActivityLogMemberDayView.vue'),
+          props: true,
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {

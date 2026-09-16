@@ -3,10 +3,6 @@ import type {
   SentEmailListItem,
   SentEmailDetail,
   EmailTemplateStats,
-  ActivityLogItem,
-  ActivityLogDetail,
-  ActivitySession,
-  ActivityStats,
   PaginatedResponse,
 } from '@/types/tracking'
 
@@ -38,37 +34,6 @@ export default {
     const { data } = await api.get(
       `/tracking/sent-emails/templates/${encodeURIComponent(templateKey)}/preview`,
     )
-    return data
-  },
-
-  async getActivity(params: {
-    page?: number
-    page_size?: number
-    member_id?: string
-    date_from?: string
-    date_to?: string
-  }): Promise<PaginatedResponse<ActivityLogItem>> {
-    const { data } = await api.get('/tracking/activity', { params })
-    return data
-  },
-
-  async getActivityDetail(id: number): Promise<ActivityLogDetail> {
-    const { data } = await api.get(`/tracking/activity/${id}`)
-    return data
-  },
-
-  async getActivitySessions(params: {
-    date_str?: string
-    member_id?: string
-    page?: number
-    page_size?: number
-  }): Promise<PaginatedResponse<ActivitySession>> {
-    const { data } = await api.get('/tracking/activity/sessions', { params })
-    return data
-  },
-
-  async getActivityStats(): Promise<ActivityStats> {
-    const { data } = await api.get('/tracking/activity/stats')
     return data
   },
 
