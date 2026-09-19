@@ -6,6 +6,7 @@ import {
   checkAuthRequirement,
   checkPermissions,
 } from './guards'
+import { registerChunkReload } from './chunkReload'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
@@ -478,6 +479,8 @@ const router = createRouter({
     },
   ],
 })
+
+registerChunkReload(router)
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
