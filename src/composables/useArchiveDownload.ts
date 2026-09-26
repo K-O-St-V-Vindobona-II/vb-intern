@@ -11,6 +11,16 @@ interface CachedUrl {
 
 const urlCache = new Map<string, CachedUrl>()
 
+// The cache is module-scoped so concurrent components share one LRU set, but
+// that means it outlives any single login: without this, a presigned URL
+// fetched under one member's session would still be served from cache after
+// that member logs out and a different member logs in in the same tab,
+// bypassing the backend's per-request authorization check on that file.
+// Called from the auth store's clearAuth() on every logout.
+export function clearPresignedUrlCache(): void {
+  urlCache.clear()
+}
+
 function evictExpired(): void {
   const now = Date.now()
   for (const [key, entry] of urlCache) {

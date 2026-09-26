@@ -4,6 +4,7 @@ import type { User } from '@/types/member'
 import authService from '@/services/authService'
 import memberService from '@/services/memberService'
 import api from '@/services/api'
+import { clearPresignedUrlCache } from '@/composables/useArchiveDownload'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null)
@@ -17,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearAuth() {
     token.value = null
     user.value = null
+    clearPresignedUrlCache()
   }
 
   async function fetchUser(): Promise<void> {

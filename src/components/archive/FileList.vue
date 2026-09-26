@@ -122,8 +122,8 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
             <Checkbox :model-value="allSelected" :binary="true" />
           </div>
         </template>
-        <template #body="{ index, data }">
-          <div class="select-cell" @click="toggle(index, $event)">
+        <template #body="{ data }">
+          <div class="select-cell" @click="toggle(data, $event)">
             <Checkbox :model-value="isSelected(data)" :binary="true" />
           </div>
         </template>

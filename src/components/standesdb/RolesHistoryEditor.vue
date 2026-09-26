@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { RoleRef } from '@/types/standesdb'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -170,22 +170,29 @@ const remove = (idx: number) => {
   }
 }
 
-watch(ongoing, (val) => {
-  if (!val) {
+// Both handlers are bound to user input only, deliberately not to watchers on
+// the form state: a watcher also fires when openEdit()/initDefaults() set that
+// state programmatically. Opening an entry with an end date right after an
+// ongoing one would flip "ongoing" back to false, and the watcher would then
+// replace the stored end date with today's date before the user sees it.
+const onOngoingChange = (value: boolean) => {
+  ongoing.value = value
+  if (!value) {
     formEnddate.value = new Date()
   }
-})
+}
 
-watch([quickSemester, quickYear], ([sem, year]) => {
+const applyQuickRange = () => {
   ongoing.value = false
-  if (sem === 'WS') {
+  const year = quickYear.value
+  if (quickSemester.value === 'WS') {
     formStartdate.value = new Date(year, 7, 1)
     formEnddate.value = new Date(year + 1, 0, 31)
   } else {
     formStartdate.value = new Date(year, 1, 1)
     formEnddate.value = new Date(year, 6, 31)
   }
-})
+}
 </script>
 
 <template>
@@ -272,7 +279,7 @@ watch([quickSemester, quickYear], ([sem, year]) => {
 
         <div class="field">
           <label>
-            <Checkbox v-model="ongoing" :binary="true" />
+            <Checkbox :model-value="ongoing" :binary="true" @update:model-value="onOngoingChange" />
             laufend
           </label>
         </div>
@@ -289,8 +296,14 @@ watch([quickSemester, quickYear], ([sem, year]) => {
               option-label="label"
               option-value="value"
               class="quick-select"
+              @update:model-value="applyQuickRange"
             />
-            <Select v-model="quickYear" :options="yearOptions" class="quick-select" />
+            <Select
+              v-model="quickYear"
+              :options="yearOptions"
+              class="quick-select"
+              @update:model-value="applyQuickRange"
+            />
           </div>
         </div>
       </div>

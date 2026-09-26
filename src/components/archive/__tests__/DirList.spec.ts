@@ -125,6 +125,27 @@ describe('DirList', () => {
     expect(wrapper.findComponent({ name: 'Checkbox' }).props('modelValue')).toBe(false)
   })
 
+  it('selects the directory that is shown in the clicked row after the table was sorted by name', async () => {
+    const store = useArchiveStore()
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 1, name: 'Alpha' }), buildDir({ id: 2, name: 'Zulu' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+
+    // First click sorts ascending, the second descending: "Zulu" is now the first row.
+    const nameHeader = wrapper.find('th.p-datatable-sortable-column')
+    await nameHeader.trigger('click')
+    await nameHeader.trigger('click')
+    expect(wrapper.findAll('.dir-link')[0]!.text()).toContain('Zulu')
+
+    // selectCells[0] is the header "select all" cell, [1] is the first displayed row.
+    await wrapper.findAll('.select-cell')[1]!.trigger('click')
+    await wrapper.find('.list-header button').trigger('click')
+
+    expect(store.clipboard).toEqual(['dir:2'])
+  })
+
   it('asks for confirmation before deleting a directory and emits changed on accept', async () => {
     const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
 

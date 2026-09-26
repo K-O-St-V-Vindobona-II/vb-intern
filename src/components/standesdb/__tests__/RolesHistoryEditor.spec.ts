@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import RolesHistoryEditor from '../RolesHistoryEditor.vue'
 import PrimeVue from 'primevue/config'
@@ -231,5 +231,122 @@ describe('RolesHistoryEditor', () => {
     expect(updated[0]!.startdate).toBe('2022-08-01')
     expect(updated[0]!.enddate).toBe('2023-01-31')
     w.unmount()
+  })
+
+  describe('form state across dialog openings', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    type SavedEntry = { id: string; startdate: string; enddate: string | null }
+    const lastEmitted = (w: ReturnType<typeof mountWith>) =>
+      w.emitted('update:modelValue')!.at(-1)![0] as SavedEntry[]
+
+    it('keeps the stored end date when an entry is edited after an ongoing one was opened', async () => {
+      const w = mountWith({
+        modelValue: [
+          { id: 'senior', startdate: '2020-02-01', enddate: null },
+          { id: 'senior', startdate: '2021-02-01', enddate: '2021-07-31' },
+        ],
+        roles,
+      })
+      await w.findAll('.pi-pencil')[0]!.trigger('click')
+      await flushPromises()
+      clickButton('Abbrechen')
+      await flushPromises()
+
+      await w.findAll('.pi-pencil')[1]!.trigger('click')
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      const saved = lastEmitted(w).find((e) => e.startdate === '2021-02-01')
+      expect(saved?.enddate).toBe('2021-07-31')
+      w.unmount()
+    })
+
+    it('starts a new entry with the default semester range after an ongoing one was opened', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 8, 23))
+      const w = mountWith({
+        modelValue: [{ id: 'senior', startdate: '2020-02-01', enddate: null }],
+        roles,
+      })
+      await w.find('.pi-pencil').trigger('click')
+      await flushPromises()
+      clickButton('Abbrechen')
+      await flushPromises()
+
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      const added = lastEmitted(w).find((e) => e.startdate === '2026-08-01')
+      expect(added?.enddate).toBe('2027-01-31')
+      w.unmount()
+    })
+
+    it('keeps the dates of an edited entry when only the role changes', async () => {
+      const w = mountWith({
+        modelValue: [{ id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' }],
+        roles,
+      })
+      await w.find('.pi-pencil').trigger('click')
+      await flushPromises()
+      await w.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'fuchsmajor')
+      clickButton('Ok')
+      await flushPromises()
+
+      expect(lastEmitted(w)).toEqual([
+        expect.objectContaining({
+          id: 'fuchsmajor',
+          startdate: '2020-02-01',
+          enddate: '2020-07-31',
+        }),
+      ])
+      w.unmount()
+    })
+
+    it('sets the end date to today when the user checks and then unchecks "laufend"', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 8, 23))
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      // The new-entry dialog starts with the semester range ending 2027-01-31.
+      const checkbox = w.findComponent({ name: 'Checkbox' })
+      await checkbox.vm.$emit('update:modelValue', true)
+      await flushPromises()
+      await checkbox.vm.$emit('update:modelValue', false)
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      expect(lastEmitted(w)[0]!.enddate).toBe('2026-09-23')
+      w.unmount()
+    })
+
+    it('replaces the dates with the chosen semester range and ends "laufend" when the quick selection is used', async () => {
+      const w = mountWith({
+        modelValue: [{ id: 'senior', startdate: '2020-02-01', enddate: null }],
+        roles,
+      })
+      await w.find('.pi-pencil').trigger('click')
+      await flushPromises()
+
+      const selects = w.findAllComponents({ name: 'Select' })
+      await selects[1]!.vm.$emit('update:modelValue', 'WS')
+      await selects[2]!.vm.$emit('update:modelValue', 2022)
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      expect(lastEmitted(w)).toEqual([
+        expect.objectContaining({ startdate: '2022-08-01', enddate: '2023-01-31' }),
+      ])
+      w.unmount()
+    })
   })
 })

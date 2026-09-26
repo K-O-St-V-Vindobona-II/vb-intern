@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useArchiveDownload } from '../useArchiveDownload'
+import { useArchiveDownload, clearPresignedUrlCache } from '../useArchiveDownload'
 
 const mockGet = vi.fn()
 vi.mock('@/services/api', () => ({
@@ -91,5 +91,23 @@ describe('useArchiveDownload', () => {
 
     expect(result).toBe('resolved:/archive/files/20054/url')
     expect(mockGet).not.toHaveBeenCalled()
+  })
+
+  it('clearPresignedUrlCache forces the next lookup to hit the API again', async () => {
+    mockGet.mockResolvedValueOnce({ data: { url: 'https://minio.test/first-user' } })
+    const { loadPresignedUrl } = useArchiveDownload()
+    await loadPresignedUrl('777', 'sm')
+
+    clearPresignedUrlCache()
+
+    // Without the clear, this second call would still be served from cache -
+    // the exact gap that let a URL fetched under one member's session leak to
+    // whoever is logged in next in the same tab. auth.ts's clearAuth() calls
+    // this on every logout so that never happens in the real app.
+    mockGet.mockResolvedValueOnce({ data: { url: 'https://minio.test/second-user' } })
+    const result = await loadPresignedUrl('777', 'sm')
+
+    expect(result).toBe('https://minio.test/second-user')
+    expect(mockGet).toHaveBeenCalledTimes(2)
   })
 })

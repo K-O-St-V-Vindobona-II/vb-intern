@@ -9,8 +9,17 @@ export function useShiftSelect<T, Id = number>(items: Ref<T[]>, idFn: (item: T) 
 
   const isSelected = (item: T): boolean => selected.value.has(idFn(item))
 
-  const toggle = (index: number, event: MouseEvent) => {
-    const id = idFn(items.value[index]!)
+  // Takes the clicked item itself, not its row position: a host table such as a
+  // sortable DataTable reports the position within the order currently shown,
+  // which differs from items.value as soon as a column is sorted. The item is
+  // resolved by id, so the toggle always targets the row the user clicked. A
+  // shift range is still walked in items.value order, so after sorting it can
+  // differ from the visually contiguous rows.
+  const toggle = (item: T, event: MouseEvent) => {
+    const id = idFn(item)
+    const index = items.value.findIndex((candidate) => idFn(candidate) === id)
+    if (index === -1) return
+
     // Toggle direction based on clicked item's state, applied to entire range
     const willSelect = !selected.value.has(id)
 
