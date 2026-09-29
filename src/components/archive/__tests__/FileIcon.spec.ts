@@ -77,7 +77,7 @@ describe('FileIcon', () => {
   })
 
   it('loads and displays the thumbnail once the icon becomes visible', async () => {
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/thumb.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/thumb.jpg')
     const wrapper = mount(FileIcon, {
       props: { extension: 'png', isImage: true, fileId: '7' },
     })
@@ -87,12 +87,12 @@ describe('FileIcon', () => {
     await vi.waitUntil(() => wrapper.find('img').exists())
 
     expect(mockLoadPresignedUrl).toHaveBeenCalledWith('7', 'xs')
-    expect(wrapper.find('img').attributes('src')).toBe('https://minio.test/thumb.jpg')
+    expect(wrapper.find('img').attributes('src')).toBe('https://s3.test/thumb.jpg')
     expect(disconnect).toHaveBeenCalledOnce()
   })
 
   it('requests the md size when size prop is set', async () => {
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/thumb-md.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/thumb-md.jpg')
     mount(FileIcon, {
       props: { extension: 'png', isImage: true, fileId: '7', size: 'md' },
     })
@@ -110,14 +110,14 @@ describe('FileIcon', () => {
   })
 
   it('reloads the thumbnail when fileId changes after becoming visible', async () => {
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/a.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/a.jpg')
     const wrapper = mount(FileIcon, {
       props: { extension: 'png', isImage: true, fileId: '7' },
     })
     triggerIntersect(true)
     await vi.waitFor(() => expect(mockLoadPresignedUrl).toHaveBeenCalledTimes(1))
 
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/b.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/b.jpg')
     await wrapper.setProps({ fileId: '8' })
 
     expect(mockLoadPresignedUrl).toHaveBeenCalledWith('8', 'xs')

@@ -70,20 +70,20 @@ jobs:
           cache-to: type=gha,mode=max
 
       # Mirrors the Quadlet hardening applied in the deploy repo's
-      # templates: read-only rootfs, nginx's master-to-worker privilege
-      # drop needs CAP_CHOWN/CAP_SETUID/CAP_SETGID beyond CAP_NET_BIND_SERVICE
-      # (binding port 80 as root). Proves the image actually boots and
-      # serves the runtime-rendered config.js under those constraints
-      # instead of just assuming it from reading the code.
+      # templates: read-only rootfs and every capability dropped. The image
+      # runs nginx-unprivileged (uid 101 for master and workers, port 8080),
+      # so no capability is added back. nginx keeps its PID file and temp
+      # directories under /tmp, which Docker does not mount writable on a
+      # read-only rootfs by itself, hence the explicit tmpfs. Proves the
+      # image actually boots and serves the runtime-rendered config.js under
+      # those constraints instead of just assuming it from reading the code.
       - name: Boot the container read-only
         run: |
           docker run -d --name vb-intern-smoke \
             --read-only --cap-drop=all --security-opt no-new-privileges \
-            --cap-add=CAP_NET_BIND_SERVICE --cap-add=CAP_CHOWN \
-            --cap-add=CAP_SETUID --cap-add=CAP_SETGID \
             --tmpfs /run:mode=1777 \
-            --tmpfs /var/cache/nginx:mode=0755 \
-            -p 8090:80 \
+            --tmpfs /tmp:mode=1777 \
+            -p 8090:8080 \
             -e API_BASE_URL=https://api.example.test \
             -e PASSWORD_MIN_LENGTH=12 \
             -e APP_ENVIRONMENT=test \

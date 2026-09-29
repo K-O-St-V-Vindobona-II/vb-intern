@@ -34,7 +34,7 @@ const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 describe('DirGallery', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/img.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/img.jpg')
   })
 
   it('does not show a gallery button when there are no images', () => {
@@ -138,7 +138,7 @@ describe('DirGallery', () => {
       resolveFirst = resolve
     })
     mockLoadPresignedUrl.mockReturnValueOnce(firstLoad)
-    mockLoadPresignedUrl.mockResolvedValueOnce('https://minio.test/second.jpg')
+    mockLoadPresignedUrl.mockResolvedValueOnce('https://s3.test/second.jpg')
 
     const wrapper = mount(DirGallery, {
       props: {
@@ -153,11 +153,11 @@ describe('DirGallery', () => {
     await flushPromises()
 
     // The first (slow) request resolves after the second (fast) one already won.
-    resolveFirst('https://minio.test/stale.jpg')
+    resolveFirst('https://s3.test/stale.jpg')
     await flushPromises()
 
     expect(document.querySelector('.gallery-img')?.getAttribute('src')).toBe(
-      'https://minio.test/second.jpg',
+      'https://s3.test/second.jpg',
     )
 
     wrapper.unmount()

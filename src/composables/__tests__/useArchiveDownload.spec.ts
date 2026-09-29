@@ -13,21 +13,21 @@ describe('useArchiveDownload', () => {
 
   it('loadPresignedUrl returns URL from API', async () => {
     mockGet.mockResolvedValueOnce({
-      data: { url: 'https://minio.test/file?sig=abc' },
+      data: { url: 'https://s3.test/file?sig=abc' },
     })
     const { loadPresignedUrl } = useArchiveDownload()
     const url = await loadPresignedUrl('42', 'md')
-    expect(url).toBe('https://minio.test/file?sig=abc')
+    expect(url).toBe('https://s3.test/file?sig=abc')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/42/url/md')
   })
 
   it('loadPresignedUrl without size calls /url', async () => {
     mockGet.mockResolvedValueOnce({
-      data: { url: 'https://minio.test/orig' },
+      data: { url: 'https://s3.test/orig' },
     })
     const { loadPresignedUrl } = useArchiveDownload()
     const url = await loadPresignedUrl('7')
-    expect(url).toBe('https://minio.test/orig')
+    expect(url).toBe('https://s3.test/orig')
     expect(mockGet).toHaveBeenCalledWith('/archive/files/7/url')
   })
 
@@ -40,7 +40,7 @@ describe('useArchiveDownload', () => {
 
   it('triggerDownload creates anchor and clicks it', async () => {
     mockGet.mockResolvedValueOnce({
-      data: { url: 'https://minio.test/dl' },
+      data: { url: 'https://s3.test/dl' },
     })
     const clickSpy = vi.fn()
     vi.spyOn(document, 'createElement').mockReturnValueOnce({
@@ -62,15 +62,15 @@ describe('useArchiveDownload', () => {
 
   it('returns the cached URL without calling the API again within the TTL', async () => {
     mockGet.mockResolvedValueOnce({
-      data: { url: 'https://minio.test/cached' },
+      data: { url: 'https://s3.test/cached' },
     })
     const { loadPresignedUrl } = useArchiveDownload()
 
     const first = await loadPresignedUrl('555', 'sm')
     const second = await loadPresignedUrl('555', 'sm')
 
-    expect(first).toBe('https://minio.test/cached')
-    expect(second).toBe('https://minio.test/cached')
+    expect(first).toBe('https://s3.test/cached')
+    expect(second).toBe('https://s3.test/cached')
     expect(mockGet).toHaveBeenCalledTimes(1)
   })
 
@@ -94,7 +94,7 @@ describe('useArchiveDownload', () => {
   })
 
   it('clearPresignedUrlCache forces the next lookup to hit the API again', async () => {
-    mockGet.mockResolvedValueOnce({ data: { url: 'https://minio.test/first-user' } })
+    mockGet.mockResolvedValueOnce({ data: { url: 'https://s3.test/first-user' } })
     const { loadPresignedUrl } = useArchiveDownload()
     await loadPresignedUrl('777', 'sm')
 
@@ -104,10 +104,10 @@ describe('useArchiveDownload', () => {
     // the exact gap that let a URL fetched under one member's session leak to
     // whoever is logged in next in the same tab. auth.ts's clearAuth() calls
     // this on every logout so that never happens in the real app.
-    mockGet.mockResolvedValueOnce({ data: { url: 'https://minio.test/second-user' } })
+    mockGet.mockResolvedValueOnce({ data: { url: 'https://s3.test/second-user' } })
     const result = await loadPresignedUrl('777', 'sm')
 
-    expect(result).toBe('https://minio.test/second-user')
+    expect(result).toBe('https://s3.test/second-user')
     expect(mockGet).toHaveBeenCalledTimes(2)
   })
 })
