@@ -2,55 +2,52 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
 import p4xService from '@/services/p4xService'
-import type { P4xCategory, PaginatedTransactions } from '@/types/p4x'
+import type { P4xCategory } from '@/types/p4x'
 import TransactionTable from './components/TransactionTable.vue'
 import CategoryLabel from './components/CategoryLabel.vue'
 import Card from 'primevue/card'
 import Select from 'primevue/select'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const accountId = String(route.params['accountId'])
 
-const loading = ref(false)
+const categoriesLoadFailed = ref(false)
 const categories = ref<P4xCategory[]>([])
 const allCategories = ref<P4xCategory[]>([])
 const selectedCategoryId = ref<string | null>(null)
-const selectedCategory = ref<P4xCategory | null>(null)
-const result = ref<PaginatedTransactions | null>(null)
+
+const { result, loadFailed, load, reload } = usePaginatedTransactions(
+  selectedCategoryId,
+  (categoryId, page) => p4xService.getTransactionsByCategory(accountId, categoryId, page),
+)
+
+const selectedCategory = computed(
+  () => allCategories.value.find((c) => c.id === selectedCategoryId.value) ?? null,
+)
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
-const loadTransactions = async (page = 1) => {
-  if (!selectedCategoryId.value) return
-  loading.value = true
+const onCategoryChange = () => load()
+
+const onPageChange = (page: number) => load(page)
+
+const loadCategories = async () => {
+  categoriesLoadFailed.value = false
   try {
-    const resp = await p4xService.getTransactionsByCategory(
-      accountId,
-      selectedCategoryId.value,
-      page,
-    )
-    result.value = resp.data
-    selectedCategory.value =
-      allCategories.value.find((c) => c.id === selectedCategoryId.value) ?? null
-  } finally {
-    loading.value = false
+    const dashResp = await p4xService.getDashboard()
+    allCategories.value = dashResp.data.categories
+    categories.value = dashResp.data.categories
+  } catch {
+    categoriesLoadFailed.value = true
   }
 }
 
-const onCategoryChange = () => {
-  result.value = null
-  loadTransactions()
-}
-
-const onPageChange = (page: number) => loadTransactions(page)
-
-onMounted(async () => {
-  const dashResp = await p4xService.getDashboard()
-  allCategories.value = dashResp.data.categories
-  categories.value = dashResp.data.categories
-})
+onMounted(loadCategories)
 </script>
 
 <template>
@@ -60,7 +57,12 @@ onMounted(async () => {
       <p class="subtitle">Transaktionen nach Kategorie</p>
     </div>
 
-    <div class="center-block">
+    <Message v-if="categoriesLoadFailed" severity="error" :closable="false" class="category-error">
+      Kategorien konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadCategories" />
+    </Message>
+
+    <div v-else class="center-block">
       <div class="search-container">
         <Select
           v-model="selectedCategoryId"
@@ -74,7 +76,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <Card v-if="selectedCategory" class="info-card">
+    <Message v-if="loadFailed" severity="error" :closable="false" class="category-error">
+      Transaktionen konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="reload" />
+    </Message>
+
+    <Card v-if="selectedCategory && result" class="info-card">
       <template #content>
         <div class="info-grid">
           <div class="info-row">
@@ -89,7 +96,7 @@ onMounted(async () => {
     </Card>
 
     <TransactionTable
-      v-if="result && !loading"
+      v-if="result"
       :transactions="result.items"
       :categories="allCategories"
       :total="result.total"
@@ -97,7 +104,7 @@ onMounted(async () => {
       :per-page="result.per_page"
       :admin="isAdmin"
       @page-change="onPageChange"
-      @refresh="loadTransactions(result?.page ?? 1)"
+      @refresh="reload"
     />
 
     <div class="back-link">
@@ -110,6 +117,9 @@ onMounted(async () => {
 .tx-category-view {
   max-width: 1100px;
   margin: 0 auto;
+}
+.category-error {
+  margin-bottom: 1.5rem;
 }
 .page-header {
   text-align: center;

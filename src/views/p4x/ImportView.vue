@@ -8,12 +8,14 @@ import type { P4xAccount, ImportResult } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const toast = useToast()
 const accountId = String(route.params['accountId'])
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const importing = ref(false)
 const account = ref<P4xAccount | null>(null)
 const result = ref<ImportResult | null>(null)
@@ -35,13 +37,19 @@ const loadAccount = async () => {
   account.value = resp.data.accounts.find((a: P4xAccount) => a.id === accountId) ?? null
 }
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     await loadAccount()
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 const onFileChange = (e: Event) => {
   const input = e.target as HTMLInputElement
@@ -77,7 +85,11 @@ const doImport = async () => {
 </script>
 
 <template>
-  <div v-if="!loading" class="import-view">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Die Daten konnten nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="import-view">
     <div class="page-header">
       <h2>Konto</h2>
       <p class="subtitle">Transaktionen importieren</p>
@@ -169,6 +181,12 @@ const doImport = async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
 .import-view {
   max-width: 700px;
   margin: 0 auto;

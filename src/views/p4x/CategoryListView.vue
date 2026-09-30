@@ -7,16 +7,21 @@ import CategoryLabel from './components/CategoryLabel.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const router = useRouter()
 const loading = ref(true)
+const loadFailed = ref(false)
 const categories = ref<CategoryWithUsage[]>([])
 
 const load = async () => {
   loading.value = true
+  loadFailed.value = false
   try {
     const resp = await p4xService.getCategories()
     categories.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -26,7 +31,13 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="!loading" class="cat-list">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false"
+      >Die Kategorien konnten nicht geladen werden.</Message
+    >
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="cat-list">
     <h2>Kategorien</h2>
     <p class="subtitle">Übersicht</p>
 
@@ -59,6 +70,13 @@ onMounted(load)
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .cat-list {
   max-width: 900px;
   margin: 0 auto;

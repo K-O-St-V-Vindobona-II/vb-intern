@@ -16,6 +16,11 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockGetCategories = vi.fn()
 const mockCreateCategory = vi.fn()
 const mockUpdateCategory = vi.fn()
@@ -144,7 +149,22 @@ describe('CategoryFormView', () => {
     wrapper.unmount()
   })
 
-  it('deletes the category and navigates back', async () => {
+  it('asks for confirmation before deleting, and does not delete without accepting it', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetCategories.mockResolvedValue({ data: [buildCategory()] })
+    const wrapper = mount(CategoryFormView, mountOpts)
+    await flushPromises()
+
+    clickButton('Löschen')
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('Spende')
+    expect(mockDeleteCategory).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('deletes the category and navigates back once the confirmation is accepted', async () => {
     mockRoute.params = { id: '1' }
     mockGetCategories.mockResolvedValue({ data: [buildCategory()] })
     mockDeleteCategory.mockResolvedValue({ data: {} })
@@ -152,7 +172,7 @@ describe('CategoryFormView', () => {
     await flushPromises()
 
     clickButton('Löschen')
-    await flushPromises()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
 
     expect(mockDeleteCategory).toHaveBeenCalledWith('1')
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -172,12 +192,49 @@ describe('CategoryFormView', () => {
     await flushPromises()
 
     clickButton('Löschen')
-    await flushPromises()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'Kategorie wird verwendet' }),
     )
     expect(mockPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when the category is not found', async () => {
+    mockRoute.params = { id: '999' }
+    mockGetCategories.mockResolvedValue({ data: [] })
+    const wrapper = mount(CategoryFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.text()).not.toContain('Kategorie bearbeiten')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Löschen')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when loading fails, and recovers on retry', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetCategories.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(CategoryFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    mockGetCategories.mockResolvedValueOnce({ data: [buildCategory()] })
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetCategories).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).toContain('Kategorie bearbeiten')
+    expect(wrapper.findAll('input')[0]!.element.value).toBe('spende')
     wrapper.unmount()
   })
 

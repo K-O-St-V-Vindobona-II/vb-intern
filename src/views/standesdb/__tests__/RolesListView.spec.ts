@@ -105,6 +105,23 @@ describe('RolesListView', () => {
     expect(wrapper.text()).toContain('Wintersemester 2025')
   })
 
+  it('shows a retry state instead of a silently empty list when loading fails', async () => {
+    mockGetRolesList.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Die Liste konnte nicht geladen werden.')
+    expect(wrapper.find('table').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetRolesList).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).toContain('Max Muster')
+  })
+
   it('calls API without params on default route', async () => {
     await mountView()
     expect(mockGetRolesList).toHaveBeenCalledWith(undefined)

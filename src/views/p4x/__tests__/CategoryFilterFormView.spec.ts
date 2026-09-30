@@ -19,6 +19,11 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockGetDashboard = vi.fn()
 const mockGetCategoryFilters = vi.fn()
 const mockCreateCategoryFilter = vi.fn()
@@ -217,7 +222,22 @@ describe('CategoryFilterFormView', () => {
     wrapper.unmount()
   })
 
-  it('deletes the filter and navigates back', async () => {
+  it('asks for confirmation before deleting, and does not delete without accepting it', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter()] })
+    const wrapper = mount(CategoryFilterFormView, mountOpts)
+    await flushPromises()
+
+    clickButton('Löschen')
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('Filter A')
+    expect(mockDeleteCategoryFilter).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('deletes the filter and navigates back once the confirmation is accepted', async () => {
     mockRoute.params = { id: '1' }
     mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter()] })
     mockDeleteCategoryFilter.mockResolvedValue({ data: {} })
@@ -225,7 +245,7 @@ describe('CategoryFilterFormView', () => {
     await flushPromises()
 
     clickButton('Löschen')
-    await flushPromises()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
 
     expect(mockDeleteCategoryFilter).toHaveBeenCalledWith('1')
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -243,7 +263,7 @@ describe('CategoryFilterFormView', () => {
     await flushPromises()
 
     clickButton('Löschen')
-    await flushPromises()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'Wird verwendet' }),
@@ -260,6 +280,52 @@ describe('CategoryFilterFormView', () => {
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filters' })
     expect(mockCreateCategoryFilter).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a silently empty form when loading fails', async () => {
+    mockGetDashboard
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ data: { accounts: [buildAccount()], categories } })
+    const wrapper = mount(CategoryFilterFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).toContain('Filter erstellen')
+    wrapper.unmount()
+  })
+
+  it('shows the retry state in edit mode when the filter is not in the list', async () => {
+    mockRoute.params = { id: '999' }
+    mockGetCategoryFilters.mockResolvedValue({ data: [] })
+    const wrapper = mount(CategoryFilterFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.text()).not.toContain('Filter bearbeiten')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the same retry state in edit mode when the filter list cannot be loaded', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetCategoryFilters.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(CategoryFilterFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
     wrapper.unmount()
   })
 })

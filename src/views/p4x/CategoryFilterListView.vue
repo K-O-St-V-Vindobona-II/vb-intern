@@ -7,14 +7,17 @@ import CategoryLabel from './components/CategoryLabel.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const router = useRouter()
 const loading = ref(true)
+const loadFailed = ref(false)
 const filters = ref<CategoryFilter[]>([])
 const categories = ref<P4xCategory[]>([])
 
 const load = async () => {
   loading.value = true
+  loadFailed.value = false
   try {
     const [fResp, dResp] = await Promise.all([
       p4xService.getCategoryFilters(),
@@ -22,6 +25,8 @@ const load = async () => {
     ])
     filters.value = fResp.data
     categories.value = dResp.data.categories
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -34,7 +39,13 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="!loading" class="filter-list">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false"
+      >Die Kategorie-Filter konnten nicht geladen werden.</Message
+    >
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="filter-list">
     <h2>Kategorie-Filter</h2>
     <p class="subtitle">Übersicht</p>
 
@@ -86,6 +97,13 @@ onMounted(load)
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .filter-list {
   max-width: 1000px;
   margin: 0 auto;

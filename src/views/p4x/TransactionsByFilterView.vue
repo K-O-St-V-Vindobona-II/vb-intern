@@ -1,52 +1,53 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
 import p4xService from '@/services/p4xService'
-import type { CategoryFilter, P4xCategory, PaginatedTransactions } from '@/types/p4x'
+import type { CategoryFilter, P4xCategory } from '@/types/p4x'
 import TransactionTable from './components/TransactionTable.vue'
 import Select from 'primevue/select'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const accountId = String(route.params['accountId'])
 
-const loading = ref(false)
+const setupFailed = ref(false)
 const categories = ref<P4xCategory[]>([])
 const filters = ref<CategoryFilter[]>([])
 const selectedFilterId = ref<string | null>(null)
-const result = ref<PaginatedTransactions | null>(null)
 
-const loadTransactions = async (page = 1) => {
-  if (!selectedFilterId.value) return
-  loading.value = true
+const { result, loadFailed, load, reload } = usePaginatedTransactions(
+  selectedFilterId,
+  (filterId, page) => p4xService.getTransactionsByFilter(accountId, filterId, page),
+)
+
+const onFilterChange = () => load()
+
+const onPageChange = (page: number) => load(page)
+
+const loadSetup = async () => {
+  setupFailed.value = false
   try {
-    const resp = await p4xService.getTransactionsByFilter(accountId, selectedFilterId.value, page)
-    result.value = resp.data
-  } finally {
-    loading.value = false
+    const [fResp, dResp] = await Promise.all([
+      p4xService.getCategoryFilters(),
+      p4xService.getDashboard(),
+    ])
+    filters.value = fResp.data.filter((f) => f.p4x_account_id === accountId)
+    categories.value = dResp.data.categories
+  } catch {
+    setupFailed.value = true
+    return
   }
-}
-
-const onFilterChange = () => {
-  result.value = null
-  loadTransactions()
-}
-
-const onPageChange = (page: number) => loadTransactions(page)
-
-onMounted(async () => {
-  const [fResp, dResp] = await Promise.all([
-    p4xService.getCategoryFilters(),
-    p4xService.getDashboard(),
-  ])
-  filters.value = fResp.data.filter((f) => f.p4x_account_id === accountId)
-  categories.value = dResp.data.categories
 
   const queryFilterId = route.query['filterId']
   if (typeof queryFilterId === 'string' && filters.value.some((f) => f.id === queryFilterId)) {
     selectedFilterId.value = queryFilterId
-    loadTransactions()
+    load()
   }
-})
+}
+
+onMounted(loadSetup)
 
 const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.id }))
 </script>
@@ -58,7 +59,12 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
       <p class="subtitle">Transaktionen nach Filter</p>
     </div>
 
-    <div class="center-block">
+    <Message v-if="setupFailed" severity="error" :closable="false" class="load-error">
+      Filter konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadSetup" />
+    </Message>
+
+    <div v-else class="center-block">
       <div class="search-container">
         <Select
           v-model="selectedFilterId"
@@ -72,8 +78,13 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
       </div>
     </div>
 
+    <Message v-if="loadFailed" severity="error" :closable="false" class="load-error">
+      Transaktionen konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="reload" />
+    </Message>
+
     <TransactionTable
-      v-if="result && !loading"
+      v-if="result"
       :transactions="result.items"
       :categories="categories"
       :total="result.total"
@@ -81,7 +92,7 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
       :per-page="result.per_page"
       admin
       @page-change="onPageChange"
-      @refresh="loadTransactions(result?.page ?? 1)"
+      @refresh="reload"
     />
 
     <div class="back-link">
@@ -91,6 +102,13 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
 .tx-filter-view {
   max-width: 1100px;
   margin: 0 auto;

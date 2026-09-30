@@ -4,6 +4,11 @@ import TransactionEditor from '../TransactionEditor.vue'
 import PrimeVue from 'primevue/config'
 import type { P4xTransaction } from '@/types/p4x'
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 const mockUpdateTransaction = vi.fn()
 vi.mock('@/services/p4xService', () => ({
   default: { updateTransaction: (...args: unknown[]) => mockUpdateTransaction(...args) },
@@ -194,6 +199,29 @@ describe('TransactionEditor', () => {
 
     expect(mockUpdateTransaction).not.toHaveBeenCalled()
     expect(document.querySelector('.p-dialog')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('shows the API error and keeps the dialog open when saving fails', async () => {
+    mockUpdateTransaction.mockRejectedValue({ response: { data: { detail: 'Datei zu groß' } } })
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction() },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Datei zu groß' }),
+    )
+    expect(wrapper.emitted('changed')).toBeUndefined()
+    expect(document.querySelector('.p-dialog')).not.toBeNull()
     wrapper.unmount()
   })
 })

@@ -164,4 +164,24 @@ describe('ImportView', () => {
     expect(wrapper.find('.picker-label').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('shows a retry state instead of a silently empty page when loading the account fails, and recovers on retry', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(ImportView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Daten konnten nicht geladen werden.')
+    expect(wrapper.find('.account-card').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeDefined()
+
+    mockGetDashboard.mockResolvedValueOnce({ data: { accounts: [buildAccount()] } })
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.find('.account-card').exists()).toBe(true)
+    wrapper.unmount()
+  })
 })

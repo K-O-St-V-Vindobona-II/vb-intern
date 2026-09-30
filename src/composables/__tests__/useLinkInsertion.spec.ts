@@ -32,4 +32,35 @@ describe('insertLink', () => {
 
     expect(result.text).toBe('[altertext](https://example.com)')
   })
+
+  it('percent-encodes a closing paren in the url so it cannot prematurely end the link', () => {
+    const result = insertLink(
+      'Schau hier vorbei.',
+      6,
+      10,
+      'https://en.wikipedia.org/wiki/Example_(disambiguation)',
+    )
+
+    expect(result.text).toBe(
+      'Schau [hier](https://en.wikipedia.org/wiki/Example_(disambiguation%29) vorbei.',
+    )
+  })
+
+  it('strips a closing bracket from the selected label so it cannot prematurely end the label', () => {
+    const result = insertLink('Schau [hier] vorbei.', 6, 12, 'https://example.com')
+
+    expect(result.text).toBe('Schau [[hier](https://example.com) vorbei.')
+  })
+
+  it('falls back to the url as the label when the selection is only a closing bracket', () => {
+    const result = insertLink('Schau ] vorbei.', 6, 7, 'https://example.com')
+
+    expect(result.text).toBe('Schau [https://example.com](https://example.com) vorbei.')
+  })
+
+  it('keeps the cursor right after the sanitised link', () => {
+    const result = insertLink('Schau hier vorbei.', 6, 10, 'https://example.com/a_(b)')
+
+    expect(result.text.slice(0, result.cursor)).toBe('Schau [hier](https://example.com/a_(b%29)')
+  })
 })

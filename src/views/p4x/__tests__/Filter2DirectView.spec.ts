@@ -15,6 +15,11 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockGetFilter2DirectPreview = vi.fn()
 const mockProcessFilter2Direct = vi.fn()
 vi.mock('@/services/p4xService', () => ({
@@ -65,6 +70,13 @@ function buildPreview(overrides: Record<string, unknown> = {}) {
 }
 
 const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
+
+function clickConvertButton() {
+  const convertBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+    b.textContent?.includes('umwandeln'),
+  )!
+  convertBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+}
 
 describe('Filter2DirectView', () => {
   beforeEach(() => {
@@ -121,16 +133,42 @@ describe('Filter2DirectView', () => {
     wrapper.unmount()
   })
 
-  it('processes the conversion and shows a success toast on click', async () => {
+  it('asks for confirmation naming the hit count and the category, and converts nothing before it is accepted', async () => {
+    mockGetFilter2DirectPreview.mockResolvedValue({
+      data: buildPreview({ hits: [buildHit(), buildHit()] }),
+    })
+    const wrapper = mount(Filter2DirectView, mountOpts)
+    await flushPromises()
+
+    clickConvertButton()
+    await flushPromises()
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('2 Transaktionen werden')
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('"Spende"')
+    expect(mockProcessFilter2Direct).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('uses the singular in the confirmation for a single hit', async () => {
+    mockGetFilter2DirectPreview.mockResolvedValue({ data: buildPreview() })
+    const wrapper = mount(Filter2DirectView, mountOpts)
+    await flushPromises()
+
+    clickConvertButton()
+
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('1 Transaktion wird')
+    wrapper.unmount()
+  })
+
+  it('processes the conversion and shows a success toast once the confirmation is accepted', async () => {
     mockGetFilter2DirectPreview.mockResolvedValue({ data: buildPreview() })
     mockProcessFilter2Direct.mockResolvedValue({ data: { hits: [] } })
     const wrapper = mount(Filter2DirectView, mountOpts)
     await flushPromises()
 
-    const convertBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('umwandeln'),
-    )!
-    convertBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    clickConvertButton()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockProcessFilter2Direct).toHaveBeenCalledWith('7')
@@ -141,19 +179,34 @@ describe('Filter2DirectView', () => {
     wrapper.unmount()
   })
 
-  it('shows an error toast when the conversion fails', async () => {
+  it('shows the API error text in a toast when the conversion fails', async () => {
     mockGetFilter2DirectPreview.mockResolvedValue({ data: buildPreview() })
     mockProcessFilter2Direct.mockRejectedValue({ response: { data: { detail: 'Fehlgeschlagen' } } })
     const wrapper = mount(Filter2DirectView, mountOpts)
     await flushPromises()
 
-    const convertBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('umwandeln'),
-    )!
-    convertBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    clickConvertButton()
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Fehlgeschlagen' }),
+    )
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['equals', 'Betreff ist gleich:'],
+    ['contains', 'Betreff enthält:'],
+    ['starts', 'Betreff beginnt mit:'],
+  ])('describes the subject condition "%s" as "%s"', async (mode, label) => {
+    mockGetFilter2DirectPreview.mockResolvedValue({
+      data: buildPreview({ filter: buildFilter({ subject: 'Spende', subject_mode: mode }) }),
+    })
+    const wrapper = mount(Filter2DirectView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.filter-details').text()).toContain(label)
     wrapper.unmount()
   })
 
@@ -168,6 +221,26 @@ describe('Filter2DirectView', () => {
     backBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filters' })
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a silently empty page when loading fails, and recovers on retry', async () => {
+    mockGetFilter2DirectPreview.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(Filter2DirectView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Daten konnten nicht geladen werden.')
+    expect(wrapper.find('.filter-card').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeDefined()
+
+    mockGetFilter2DirectPreview.mockResolvedValueOnce({ data: buildPreview() })
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetFilter2DirectPreview).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.find('.filter-card').exists()).toBe(true)
     wrapper.unmount()
   })
 })

@@ -8,6 +8,7 @@ import type { DashboardData, P4xAccount } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import TransactionTable from './components/TransactionTable.vue'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 import Menu from 'primevue/menu'
 
 const INACTIVE_THRESHOLD_DAYS = 730
@@ -17,6 +18,7 @@ const authStore = useAuthStore()
 const p4xStore = useP4xStore()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const data = ref<DashboardData | null>(null)
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
@@ -33,9 +35,12 @@ const inactiveAccounts = computed(() => data.value?.accounts.filter((a) => isIna
 
 const loadDashboard = async () => {
   loading.value = true
+  loadFailed.value = false
   try {
     const resp = await p4xService.getDashboard()
     data.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -139,7 +144,13 @@ const toggleMenu = (event: Event, accountId: string) => {
 </script>
 
 <template>
-  <div v-if="!loading && data" class="p4x-dashboard">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false"
+      >Die Konten-Übersicht konnte nicht geladen werden.</Message
+    >
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadDashboard" />
+  </div>
+  <div v-else-if="!loading && data" class="p4x-dashboard">
     <h2>AH-Kassen</h2>
     <p class="subtitle">Konten-Übersicht</p>
 
@@ -251,6 +262,13 @@ const toggleMenu = (event: Event, accountId: string) => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .p4x-dashboard {
   max-width: 900px;
   margin: 0 auto;

@@ -4,6 +4,11 @@ import PartnerEditor from '../PartnerEditor.vue'
 import PrimeVue from 'primevue/config'
 import type { P4xTransaction } from '@/types/p4x'
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 const mockSetTransactionPartner = vi.fn()
 vi.mock('@/services/p4xService', () => ({
   default: {
@@ -157,6 +162,31 @@ describe('PartnerEditor', () => {
     await wrapper.findComponent({ name: 'PartnerSearch' }).vm.$emit('update:modelValue', null)
 
     expect(wrapper.findComponent({ name: 'Checkbox' }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the API error and keeps the dialog open when saving fails', async () => {
+    mockSetTransactionPartner.mockRejectedValue({
+      response: { data: { detail: 'Nicht gefunden' } },
+    })
+    const transaction = buildTransaction({
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+    })
+    const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const saveBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Speichern',
+    )!
+    saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Nicht gefunden' }),
+    )
+    expect(wrapper.emitted('changed')).toBeUndefined()
+    expect(document.querySelector('.p-dialog')).not.toBeNull()
     wrapper.unmount()
   })
 })

@@ -4,6 +4,16 @@ import TransactionTable from '../TransactionTable.vue'
 import PrimeVue from 'primevue/config'
 import type { P4xTransaction, P4xCategory } from '@/types/p4x'
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockGetTransactionRaw = vi.fn()
 const mockGetTransactionAttachment = vi.fn()
 vi.mock('@/services/p4xService', () => ({
@@ -350,7 +360,7 @@ describe('TransactionTable', () => {
     wrapper.unmount()
   })
 
-  it('clears the raw data when fetching it fails', async () => {
+  it('clears the raw data and tells the user when fetching it fails', async () => {
     mockGetTransactionRaw.mockRejectedValue(new Error('boom'))
     const wrapper = mount(TransactionTable, {
       props: { transactions: [buildTransaction({ id: '4', p4x_account_id: '2' })], categories },
@@ -361,11 +371,19 @@ describe('TransactionTable', () => {
     await flushPromises()
 
     expect(document.querySelector('.raw-json')).toBeNull()
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Rohdaten konnten nicht geladen werden.',
+      }),
+    )
     wrapper.unmount()
   })
 
-  it('silently ignores a failed attachment download', async () => {
+  it('tells the user when the attachment cannot be downloaded', async () => {
     mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
+    const createObjectURL = vi.fn(() => 'blob:mock')
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() })
     const wrapper = mount(TransactionTable, {
       props: {
         transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
@@ -374,10 +392,16 @@ describe('TransactionTable', () => {
       ...mountOpts,
     })
 
-    await expect(async () => {
-      await wrapper.find('.pi-paperclip').trigger('click')
-      await flushPromises()
-    }).not.toThrow()
+    await wrapper.find('.pi-paperclip').trigger('click')
+    await flushPromises()
+
+    expect(createObjectURL).not.toHaveBeenCalled()
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Anhang konnte nicht heruntergeladen werden.',
+      }),
+    )
     wrapper.unmount()
   })
 

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
+import { formatApiError } from '@/utils/formatters'
 import type { P4xTransaction, P4xCategory, CategoryDirect } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
 import CategoryLabel from './CategoryLabel.vue'
@@ -17,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{ changed: [tx: P4xTransaction] }>()
 
 const router = useRouter()
+const toast = useToast()
+const confirm = useConfirm()
 const visible = ref(false)
 const loading = ref(false)
 const expandedFilters = ref<Set<string>>(new Set())
@@ -45,6 +50,10 @@ interface SplitForm {
   amt2: number
 }
 
+// Amounts are compared in whole cents: 10.02 + 10.03 is 20.049999999999997 in floating point,
+// so comparing the raw sum with 20.05 would refuse a correct split.
+const toCents = (amount: number): number => Math.round(amount * 100)
+
 function isSplitValid(txAmount: number, form: SplitForm): boolean {
   const slots = [
     { cat: form.cat0, amt: form.amt0 },
@@ -58,8 +67,8 @@ function isSplitValid(txAmount: number, form: SplitForm): boolean {
     if (txAmount < 0 && slot.amt > 0) return false
   }
 
-  const sum = slots.reduce((total, slot) => total + slot.amt, 0)
-  return sum === txAmount
+  const sumInCents = slots.reduce((total, slot) => total + toCents(slot.amt), 0)
+  return sumInCents === toCents(txAmount)
 }
 
 function slotFromDirect(
@@ -107,20 +116,35 @@ const save = async () => {
     ])
     emit('changed', resp.data as P4xTransaction)
     visible.value = false
+  } catch (e: unknown) {
+    toast.add({ severity: 'error', summary: formatApiError(e), life: 4000 })
   } finally {
     loading.value = false
   }
 }
 
-const deleteDirect = async () => {
+const removeDirect = async () => {
   loading.value = true
   try {
     const resp = await p4xService.unsetCategoryDirect(props.transaction.id)
     emit('changed', resp.data as P4xTransaction)
     visible.value = false
+  } catch (e: unknown) {
+    toast.add({ severity: 'error', summary: formatApiError(e), life: 4000 })
   } finally {
     loading.value = false
   }
+}
+
+const deleteDirect = () => {
+  confirm.require({
+    message: 'Die Direkt-Kategorisierung dieser Transaktion wirklich löschen?',
+    header: 'Kategorisierung löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Löschen', severity: 'danger' },
+    accept: removeDirect,
+  })
 }
 
 const toggleDetails = (filterId: string) => {

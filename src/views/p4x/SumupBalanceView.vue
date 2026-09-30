@@ -4,22 +4,35 @@ import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
 import type { SumUpBalance } from '@/types/p4x'
 import Amount from './components/Amount.vue'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const data = ref<SumUpBalance | null>(null)
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await p4xService.getSumupBalance()
     data.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <div v-if="!loading" class="sumup-view">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Die Daten konnten nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="sumup-view">
     <h2>Sum Up</h2>
     <p class="subtitle">Saldo</p>
 
@@ -55,6 +68,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
 .sumup-view {
   max-width: 600px;
   margin: 0 auto;

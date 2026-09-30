@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FeeMemberView from '../FeeMemberView.vue'
 import FeeMemberCriteriaInfoBox from '../components/FeeMemberCriteriaInfoBox.vue'
@@ -30,10 +30,17 @@ vi.mock('primevue/usetoast', () => ({
 
 const mockCreateObjectURL = vi.fn(() => 'blob:mock-url')
 const mockRevokeObjectURL = vi.fn()
-vi.stubGlobal('URL', {
-  ...URL,
-  createObjectURL: mockCreateObjectURL,
-  revokeObjectURL: mockRevokeObjectURL,
+const originalCreateObjectURL = URL.createObjectURL
+const originalRevokeObjectURL = URL.revokeObjectURL
+
+beforeAll(() => {
+  URL.createObjectURL = mockCreateObjectURL
+  URL.revokeObjectURL = mockRevokeObjectURL
+})
+
+afterAll(() => {
+  URL.createObjectURL = originalCreateObjectURL
+  URL.revokeObjectURL = originalRevokeObjectURL
 })
 
 function buildMember(overrides: Partial<FeeMember> = {}): FeeMember {
@@ -102,6 +109,22 @@ describe('FeeMemberView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast instead of silently doing nothing when loading from the route id fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Beitragskonto konnte nicht geladen werden.',
+      }),
+    )
+    expect(wrapper.find('.member-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('shows balance counts and sums when a balance is present', async () => {
     mockRoute.params = { id: '1' }
     mockGetFeeMember.mockResolvedValue({ data: buildMember() })
@@ -136,6 +159,27 @@ describe('FeeMemberView', () => {
 
     expect(mockGetFeeMember).toHaveBeenCalledWith('5')
     expect(wrapper.find('.member-name').text()).toBe('Erika Beispiel')
+    wrapper.unmount()
+  })
+
+  it('shows an error toast and keeps the previous member when loading a selected member fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValueOnce({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    mockGetFeeMember.mockRejectedValueOnce(new Error('boom'))
+
+    const search = wrapper.findComponent({ name: 'SearchField' })
+    await search.vm.$emit('select', { id: '5', label: 'Erika Beispiel', type: 'member' })
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Beitragskonto konnte nicht geladen werden.',
+      }),
+    )
+    expect(wrapper.find('.member-name').text()).toBe('Max Mustermann')
     wrapper.unmount()
   })
 
@@ -339,6 +383,71 @@ describe('FeeMemberView', () => {
     expect(actionsIndex).toBeGreaterThan(-1)
     expect(progressIndex).toBeGreaterThan(-1)
     expect(actionsIndex).toBeLessThan(progressIndex)
+    wrapper.unmount()
+  })
+
+  describe('export download', () => {
+    let downloads: string[]
+
+    beforeEach(() => {
+      downloads = []
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        downloads.push(this.download)
+      })
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('saves the file under the name from the content-disposition header and reports it', async () => {
+      mockRoute.params = { id: '1' }
+      mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+      mockExportFeeMember.mockResolvedValue({
+        data: new Blob(['x']),
+        headers: { 'content-disposition': 'attachment; filename="Beitragskonto_Test.xlsx"' },
+      })
+      const wrapper = mount(FeeMemberView, mountOpts)
+      await flushPromises()
+
+      await findButtonByText(wrapper, 'Export Excel').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual(['Beitragskonto_Test.xlsx'])
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ detail: 'Beitragskonto_Test.xlsx wurde heruntergeladen.' }),
+      )
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+      wrapper.unmount()
+    })
+
+    it('falls back to a name built from the member id without a content-disposition header', async () => {
+      mockRoute.params = { id: '1' }
+      mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+      mockExportFeeMember.mockResolvedValue({ data: new Blob(['x']), headers: {} })
+      const wrapper = mount(FeeMemberView, mountOpts)
+      await flushPromises()
+
+      await findButtonByText(wrapper, 'Export Excel').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual(['Beitragskonto_1.xlsx'])
+      wrapper.unmount()
+    })
+  })
+
+  it('shows the sums and the end balance of the account', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    const rowTexts = wrapper.findAll('.balance-row').map((row) => row.text().replace(/\s+/g, ' '))
+    expect(rowTexts.find((t) => t.startsWith('4 verrechnete Beiträge'))).toContain('40,00')
+    expect(rowTexts.find((t) => t.startsWith('3 geleistete Zahlungen'))).toContain('30,00')
+    expect(rowTexts.find((t) => t.startsWith('Endstand'))).toContain('20,00')
     wrapper.unmount()
   })
 })

@@ -81,6 +81,24 @@ const stubs = {
 
 const mountOpts = { global: { plugins: [PrimeVue], stubs }, attachTo: document.body }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+function findRetryButton(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+}
+
+async function pickMonth(wrapper: ReturnType<typeof mount>, date: Date) {
+  const datePicker = wrapper.findComponent({ name: 'DatePicker' })
+  await datePicker.vm.$emit('update:modelValue', date)
+  await datePicker.vm.$emit('date-select')
+}
+
 describe('TransactionsByMonthView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -160,6 +178,77 @@ describe('TransactionsByMonthView', () => {
       params: { accountId: '2', year: 2026, month: 7 },
     })
     expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith('2', 2026, 7, 1)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a table when the transactions cannot be loaded', async () => {
+    mockGetTransactionsByMonth.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByMonthView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Transaktionen konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    expect(wrapper.find('.info-card').exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetTransactionsByMonth).toHaveBeenLastCalledWith('2', 2026, 6, 1)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state when the categories cannot be loaded', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByMonthView, mountOpts)
+    await flushPromises()
+
+    expect(findRetryButton(wrapper)).toBeDefined()
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('never shows the month heading and rows of the previous month when loading another month fails', async () => {
+    const wrapper = mount(TransactionsByMonthView, mountOpts)
+    await flushPromises()
+    expect(wrapper.find('.info-card').text()).toContain('Juni 2026')
+
+    mockGetTransactionsByMonth.mockRejectedValueOnce(new Error('boom'))
+    await pickMonth(wrapper, new Date(2026, 6, 1))
+    await flushPromises()
+
+    expect(wrapper.find('.info-card').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Juli 2026')
+    wrapper.unmount()
+  })
+
+  it('shows the rows of the newest month when an older, slower response arrives late', async () => {
+    const wrapper = mount(TransactionsByMonthView, mountOpts)
+    await flushPromises()
+    const slow = deferred<{ data: PaginatedTransactions }>()
+    mockGetTransactionsByMonth.mockReturnValueOnce(slow.promise)
+    mockGetTransactionsByMonth.mockResolvedValueOnce({
+      data: buildResult({ items: [buildTx({ id: 'newest-tx' })] }),
+    })
+
+    await pickMonth(wrapper, new Date(2026, 6, 1))
+    await pickMonth(wrapper, new Date(2026, 7, 1))
+    await flushPromises()
+    slow.resolve({ data: buildResult({ items: [buildTx({ id: 'older-tx' })] }) })
+    await flushPromises()
+
+    const table = wrapper.findComponent({ name: 'TransactionTable' })
+    expect((table.props('transactions') as P4xTransaction[]).map((t) => t.id)).toEqual([
+      'newest-tx',
+    ])
     wrapper.unmount()
   })
 })

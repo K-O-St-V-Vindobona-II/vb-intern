@@ -117,4 +117,24 @@ describe('CategoryFilterListView', () => {
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter2direct', params: { id: '9' } })
     wrapper.unmount()
   })
+
+  it('shows a retry state instead of a silently empty page when loading fails', async () => {
+    mockGetCategoryFilters.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(CategoryFilterListView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Kategorie-Filter konnten nicht geladen werden.')
+    expect(wrapper.find('table').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetCategoryFilters).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.text()).toContain('Kategorie-Filter (1)')
+    wrapper.unmount()
+  })
 })

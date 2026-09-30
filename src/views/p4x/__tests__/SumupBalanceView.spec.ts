@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import SumupBalanceView from '../SumupBalanceView.vue'
 import PrimeVue from 'primevue/config'
@@ -23,6 +23,10 @@ function buildBalance(overrides: Partial<SumUpBalance> = {}): SumUpBalance {
 const mountOpts = { global: { plugins: [PrimeVue] } }
 
 describe('SumupBalanceView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('loads and shows the in/out counts, sums and computed saldo', async () => {
     mockGetSumupBalance.mockResolvedValue({ data: buildBalance() })
     const wrapper = mount(SumupBalanceView, mountOpts)
@@ -49,6 +53,26 @@ describe('SumupBalanceView', () => {
     const wrapper = mount(SumupBalanceView, mountOpts)
 
     expect(wrapper.find('.sumup-card').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a silently empty page when loading fails, and recovers on retry', async () => {
+    mockGetSumupBalance.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(SumupBalanceView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Daten konnten nicht geladen werden.')
+    expect(wrapper.find('.sumup-card').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeDefined()
+
+    mockGetSumupBalance.mockResolvedValueOnce({ data: buildBalance() })
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetSumupBalance).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.find('.sumup-card').exists()).toBe(true)
     wrapper.unmount()
   })
 })

@@ -122,7 +122,11 @@ jobs:
     name: Build & Push Image
     needs: [lint, quality, security, smoke-test-readonly]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # Only a push that landed on main, or a manual dispatch run against main,
+    # may publish :latest. A scheduled run only refreshes the CodeQL scan and
+    # must never release, and neither may a run on any other branch, because the
+    # production Quadlet pulls :latest automatically.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write

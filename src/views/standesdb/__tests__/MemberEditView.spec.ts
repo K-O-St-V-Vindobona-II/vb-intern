@@ -339,12 +339,41 @@ describe('MemberEditView', () => {
     expect(router.currentRoute.value.name).toBe('not-found')
   })
 
-  it('does not redirect and still renders the form on an unrelated load error', async () => {
+  it('shows a retry state instead of a blank editable form on an unrelated load error', async () => {
     mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
     const wrapper = await mountAt('/standesdb/members/1/edit')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('standesdb-member-edit')
+    expect(wrapper.text()).toContain('Das Mitglied konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Speichern')).toBeUndefined()
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Erneut versuchen')).toBe(true)
+    expect(mockUpdateMember).not.toHaveBeenCalled()
+  })
+
+  it('loads the form once the retry succeeds', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Erneut versuchen')!
+      .trigger('click')
+    await flushPromises()
+
+    expect(mockGetMember).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
     expect(wrapper.text()).toContain('Mitglied bearbeiten')
+  })
+
+  it('shows the same retry state for a failed reference data request and does not save', async () => {
+    mockGetReferenceData.mockRejectedValueOnce(new Error('Network Error'))
+    const wrapper = await mountAt('/standesdb/members/1/edit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Mitglied konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
   })
 })

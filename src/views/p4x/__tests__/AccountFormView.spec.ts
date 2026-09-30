@@ -145,6 +145,42 @@ describe('AccountFormView', () => {
     wrapper.unmount()
   })
 
+  it('shows a retry state instead of a blank editable form when the account is not found', async () => {
+    mockRoute.params = { id: '999' }
+    mockGetDashboard.mockResolvedValue({ data: { accounts: [] } })
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.text()).not.toContain('Konto bearbeiten')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when loading fails, and recovers on retry', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    mockGetDashboard.mockResolvedValueOnce({ data: { accounts: [buildAccount()] } })
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).toContain('Konto bearbeiten')
+    expect(wrapper.findAll('input')[0]!.element.value).toBe('AT001234')
+    wrapper.unmount()
+  })
+
   it('shows an error toast and does not navigate when saving fails', async () => {
     mockCreateAccount.mockRejectedValue({ response: { data: { detail: 'IBAN ungültig' } } })
     const wrapper = mount(AccountFormView, mountOpts)

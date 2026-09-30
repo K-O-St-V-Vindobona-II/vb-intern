@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { getApiErrorDetail } from '@/utils/formatters'
+import { getApiErrorDetail, getApiErrorStatus } from '@/utils/formatters'
 import type {
   MemberDetail,
   MemberFormData,
@@ -28,6 +28,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
@@ -132,7 +133,11 @@ const copyField = <K extends keyof MemberFormData>(key: K, data: MemberDetail) =
   form.value[key] = data[key]
 }
 
-onMounted(async () => {
+// A failed load never leaves the blank defaults of the create form behind for an
+// existing member: saving that form would overwrite the stored data.
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const refResp = await standesdbService.getReferenceData()
     refs.value = refResp.data
@@ -147,15 +152,18 @@ onMounted(async () => {
       })
     }
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
+    const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
     }
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 const buildPayload = () => {
   const { parent_cn: _parent_cn, ...payload } = form.value
@@ -240,7 +248,14 @@ const save = async () => {
 
 <template>
   <div class="member-edit">
-    <template v-if="!loading">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        Das Mitglied konnte nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+    </div>
+
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">Standesdatenbank</h2>
         <h3 class="page-subtitle">
@@ -568,6 +583,13 @@ const save = async () => {
   max-width: 1100px;
   margin: 0 auto;
   width: 100%;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-header {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { useThumbnailLoadQueue } from '@/composables/useThumbnailLoadQueue'
 
@@ -59,5 +59,44 @@ describe('useThumbnailLoadQueue', () => {
       Array.from({ length: 20 }, (_, i) => schedule(() => Promise.resolve(i))),
     )
     expect(results).toEqual(Array.from({ length: 20 }, (_, i) => i))
+  })
+
+  it('rejects a task that throws synchronously and does not leak its slot', async () => {
+    // Fresh module state: a leaked slot would otherwise carry over to other cases.
+    vi.resetModules()
+    const { useThumbnailLoadQueue: freshQueue } =
+      await import('@/composables/useThumbnailLoadQueue')
+    const { schedule } = freshQueue()
+
+    // More synchronous throws than there are slots: a leaked slot per throw would
+    // block every later call.
+    for (let i = 0; i < 5; i++) {
+      const outcome = await Promise.race([
+        schedule<string>(() => {
+          throw new Error('sync failure')
+        }).catch((error: Error) => error.message),
+        new Promise<string>((resolve) => setTimeout(resolve, 200, 'timeout')),
+      ])
+      expect(outcome).toBe('sync failure')
+    }
+
+    await expect(schedule(() => Promise.resolve('still works'))).resolves.toBe('still works')
+  })
+
+  it('still starts the first tasks immediately, before any promise turn', () => {
+    const { schedule } = useThumbnailLoadQueue()
+    const started: number[] = []
+    const gates = Array.from({ length: 5 }, () => deferred<number>())
+
+    const runs = gates.map((gate, i) =>
+      schedule(() => {
+        started.push(i)
+        return gate.promise
+      }),
+    )
+
+    expect(started).toEqual([0, 1, 2, 3])
+    gates.forEach((gate, i) => gate.resolve(i))
+    return Promise.all(runs).then(() => undefined)
   })
 })

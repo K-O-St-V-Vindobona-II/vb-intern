@@ -103,6 +103,18 @@ async function selectFilter(wrapper: ReturnType<typeof mount>, id: string) {
   await select.vm.$emit('change')
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+function findRetryButton(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+}
+
 describe('TransactionsByFilterView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -195,6 +207,101 @@ describe('TransactionsByFilterView', () => {
     await flushPromises()
 
     expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith('2', '1', 3)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of an empty dropdown when the filters cannot be loaded', async () => {
+    mockGetCategoryFilters.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Filter konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'Select' }).exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Select' }).exists()).toBe(true)
+    expect(findRetryButton(wrapper)).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of an empty dropdown when the categories cannot be loaded', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Select' }).exists()).toBe(false)
+    expect(findRetryButton(wrapper)).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a table when the transactions cannot be loaded', async () => {
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+    mockGetTransactionsByFilter.mockRejectedValueOnce(new Error('boom'))
+
+    await selectFilter(wrapper, '1')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Transaktionen konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetTransactionsByFilter).toHaveBeenLastCalledWith('2', '1', 1)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('never shows the rows of the previous filter when loading another filter fails', async () => {
+    mockGetCategoryFilters.mockResolvedValue({
+      data: [
+        buildFilter({ id: '1', p4x_account_id: '2' }),
+        buildFilter({ id: '3', p4x_account_id: '2' }),
+      ],
+    })
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+    await selectFilter(wrapper, '1')
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+
+    mockGetTransactionsByFilter.mockRejectedValueOnce(new Error('boom'))
+    await selectFilter(wrapper, '3')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the rows of the newest filter when an older, slower response arrives late', async () => {
+    mockGetCategoryFilters.mockResolvedValue({
+      data: [
+        buildFilter({ id: '1', p4x_account_id: '2' }),
+        buildFilter({ id: '3', p4x_account_id: '2' }),
+      ],
+    })
+    const slow = deferred<{ data: PaginatedTransactions }>()
+    mockGetTransactionsByFilter.mockReturnValueOnce(slow.promise)
+    mockGetTransactionsByFilter.mockResolvedValueOnce({
+      data: buildResult({ items: [buildTx({ id: 'newest-tx' })] }),
+    })
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+
+    await selectFilter(wrapper, '1')
+    await selectFilter(wrapper, '3')
+    await flushPromises()
+    slow.resolve({ data: buildResult({ items: [buildTx({ id: 'older-tx' })] }) })
+    await flushPromises()
+
+    const table = wrapper.findComponent({ name: 'TransactionTable' })
+    expect((table.props('transactions') as P4xTransaction[]).map((t) => t.id)).toEqual([
+      'newest-tx',
+    ])
     wrapper.unmount()
   })
 })

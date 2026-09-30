@@ -72,4 +72,24 @@ describe('CategoryListView', () => {
     })
     wrapper.unmount()
   })
+
+  it('shows a retry state instead of a silently empty page when loading fails', async () => {
+    mockGetCategories.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(CategoryListView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Kategorien konnten nicht geladen werden.')
+    expect(wrapper.find('table').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetCategories).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.text()).toContain('Kategorien (1)')
+    wrapper.unmount()
+  })
 })
