@@ -277,4 +277,53 @@ describe('FileComments', () => {
     expect(document.querySelector('textarea')?.getAttribute('aria-label')).toBe('Kommentar')
     wrapper.unmount()
   })
+
+  it('renders comment text and author as plain text, never as markup', () => {
+    const payload = '<img src=x onerror="window.__xss = 1"><b>fett</b>'
+    const wrapper = mount(FileComments, {
+      props: {
+        fileId: 9,
+        comments: [buildComment({ content: payload, author: '<script>window.__xss = 1</script>' })],
+      },
+      ...mountOpts,
+    })
+
+    expect(wrapper.find('.comment-content').text()).toBe(payload)
+    expect(wrapper.find('.comment-content img').exists()).toBe(false)
+    expect(wrapper.find('.comment-content b').exists()).toBe(false)
+    expect(wrapper.find('.comment-author').text()).toContain('<script>')
+    expect(wrapper.find('script').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('closes the dialog on cancel without saving', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    findButtonByText('Abbrechen').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockCreateComment).not.toHaveBeenCalled()
+    expect(document.querySelector('textarea')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('starts every dialog with an empty text', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'Ein Entwurf, der verworfen wird'
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+    findButtonByText('Abbrechen').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('')
+    wrapper.unmount()
+  })
 })

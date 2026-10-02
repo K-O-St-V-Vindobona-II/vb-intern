@@ -8,18 +8,27 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import LinkInsertTextarea from '@/components/LinkInsertTextarea.vue'
 
+// Same limit as the API.
+const MAX_BODY_LENGTH = 6000
+
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
 const savingSlot = ref<AboutTabSlot | null>(null)
 const tabs = ref<AboutTabAdminResponse[]>([])
 
+const isTabValid = (tab: AboutTabAdminResponse) =>
+  tab.title.trim() !== '' && tab.body.trim() !== '' && tab.body.length <= MAX_BODY_LENGTH
+
 const loadTabs = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const resp = await aboutTabsService.listTabs()
     tabs.value = resp.data
   } catch (err: unknown) {
+    loadError.value = true
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -35,8 +44,8 @@ const saveTab = async (tab: AboutTabAdminResponse) => {
   savingSlot.value = tab.slot
   try {
     const resp = await aboutTabsService.updateTab(tab.slot, {
-      title: tab.title,
-      body: tab.body,
+      title: tab.title.trim(),
+      body: tab.body.trim(),
     })
     const index = tabs.value.findIndex((t) => t.slot === tab.slot)
     if (index !== -1) tabs.value[index] = resp.data
@@ -63,7 +72,11 @@ onMounted(loadTabs)
 
 <template>
   <div class="texts-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Texte konnten nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadTabs" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Texte</h3>
@@ -88,6 +101,12 @@ onMounted(loadTabs)
               :rows="8"
               placeholder="Fließtext. Leerzeile = neuer Absatz."
             />
+            <small
+              class="body-counter"
+              :class="{ 'body-counter-over': tab.body.length > MAX_BODY_LENGTH }"
+            >
+              {{ tab.body.length }} / {{ MAX_BODY_LENGTH }}
+            </small>
           </div>
           <div class="tab-actions">
             <Button
@@ -95,6 +114,7 @@ onMounted(loadTabs)
               icon="pi pi-check"
               size="small"
               :loading="savingSlot === tab.slot"
+              :disabled="!isTabValid(tab)"
               @click="saveTab(tab)"
             />
           </div>
@@ -143,6 +163,23 @@ onMounted(loadTabs)
   border-radius: 8px;
   padding: 1.25rem;
   background: var(--app-surface-card);
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
+}
+
+.body-counter {
+  display: block;
+  text-align: right;
+  margin-top: 0.25rem;
+  color: var(--p-text-muted-color);
+}
+
+.body-counter-over {
+  color: var(--p-red-500);
 }
 
 .field label {

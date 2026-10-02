@@ -87,7 +87,7 @@ describe('SqlBrowserView', () => {
     const wrapper = await mountView()
     await selectTable(wrapper, 'members')
 
-    const dataTable = wrapper.findComponent('.data-table')
+    const dataTable = wrapper.findAllComponents({ name: 'DataTable' }).at(-1)!
     await dataTable.vm.$emit('page', { page: 2 })
     await flushPromises()
     expect(mockGetTableData).toHaveBeenLastCalledWith('members', { page: 3, page_size: 25 })
@@ -103,7 +103,7 @@ describe('SqlBrowserView', () => {
     await selectTable(wrapper, 'members')
     mockGetTableData.mockClear()
 
-    const dataTable = wrapper.findComponent('.data-table')
+    const dataTable = wrapper.findAllComponents({ name: 'DataTable' }).at(-1)!
     await dataTable.vm.$emit('page', { page: 1 })
     await flushPromises()
 
@@ -127,5 +127,126 @@ describe('SqlBrowserView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'Zugriff verweigert' }),
     )
+  })
+
+  function deferredData() {
+    let resolvePromise!: (value: unknown) => void
+    const promise = new Promise((resolve) => {
+      resolvePromise = resolve
+    })
+    return { promise, resolve: resolvePromise }
+  }
+
+  function tableData(name: string, cn: string, total: number) {
+    return {
+      data: {
+        ...buildTableData(),
+        table_name: name,
+        rows: [{ id: '1', cn }],
+        total,
+      },
+    }
+  }
+
+  it('regression: a slow answer for the previously selected table does not replace the current table', async () => {
+    const slow = deferredData()
+    mockGetTableData
+      .mockReturnValueOnce(slow.promise)
+      .mockResolvedValueOnce(tableData('contacts', 'Kontakt Beispiel', 7))
+    const wrapper = await mountView()
+
+    await selectTable(wrapper, 'members')
+    await selectTable(wrapper, 'contacts')
+    expect(wrapper.text()).toContain('Kontakt Beispiel')
+
+    slow.resolve(tableData('members', 'Max Mustermann', 42))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Kontakt Beispiel')
+    expect(wrapper.text()).not.toContain('Max Mustermann')
+    expect(wrapper.find('.row-count').text()).toContain('7')
+  })
+
+  it('regression: a late failure for the previous table raises no error toast and keeps the loading state of the current one', async () => {
+    let rejectSlow!: (reason: unknown) => void
+    const slow = new Promise((_resolve, reject) => {
+      rejectSlow = reject
+    })
+    const current = deferredData()
+    mockGetTableData.mockReturnValueOnce(slow).mockReturnValueOnce(current.promise)
+    const wrapper = await mountView()
+
+    await selectTable(wrapper, 'members')
+    await selectTable(wrapper, 'contacts')
+    rejectSlow({ response: { data: { detail: 'Zeitüberschreitung' } } })
+    await flushPromises()
+
+    expect(mockToastAdd).not.toHaveBeenCalled()
+    current.resolve(tableData('contacts', 'Kontakt Beispiel', 7))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Kontakt Beispiel')
+  })
+
+  it('regression: a slow answer for an earlier page does not replace the rows or the loading state of the newer page', async () => {
+    const wrapper = await mountView()
+    await selectTable(wrapper, 'members')
+    const earlier = deferredData()
+    const newer = deferredData()
+    mockGetTableData.mockReturnValueOnce(earlier.promise).mockReturnValueOnce(newer.promise)
+    const table = wrapper.findAllComponents({ name: 'DataTable' }).at(-1)!
+
+    await table.vm.$emit('page', { page: 1 })
+    await table.vm.$emit('page', { page: 2 })
+    earlier.resolve(tableData('members', 'Seite zwei', 100))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Seite zwei')
+    expect(table.props('loading')).toBe(true)
+
+    newer.resolve(tableData('members', 'Seite drei', 100))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Seite drei')
+    expect(table.props('loading')).toBe(false)
+  })
+
+  it('regression: clearing the selection invalidates a request that is still running', async () => {
+    const slow = deferredData()
+    mockGetTableData.mockReturnValueOnce(slow.promise)
+    const wrapper = await mountView()
+    await selectTable(wrapper, 'members')
+
+    await wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', null)
+    await flushPromises()
+    slow.resolve(tableData('members', 'Max Mustermann', 42))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Max Mustermann')
+    expect(wrapper.find('.data-table').exists()).toBe(false)
+  })
+
+  it('shows page 1 again in the paginator when another table is selected', async () => {
+    mockGetTableData.mockResolvedValue(tableData('members', 'Max Mustermann', 100))
+    const wrapper = await mountView()
+    await selectTable(wrapper, 'members')
+
+    const thirdPage = wrapper.findAll('.p-paginator-page')[2]!
+    await thirdPage.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.p-paginator-page-selected').text()).toBe('3')
+
+    await selectTable(wrapper, 'contacts')
+
+    expect(wrapper.find('.p-paginator-page-selected').text()).toBe('1')
+  })
+
+  it('offers the full cell value as a tooltip, since long values are cut off on screen', async () => {
+    const long = 'x'.repeat(200)
+    mockGetTableData.mockResolvedValue(tableData('members', long, 1))
+    const wrapper = await mountView()
+    await selectTable(wrapper, 'members')
+
+    expect(wrapper.find('.cell-value:not(:empty)').attributes('title')).toBeTruthy()
+    expect(wrapper.findAll('.cell-value').some((c) => c.attributes('title') === long)).toBe(true)
   })
 })

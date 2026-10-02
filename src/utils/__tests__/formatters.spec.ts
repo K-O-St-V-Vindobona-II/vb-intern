@@ -10,6 +10,8 @@ import {
   fuzzyDisplay,
   formatFullDate,
   toLocalDateStr,
+  MONTH_NAMES,
+  monthName,
 } from '@/utils/formatters'
 
 describe('toLocalDateStr', () => {
@@ -243,5 +245,25 @@ describe('formatFullDate', () => {
 
   it('shows an empty month label for an out-of-range month', () => {
     expect(formatFullDate('2024-13-05')).toBe('05.  2024')
+  })
+})
+
+describe('MONTH_NAMES and monthName', () => {
+  it('lists the twelve Austrian month names, January first', () => {
+    expect(MONTH_NAMES).toHaveLength(12)
+    expect(MONTH_NAMES[0]).toBe('Jänner')
+    expect(MONTH_NAMES[11]).toBe('Dezember')
+  })
+
+  it.each([
+    [1, 'Jänner'],
+    [3, 'März'],
+    [12, 'Dezember'],
+  ])('maps month %i to %s', (month, name) => {
+    expect(monthName(month)).toBe(name)
+  })
+
+  it.each([0, 13, -1, Number.NaN])('returns an empty string for the invalid month %s', (month) => {
+    expect(monthName(month)).toBe('')
   })
 })

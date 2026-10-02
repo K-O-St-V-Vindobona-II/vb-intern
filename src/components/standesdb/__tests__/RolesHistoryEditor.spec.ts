@@ -349,4 +349,171 @@ describe('RolesHistoryEditor', () => {
       w.unmount()
     })
   })
+
+  describe('range validation', () => {
+    async function openAddDialog() {
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+      return w
+    }
+
+    async function setRange(w: ReturnType<typeof mountWith>, start: Date, end: Date) {
+      const pickers = w.findAllComponents({ name: 'DatePicker' })
+      await pickers[0]!.vm.$emit('update:modelValue', start)
+      await pickers[1]!.vm.$emit('update:modelValue', end)
+      await flushPromises()
+    }
+
+    const okButton = () =>
+      Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Ok')!
+
+    it.each([
+      ['before', new Date(2022, 0, 9)],
+      ['on the same day as', new Date(2022, 0, 10)],
+    ])(
+      'rejects an end date %s the start date: hint shown, Ok disabled, nothing emitted',
+      async (_label, end) => {
+        const w = await openAddDialog()
+
+        await setRange(w, new Date(2022, 0, 10), end)
+
+        expect(document.querySelector('.field-error')?.textContent).toContain('nach dem Startdatum')
+        expect(okButton().disabled).toBe(true)
+        okButton().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        await flushPromises()
+        expect(w.emitted('update:modelValue')).toBeUndefined()
+        w.unmount()
+      },
+    )
+
+    it('accepts an end date after the start date', async () => {
+      const w = await openAddDialog()
+
+      await setRange(w, new Date(2022, 0, 10), new Date(2022, 0, 11))
+
+      expect(document.querySelector('.field-error')).toBeNull()
+      expect(okButton().disabled).toBe(false)
+      w.unmount()
+    })
+
+    it('marks both pickers invalid and links the end picker to the announced hint', async () => {
+      const w = await openAddDialog()
+
+      await setRange(w, new Date(2022, 0, 10), new Date(2022, 0, 9))
+
+      const pickers = w.findAllComponents({ name: 'DatePicker' })
+      expect(pickers.map((p) => p.props('invalid'))).toEqual([true, true])
+      const hint = document.querySelector('.field-error')!
+      expect(hint.getAttribute('role')).toBe('alert')
+      expect(hint.id).not.toBe('')
+      expect(pickers[1]!.attributes('aria-describedby')).toBe(hint.id)
+
+      await setRange(w, new Date(2022, 0, 10), new Date(2022, 0, 11))
+
+      expect(pickers.map((p) => p.props('invalid'))).toEqual([false, false])
+      expect(pickers[1]!.attributes('aria-describedby')).toBeUndefined()
+      w.unmount()
+    })
+
+    it('does not check the range while the entry is ongoing', async () => {
+      const w = await openAddDialog()
+      await setRange(w, new Date(2022, 0, 10), new Date(2021, 0, 1))
+      expect(okButton().disabled).toBe(true)
+
+      await w.findComponent({ name: 'Checkbox' }).vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(okButton().disabled).toBe(false)
+      w.unmount()
+    })
+  })
+
+  describe('entries that share role and start date', () => {
+    const twins = [
+      { id: 'senior', startdate: '2020-02-01', enddate: '2020-03-31' },
+      { id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' },
+    ]
+
+    it('regression: edits the entry that was clicked, not the first with the same role and start date', async () => {
+      const w = mountWith({ modelValue: twins, roles })
+      await w.findAll('.pi-pencil')[1]!.trigger('click')
+      await flushPromises()
+      await w.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'fuchsmajor')
+      clickButton('Ok')
+      await flushPromises()
+
+      const saved = w.emitted('update:modelValue')![0]![0] as Array<{ id: string; enddate: string }>
+      expect(saved.map((e) => [e.id, e.enddate])).toEqual([
+        ['senior', '2020-03-31'],
+        ['fuchsmajor', '2020-07-31'],
+      ])
+      w.unmount()
+    })
+
+    it('regression: removes the entry that was clicked, not the first with the same role and start date', async () => {
+      const w = mountWith({ modelValue: twins, roles })
+
+      await w.findAll('.pi-minus')[1]!.trigger('click')
+
+      const saved = w.emitted('update:modelValue')![0]![0] as Array<{ enddate: string }>
+      expect(saved.map((e) => e.enddate)).toEqual(['2020-03-31'])
+      w.unmount()
+    })
+  })
+
+  it('names the quick selection controls and renders the headings as plain text', async () => {
+    const w = mountWith({
+      modelValue: [{ id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' }],
+      roles,
+    })
+    expect(w.find('.set-label').element.tagName).toBe('SPAN')
+
+    await w.find('.pi-pencil').trigger('click')
+    await flushPromises()
+
+    const selects = w.findAllComponents({ name: 'Select' })
+    expect(selects.slice(1).map((s) => s.props('ariaLabel'))).toEqual(['Semester', 'Jahr'])
+    expect(document.querySelector('.quick-label')!.tagName).toBe('SPAN')
+    w.unmount()
+  })
+
+  it('leaves the list untouched when asked to remove an entry that is not part of it', () => {
+    const modelValue = [{ id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' }]
+    const w = mountWith({ modelValue, roles })
+    const vm = w.vm as unknown as { remove: (entry: unknown) => void }
+
+    vm.remove({ id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' })
+
+    expect(w.emitted('update:modelValue')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('names the icon-only buttons and links every dialog label to its control', async () => {
+    const w = mountWith({
+      modelValue: [{ id: 'senior', startdate: '2020-02-01', enddate: '2020-07-31' }],
+      roles,
+    })
+    expect(w.find('.pi-plus').element.closest('button')!.getAttribute('aria-label')).toBe(
+      'Hinzufügen',
+    )
+    expect(w.find('.pi-pencil').element.closest('button')!.getAttribute('aria-label')).toBe(
+      'Bearbeiten',
+    )
+    expect(w.find('.pi-minus').element.closest('button')!.getAttribute('aria-label')).toBe(
+      'Entfernen',
+    )
+
+    await w.find('.pi-pencil').trigger('click')
+    await flushPromises()
+
+    const labels = Array.from(
+      document.querySelectorAll<HTMLLabelElement>('.dialog-fields label[for]'),
+    )
+    expect(labels.map((l) => l.textContent?.trim())).toEqual(['Rolle', 'von', 'bis'])
+    for (const label of labels) {
+      expect(document.getElementById(label.htmlFor)).not.toBeNull()
+    }
+    w.unmount()
+  })
 })

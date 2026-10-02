@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
 import GalleryAdminView from '../GalleryAdminView.vue'
 import PrimeVue from 'primevue/config'
-import ToastService from 'primevue/toastservice'
 
 const baseImages = [
   {
@@ -36,6 +34,11 @@ const baseSettings = {
   programm_calendar_id: 'abc@group.calendar.google.com',
   gallery_heading: 'Eindrücke',
 }
+
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
 
 const mockListImages = vi.fn()
 const mockUploadImage = vi.fn()
@@ -70,7 +73,7 @@ describe('GalleryAdminView', () => {
   let wrapper: VueWrapper | undefined
 
   beforeEach(() => {
-    setActivePinia(createPinia())
+    mockToastAdd.mockReset()
     mockListImages.mockReset().mockResolvedValue({ data: baseImages })
     mockUploadImage.mockReset().mockResolvedValue({ data: baseImages[0] })
     mockUpdateImage.mockReset().mockResolvedValue({ data: baseImages[0] })
@@ -87,7 +90,7 @@ describe('GalleryAdminView', () => {
 
   const mountView = async () => {
     wrapper = mount(GalleryAdminView, {
-      global: { plugins: [PrimeVue, ToastService, createPinia()] },
+      global: { plugins: [PrimeVue] },
       attachTo: document.body,
     })
     await flushPromises()
@@ -147,8 +150,8 @@ describe('GalleryAdminView', () => {
 
   it('disables the up-button for the first image and the down-button for the last', async () => {
     const w = await mountView()
-    const upButtons = w.findAll('button[aria-label="Nach oben verschieben"]')
-    const downButtons = w.findAll('button[aria-label="Nach unten verschieben"]')
+    const upButtons = w.findAll('button[aria-label^="Nach oben verschieben"]')
+    const downButtons = w.findAll('button[aria-label^="Nach unten verschieben"]')
     expect(upButtons[0]?.attributes('disabled')).toBeDefined()
     expect(downButtons[0]?.attributes('disabled')).toBeUndefined()
     expect(upButtons[1]?.attributes('disabled')).toBeUndefined()
@@ -157,7 +160,7 @@ describe('GalleryAdminView', () => {
 
   it('moves an image up when the up-button is clicked', async () => {
     const w = await mountView()
-    const upButtons = w.findAll('button[aria-label="Nach oben verschieben"]')
+    const upButtons = w.findAll('button[aria-label^="Nach oben verschieben"]')
     await upButtons[1]?.trigger('click')
     await flushPromises()
     expect(mockMoveImage).toHaveBeenCalledWith('img-2', 'up')
@@ -181,10 +184,24 @@ describe('GalleryAdminView', () => {
     )
   })
 
-  it('shows an error toast when loading the gallery fails', async () => {
-    mockListImages.mockRejectedValue({ response: { data: { detail: 'Serverfehler' } } })
+  it('shows an error toast and a retry button when loading the gallery fails', async () => {
+    mockListImages.mockRejectedValueOnce({ response: { data: { detail: 'Serverfehler' } } })
     const w = await mountView()
-    expect(w.text()).not.toContain('Ostermesse')
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', detail: 'Serverfehler' }),
+    )
+    expect(w.text()).toContain('Galerie konnte nicht geladen werden.')
+    expect(w.text()).not.toContain('Keine Bilder in der Galerie.')
+
+    await w
+      .findAll('button')
+      .find((b) => b.text().includes('Erneut versuchen'))
+      ?.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('Ostermesse')
+    expect(w.text()).not.toContain('Galerie konnte nicht geladen werden.')
   })
 
   it('rejects a non-image file on selection and does not enable upload', async () => {
@@ -251,7 +268,7 @@ describe('GalleryAdminView', () => {
   it('does not reload the gallery when moving an image fails', async () => {
     mockMoveImage.mockRejectedValue({ response: { data: { detail: 'Verschieben kaputt' } } })
     const w = await mountView()
-    const upButtons = w.findAll('button[aria-label="Nach oben verschieben"]')
+    const upButtons = w.findAll('button[aria-label^="Nach oben verschieben"]')
     await upButtons[1]?.trigger('click')
     await flushPromises()
     expect(mockMoveImage).toHaveBeenCalledOnce()
@@ -330,5 +347,365 @@ describe('GalleryAdminView', () => {
 
     expect(mockDeleteImage).toHaveBeenCalledOnce()
     expect(mockListImages).toHaveBeenCalledOnce()
+  })
+
+  const chooseFile = async (w: VueWrapper, files: File[]) => {
+    const input = w.find('input[type="file"]')
+    setInputFiles(input.element as HTMLInputElement, files)
+    await input.trigger('change')
+    await flushPromises()
+  }
+
+  const uploadButton = (w: VueWrapper) =>
+    w.findAll('button').find((b) => b.text().includes('Hochladen'))
+
+  describe('upload selection', () => {
+    it('regression: a rejected pick drops the file that was chosen before', async () => {
+      const w = await mountView()
+      await chooseFile(w, [new File(['x'], 'ok.jpg', { type: 'image/jpeg' })])
+      expect(uploadButton(w)?.attributes('disabled')).toBeUndefined()
+
+      await chooseFile(w, [new File(['x'], 'a.pdf', { type: 'application/pdf' })])
+
+      expect(uploadButton(w)?.attributes('disabled')).toBeDefined()
+      expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    })
+
+    it('regression: a cancelled picker leaves nothing selected', async () => {
+      const w = await mountView()
+      await chooseFile(w, [new File(['x'], 'ok.jpg', { type: 'image/jpeg' })])
+
+      await chooseFile(w, [])
+
+      expect(uploadButton(w)?.attributes('disabled')).toBeDefined()
+    })
+
+    it('sends the caption without surrounding blanks, or none when it is blank', async () => {
+      const w = await mountView()
+      const file = new File(['x'], 'ok.jpg', { type: 'image/jpeg' })
+      await chooseFile(w, [file])
+      await w.find('.upload-caption').setValue('  Ostermesse 2026  ')
+
+      await uploadButton(w)?.trigger('click')
+      await flushPromises()
+      expect(mockUploadImage).toHaveBeenLastCalledWith(file, 'Ostermesse 2026')
+
+      await chooseFile(w, [file])
+      await w.find('.upload-caption').setValue('   ')
+      await uploadButton(w)?.trigger('click')
+      await flushPromises()
+      expect(mockUploadImage).toHaveBeenLastCalledWith(file, null)
+    })
+
+    it('clears the chosen file after a successful upload', async () => {
+      const w = await mountView()
+      await chooseFile(w, [new File(['x'], 'ok.jpg', { type: 'image/jpeg' })])
+
+      await uploadButton(w)?.trigger('click')
+      await flushPromises()
+
+      expect(uploadButton(w)?.attributes('disabled')).toBeDefined()
+    })
+
+    it('labels the file field and the caption field', async () => {
+      const w = await mountView()
+
+      expect(w.find('label[for="upload-file"]').exists()).toBe(true)
+      expect(w.find('input#upload-file').exists()).toBe(true)
+      expect(w.find('.upload-caption').attributes('aria-label')).toBe('Alt-Text für das neue Bild')
+    })
+  })
+
+  describe('changes keep the page mounted', () => {
+    it('regression: moving an image does not rebuild the page', async () => {
+      const w = await mountView()
+      const headingInput = w.find('#gallery-heading').element
+
+      await w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(mockListImages).toHaveBeenCalledTimes(2)
+      expect(w.find('#gallery-heading').element).toBe(headingInput)
+    })
+
+    it('regression: an unsaved section title survives a change to the list', async () => {
+      const w = await mountView()
+      await w.find('#gallery-heading').setValue('Halb getippt')
+
+      await w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect((w.find('#gallery-heading').element as HTMLInputElement).value).toBe('Halb getippt')
+    })
+
+    it('regression: the move buttons wait for a pending move', async () => {
+      let resolveMove!: (value: unknown) => void
+      mockMoveImage.mockReturnValueOnce(new Promise((resolve) => (resolveMove = resolve)))
+      const w = await mountView()
+
+      await w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.trigger('click')
+
+      const moveButtons = w.findAll('button[aria-label^="Nach "]')
+      expect(moveButtons.length).toBe(4)
+      expect(moveButtons.every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+      resolveMove({ data: { status: 'ok' } })
+      await flushPromises()
+      expect(
+        w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.attributes('disabled'),
+      ).toBeUndefined()
+    })
+
+    it('shows a toast, not an empty gallery, when the list cannot be read after a change', async () => {
+      const w = await mountView()
+      mockListImages.mockRejectedValueOnce({ response: { data: { detail: 'Liste kaputt' } } })
+
+      await w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.trigger('click')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'error', detail: 'Liste kaputt' }),
+      )
+      expect(w.text()).toContain('Ostermesse')
+    })
+
+    it('names each row button after its image', async () => {
+      const w = await mountView()
+
+      expect(w.find('button[aria-label="Nach oben verschieben: Ostermesse"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Löschen: Bild 2"]').exists()).toBe(true)
+    })
+  })
+
+  describe('editing', () => {
+    const openEditFor = async (w: VueWrapper, index: number) => {
+      const editButtons = w.findAll('button').filter((b) => b.text().includes('Bearbeiten'))
+      await editButtons[index]?.trigger('click')
+      await flushPromises()
+    }
+    const clickDialogButton = async (label: string) => {
+      Array.from(document.querySelectorAll('.p-dialog button'))
+        .find((b) => b.textContent === label)
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+    }
+
+    it('regression: a cleared alt text is stored as none, not as an empty string', async () => {
+      const w = await mountView()
+      await openEditFor(w, 0)
+      const input = document.querySelector<HTMLInputElement>('#edit-caption')!
+      input.value = '   '
+      input.dispatchEvent(new Event('input'))
+
+      await clickDialogButton('Speichern')
+
+      expect(mockUpdateImage).toHaveBeenCalledWith('img-1', { caption: null, is_published: true })
+    })
+
+    it('trims the alt text', async () => {
+      const w = await mountView()
+      await openEditFor(w, 0)
+      const input = document.querySelector<HTMLInputElement>('#edit-caption')!
+      input.value = '  Neu  '
+      input.dispatchEvent(new Event('input'))
+
+      await clickDialogButton('Speichern')
+
+      expect(mockUpdateImage).toHaveBeenCalledWith('img-1', { caption: 'Neu', is_published: true })
+    })
+
+    it('keeps the stored none for an image that has no alt text', async () => {
+      const w = await mountView()
+      await openEditFor(w, 1)
+
+      await clickDialogButton('Speichern')
+
+      expect(mockUpdateImage).toHaveBeenCalledWith('img-2', { caption: null, is_published: false })
+    })
+
+    it('connects the labels of the edit dialog with their fields', async () => {
+      const w = await mountView()
+      await openEditFor(w, 0)
+
+      expect(document.querySelector('label[for="edit-caption"]')).not.toBeNull()
+      expect(document.querySelector('input#edit-caption')).not.toBeNull()
+      expect(document.querySelector('label[for="edit-published"]')).not.toBeNull()
+      expect(document.querySelector('input#edit-published')).not.toBeNull()
+    })
+
+    it('shows a toast when saving the change fails', async () => {
+      mockUpdateImage.mockRejectedValue({ response: { data: { detail: 'Speichern kaputt' } } })
+      const w = await mountView()
+      await openEditFor(w, 0)
+
+      await clickDialogButton('Speichern')
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'error', detail: 'Speichern kaputt' }),
+      )
+    })
+  })
+
+  describe('section title', () => {
+    it('saves the trimmed title on top of the settings stored right now', async () => {
+      const w = await mountView()
+      mockGetSettings.mockResolvedValue({
+        data: {
+          ...baseSettings,
+          programm_calendar_id: 'changed-elsewhere@group.calendar.google.com',
+        },
+      })
+      await w.find('#gallery-heading').setValue('  Bildergalerie  ')
+
+      await w
+        .findAll('button')
+        .find((b) => b.text() === 'Speichern')
+        ?.trigger('click')
+      await flushPromises()
+
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
+        about_video_heading: 'Erfahre mehr über den MKV',
+        youtube_url: 'https://www.youtube.com/watch?v=Sh51ebB2G8A',
+        calendar_id: 'changed-elsewhere@group.calendar.google.com',
+        gallery_heading: 'Bildergalerie',
+      })
+    })
+
+    it('does not offer to save a blank title', async () => {
+      const w = await mountView()
+      await w.find('#gallery-heading').setValue('   ')
+
+      const save = w.findAll('button').find((b) => b.text() === 'Speichern')
+      expect(save?.attributes('disabled')).toBeDefined()
+    })
+
+    it('shows a toast when saving the title fails', async () => {
+      mockUpdateSettings.mockRejectedValue({ response: { data: { detail: 'Titel kaputt' } } })
+      const w = await mountView()
+
+      await w
+        .findAll('button')
+        .find((b) => b.text() === 'Speichern')
+        ?.trigger('click')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'error', detail: 'Titel kaputt' }),
+      )
+    })
+  })
+
+  describe('messages, refreshed data and row names', () => {
+    const chooseFile = async (w: VueWrapper, file: File) => {
+      const input = w.find('input[type="file"]')
+      setInputFiles(input.element as HTMLInputElement, [file])
+      await input.trigger('change')
+      await flushPromises()
+      return input
+    }
+
+    it('tells the editor why a non-image file or an oversized file was refused', async () => {
+      const w = await mountView()
+
+      await chooseFile(w, new File(['x'], 'a.pdf', { type: 'application/pdf' }))
+      expect(mockToastAdd).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          severity: 'error',
+          detail: 'Nur JPEG- und PNG-Dateien erlaubt.',
+        }),
+      )
+
+      await chooseFile(
+        w,
+        new File([new Uint8Array(9 * 1024 * 1024)], 'big.jpg', { type: 'image/jpeg' }),
+      )
+      expect(mockToastAdd).toHaveBeenLastCalledWith(
+        expect.objectContaining({ severity: 'error', detail: 'Datei zu groß (max. 8 MB).' }),
+      )
+    })
+
+    it('empties the file field itself when a pick is refused', async () => {
+      const w = await mountView()
+      const input = w.find('input[type="file"]')
+      const setValue = vi.fn()
+      Object.defineProperty(input.element, 'value', {
+        configurable: true,
+        get: () => 'C:\\fakepath\\a.pdf',
+        set: setValue,
+      })
+
+      await chooseFile(w, new File(['x'], 'a.pdf', { type: 'application/pdf' }))
+
+      expect(setValue).toHaveBeenCalledWith('')
+    })
+
+    it.each([
+      [
+        'moving an image',
+        async (w: VueWrapper) => {
+          await w.findAll('button[aria-label^="Nach oben verschieben"]')[1]?.trigger('click')
+        },
+      ],
+      [
+        'deleting an image',
+        async (w: VueWrapper) => {
+          await w.findAll('button[aria-label^="Löschen"]')[0]?.trigger('click')
+          await flushPromises()
+          Array.from(document.querySelectorAll('.p-dialog button'))
+            .find((b) => b.textContent === 'Löschen')
+            ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        },
+      ],
+      [
+        'saving an edit',
+        async (w: VueWrapper) => {
+          await w.findAll('button[aria-label^="Bearbeiten"]')[0]?.trigger('click')
+          await flushPromises()
+          Array.from(document.querySelectorAll('.p-dialog button'))
+            .find((b) => b.textContent === 'Speichern')
+            ?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        },
+      ],
+    ])('shows the list as the API returns it after %s', async (_label, act) => {
+      const w = await mountView()
+      mockListImages.mockResolvedValue({
+        data: [{ ...baseImages[0], caption: 'Nach der Änderung' }],
+      })
+
+      await act(w)
+      await flushPromises()
+
+      expect(mockListImages).toHaveBeenCalledTimes(2)
+      expect(w.text()).toContain('Nach der Änderung')
+      expect(w.text()).not.toContain('Ostermesse')
+    })
+
+    it('shows the title as the API stored it after saving', async () => {
+      const w = await mountView()
+      mockUpdateSettings.mockResolvedValue({
+        data: { ...baseSettings, gallery_heading: 'Vom Server übernommen' },
+      })
+      await w.find('#gallery-heading').setValue('  Eigene Eingabe  ')
+
+      await w
+        .findAll('button')
+        .filter((b) => b.text() === 'Speichern')[0]
+        ?.trigger('click')
+      await flushPromises()
+
+      expect((w.find('#gallery-heading').element as HTMLInputElement).value).toBe(
+        'Vom Server übernommen',
+      )
+    })
+
+    it('names the edit and delete buttons after the image, or "Bild n" without alt text', async () => {
+      const w = await mountView()
+
+      expect(w.find('button[aria-label="Bearbeiten: Ostermesse"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Löschen: Ostermesse"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Bearbeiten: Bild 2"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Löschen: Bild 2"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Nach oben verschieben: Bild 2"]').exists()).toBe(true)
+      expect(w.find('button[aria-label="Nach unten verschieben: Ostermesse"]').exists()).toBe(true)
+    })
   })
 })

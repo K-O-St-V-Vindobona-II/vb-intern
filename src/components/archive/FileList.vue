@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, toRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { toRef } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useArchiveStore } from '@/stores/archive'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import { useShiftSelect } from '@/composables/useShiftSelect'
 import type { FileShort } from '@/types/archive'
-import { formatDate, formatSize } from '@/utils/formatters'
+import { formatApiError, formatDate, formatSize } from '@/utils/formatters'
 import archiveService from '@/services/archiveService'
 import FileIcon from './FileIcon.vue'
 import DataTable from 'primevue/datatable'
@@ -27,7 +27,6 @@ const emit = defineEmits<{
   (e: 'preview', id: string | null): void
 }>()
 
-const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 const store = useArchiveStore()
@@ -50,14 +49,18 @@ const cancelPreview = () => {
   }
   emit('preview', null)
 }
-const touchDevice = computed(() => typeof window !== 'undefined' && 'ontouchstart' in window)
 
-const goToFile = (id: string) => {
-  router.push({
-    name: 'archive-file',
-    params: { id },
-  })
+// "ontouchstart" exists on every touch-capable laptop too, which would switch
+// the hover preview off for mouse users there; the media query asks whether
+// the primary input can hover at all.
+const canHover = () => !window.matchMedia('(hover: none)').matches
+
+const startPreviewFor = (file: FileShort) => {
+  if (!file.is_image || !canHover()) return
+  startPreview(file.id)
 }
+
+const fileLabel = (file: FileShort) => `${file.name}.${file.extension}`
 
 const copyToClipboard = () => {
   const items = selectedItems.value.map((f) => `file:${f.id}`)
@@ -86,10 +89,16 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
           await archiveService.deleteFile(file.id)
         }
         emit('changed')
-      } catch {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: 'Fehler',
+          detail: formatApiError(
+            err,
+            isTrash
+              ? 'Datei konnte nicht wiederhergestellt werden.'
+              : 'Datei konnte nicht gelöscht werden.',
+          ),
           life: 3000,
         })
       }
@@ -105,6 +114,7 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
       <Button
         v-if="admin && !trash"
         v-tooltip="'In Zwischenablage'"
+        aria-label="Ausgewählte Dateien in die Zwischenablage"
         icon="pi pi-copy"
         severity="danger"
         text
@@ -115,26 +125,34 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
         @click="copyToClipboard"
       />
     </div>
-    <DataTable :value="items" striped-rows size="small" scrollable>
+    <DataTable :value="items" data-key="id" striped-rows size="small" scrollable>
       <Column v-if="admin && !trash" style="width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem">
         <template #header>
           <div class="select-cell" @click.prevent="toggleAll()">
-            <Checkbox :model-value="allSelected" :binary="true" />
+            <Checkbox :model-value="allSelected" :binary="true" aria-label="Alle auswählen" />
           </div>
         </template>
         <template #body="{ data }">
           <div class="select-cell" @click="toggle(data, $event)">
-            <Checkbox :model-value="isSelected(data)" :binary="true" />
+            <Checkbox
+              :model-value="isSelected(data)"
+              :binary="true"
+              :aria-label="`${fileLabel(data)} auswählen`"
+            />
           </div>
         </template>
       </Column>
       <Column v-if="!trash" style="width: 40px">
         <template #body="{ data }">
-          <i
+          <button
             v-tooltip="'Herunterladen'"
-            class="pi pi-download download-icon"
-            @click="triggerDownload(data.id, `${data.name}.${data.extension}`)"
-          />
+            type="button"
+            class="download-btn"
+            :aria-label="`${fileLabel(data)} herunterladen`"
+            @click="triggerDownload(data.id, fileLabel(data))"
+          >
+            <i class="pi pi-download" />
+          </button>
         </template>
       </Column>
       <Column field="name" header="Name" sortable>
@@ -142,14 +160,14 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
           <span class="file-name-cell">
             <span
               class="file-icon-wrap"
-              @mouseenter="!touchDevice && data.is_image && startPreview(data.id)"
+              @mouseenter="startPreviewFor(data)"
               @mouseleave="cancelPreview()"
             >
               <FileIcon :extension="data.extension" :is-image="data.is_image" :file-id="data.id" />
             </span>
-            <a class="file-link" @click.prevent="goToFile(data.id)">
-              {{ data.name }}.{{ data.extension }}
-            </a>
+            <RouterLink :to="{ name: 'archive-file', params: { id: data.id } }" class="file-link">
+              {{ fileLabel(data) }}
+            </RouterLink>
             <small class="file-size"> ({{ formatSize(data.size) }}) </small>
           </span>
         </template>
@@ -169,6 +187,7 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
         <template #body="{ data }">
           <Button
             v-tooltip="trash ? 'Wiederherstellen' : 'Löschen'"
+            :aria-label="`${fileLabel(data)} ${trash ? 'wiederherstellen' : 'löschen'}`"
             :icon="trash ? 'pi pi-replay' : 'pi pi-trash'"
             severity="secondary"
             text
@@ -211,7 +230,6 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
 }
 .file-link {
   color: var(--p-primary-color);
-  cursor: pointer;
   text-decoration: none;
 }
 .file-link:hover {
@@ -221,7 +239,11 @@ const toggleTrash = (file: FileShort, isTrash: boolean) => {
   color: var(--p-text-muted-color);
   margin-left: 0.3rem;
 }
-.download-icon {
+.download-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   color: var(--p-red-500);
   cursor: pointer;
   user-select: none;

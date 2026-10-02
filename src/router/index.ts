@@ -416,7 +416,7 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
-          path: 'tracking/activity/members/:memberId',
+          path: 'tracking/activity/members/:memberId([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
           name: 'tracking-activity-member',
           component: () => import('../views/tracking/ActivityLogMemberDayView.vue'),
           props: true,

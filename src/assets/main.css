@@ -32,13 +32,14 @@ html {
    Its own base stylesheet reacts with "overflow: hidden; padding-right:
    var(--p-scrollbar-width)" to compensate for the scrollbar it expects to
    disappear. Since scrollbar-gutter: stable above already reserves that
-   width permanently on <html>, no scrollbar ever actually disappears -
-   PrimeVue's padding-right would double up on top of the existing gutter
-   and shift all content sideways for as long as a modal is open. Zeroing
-   it out here, on the element PrimeVue actually targets, removes that
-   double compensation. */
+   width permanently on <html>, the gutter stays in place while the
+   scrollbar is hidden - PrimeVue's padding-right would double up on top of
+   it and shift all content sideways for as long as a modal is open.
+   Zeroing the compensation out here, on the element PrimeVue actually
+   targets, removes that double compensation. "overflow: hidden" itself is
+   deliberately left untouched: it is what locks the page behind the modal
+   (body's overflow propagates to the viewport). */
 body.p-overflow-hidden {
-  overflow: auto !important;
   padding-right: 0 !important;
   margin-right: 0 !important;
 }
@@ -54,13 +55,23 @@ body {
   color: var(--p-text-color);
 }
 
-@media (max-width: 767px) {
+/* Neutral text-alignment utility (e.g. DataTable columns). Kept here, in the
+   one global stylesheet, so it never depends on which layout was loaded. */
+.text-center {
+  text-align: center;
+}
+
+/* Base: compact card padding for mobile. */
+.p-card .p-card-body {
+  padding: 0.75rem;
+}
+
+@media (min-width: 768px) {
   .p-card .p-card-body {
-    padding: 0.75rem;
+    padding: var(--p-card-body-padding);
   }
 }
 
 .p-datatable-table-container {
   overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
 }

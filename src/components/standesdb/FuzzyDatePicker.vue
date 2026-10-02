@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, useId } from 'vue'
+import { MONTH_NAMES, monthName } from '@/utils/formatters'
 import Checkbox from 'primevue/checkbox'
 import Select from 'primevue/select'
 import Popover from 'primevue/popover'
@@ -16,15 +17,16 @@ const emit = defineEmits<{
   'update:accuracy': [value: number]
 }>()
 
-const popover = ref()
+const popover = ref<InstanceType<typeof Popover> | null>(null)
+const inputId = `${useId()}-value`
 
 const parseDate = (d: string | null) => {
   if (!d) return { year: 2000, month: 1, day: 1 }
   const [y = '', m = '', dy = ''] = d.split('-')
   return {
-    year: parseInt(y) || 2000,
-    month: parseInt(m) || 1,
-    day: parseInt(dy) || 1,
+    year: parseInt(y, 10) || 2000,
+    month: parseInt(m, 10) || 1,
+    day: parseInt(dy, 10) || 1,
   }
 }
 
@@ -45,20 +47,7 @@ watch(
 
 const yearOptions = Array.from({ length: 2200 - 1850 }, (_, i) => 1850 + i)
 
-const monthOptions = [
-  { value: 1, label: 'Jänner' },
-  { value: 2, label: 'Februar' },
-  { value: 3, label: 'März' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'Mai' },
-  { value: 6, label: 'Juni' },
-  { value: 7, label: 'Juli' },
-  { value: 8, label: 'August' },
-  { value: 9, label: 'September' },
-  { value: 10, label: 'Oktober' },
-  { value: 11, label: 'November' },
-  { value: 12, label: 'Dezember' },
-]
+const monthOptions = MONTH_NAMES.map((label, i) => ({ value: i + 1, label }))
 
 const daysInMonth = computed(() => new Date(year.value, month.value, 0).getDate())
 
@@ -91,42 +80,28 @@ const setAccuracy = (checked: boolean, unit: 'year' | 'month' | 'day') => {
 const displayValue = computed(() => {
   if (!props.date || props.accuracy === 0) return 'unbekannt'
   const p = parseDate(props.date)
-  const months = [
-    '',
-    'Jänner',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ]
   switch (props.accuracy) {
     case 1:
       return `${p.year}`
     case 2:
-      return `${months[p.month]} ${p.year}`
+      return `${monthName(p.month)} ${p.year}`
     default:
-      return `${p.day}. ${months[p.month]} ${p.year}`
+      return `${p.day}. ${monthName(p.month)} ${p.year}`
   }
 })
 
 const togglePopover = (event: Event) => {
-  popover.value.toggle(event)
+  popover.value?.toggle(event)
 }
 </script>
 
 <template>
   <div class="fuzzy-date-field">
-    <label class="field-label">{{ label }}</label>
+    <label class="field-label" :for="inputId">{{ label }}</label>
 
     <input
       v-if="readonly"
+      :id="inputId"
       type="text"
       :value="displayValue"
       readonly
@@ -136,11 +111,15 @@ const togglePopover = (event: Event) => {
 
     <template v-else>
       <input
+        :id="inputId"
         type="text"
         :value="displayValue"
         readonly
+        aria-haspopup="dialog"
         class="p-inputtext p-component w-full fuzzy-trigger"
         @click="togglePopover"
+        @keydown.enter.prevent="togglePopover"
+        @keydown.space.prevent="togglePopover"
       />
 
       <Popover ref="popover" dismissable>
@@ -149,12 +128,14 @@ const togglePopover = (event: Event) => {
             <Checkbox
               :model-value="accuracy > 0"
               :binary="true"
+              aria-label="Jahr bekannt"
               @update:model-value="setAccuracy($event, 'year')"
             />
             <span v-if="accuracy === 0" class="fuzzy-hint"> Jahr bekannt </span>
             <Select
               v-else
               v-model="year"
+              aria-label="Jahr"
               :options="yearOptions"
               class="fuzzy-select"
               @update:model-value="emitDate"
@@ -165,12 +146,14 @@ const togglePopover = (event: Event) => {
             <Checkbox
               :model-value="accuracy > 1"
               :binary="true"
+              aria-label="Monat bekannt"
               @update:model-value="setAccuracy($event, 'month')"
             />
             <span v-if="accuracy === 1" class="fuzzy-hint"> Monat bekannt </span>
             <Select
               v-else
               v-model="month"
+              aria-label="Monat"
               :options="monthOptions"
               option-label="label"
               option-value="value"
@@ -183,12 +166,14 @@ const togglePopover = (event: Event) => {
             <Checkbox
               :model-value="accuracy > 2"
               :binary="true"
+              aria-label="Tag bekannt"
               @update:model-value="setAccuracy($event, 'day')"
             />
             <span v-if="accuracy === 2" class="fuzzy-hint"> Tag bekannt </span>
             <Select
               v-else
               v-model="day"
+              aria-label="Tag"
               :options="dayOptions"
               class="fuzzy-select"
               @update:model-value="emitDate"

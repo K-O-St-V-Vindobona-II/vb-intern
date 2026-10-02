@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, useId } from 'vue'
 import { fuzzyDisplay, toLocalDateStr } from '@/utils/formatters'
 import FuzzyDatePicker from './FuzzyDatePicker.vue'
 import DataTable from 'primevue/datatable'
@@ -42,6 +42,7 @@ const editingEntry = ref<Entry | null>(null)
 const formId = ref<string>('')
 const formDate = ref<string | null>(null)
 const formAccuracy = ref(0)
+const nameFieldId = `${useId()}-name`
 
 // String comparison only, not a meaningful business order - id is a
 // UUID now, not a sequential int; this just keeps the list stable.
@@ -62,7 +63,9 @@ const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : 
 const openAdd = () => {
   editingEntry.value = null
   formId.value = unused.value[0]?.id ?? ''
-  formDate.value = toLocalDateStr(new Date())
+  // Only a set with dates gets a prefilled date; the API stores whatever it is
+  // sent, so a date for an undated set (keys) would be noise next to accuracy 0.
+  formDate.value = props.withDate ? toLocalDateStr(new Date()) : null
   formAccuracy.value = props.withDate ? 3 : 0
   dialogVisible.value = true
 }
@@ -102,7 +105,7 @@ const selectOptions = computed(() => (editingEntry.value ? props.availableItems 
 
 <template>
   <div class="set-editor">
-    <label class="set-label">{{ title }}</label>
+    <span class="set-label">{{ title }}</span>
 
     <DataTable :value="sorted" size="small" striped-rows class="set-table">
       <Column v-if="withGroup" header="Gruppe" style="width: 30%">
@@ -161,9 +164,10 @@ const selectOptions = computed(() => (editingEntry.value ? props.availableItems 
     >
       <div class="dialog-fields">
         <div class="field">
-          <label>Name</label>
+          <label :for="nameFieldId">Name</label>
           <Select
             v-model="formId"
+            :input-id="nameFieldId"
             :options="selectOptions"
             option-label="name"
             option-value="id"

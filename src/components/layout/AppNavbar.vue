@@ -458,7 +458,10 @@ const toggleUserMenu = () => {
 }
 
 .action-logout:hover {
-  background-color: var(--p-red-50);
+  /* Translucent tint of the scheme-aware text colour above; the raw
+     --p-red-50 palette step is a fixed pale pink, which glares against the
+     dark-mode drawer. */
+  background-color: color-mix(in srgb, var(--p-red-500) 12%, transparent);
 }
 
 /* --- Mobile menu --- */

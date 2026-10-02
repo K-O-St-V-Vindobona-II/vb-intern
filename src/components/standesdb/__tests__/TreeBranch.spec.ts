@@ -111,4 +111,35 @@ describe('TreeBranch', () => {
     expect(wrapper.emitted('toggle')).toEqual([[2]])
     expect(wrapper.emitted('navigate')).toEqual([[2]])
   })
+
+  it('renders the caret and the name as real buttons, the caret with its expanded state', () => {
+    const wrapper = mountWith({
+      node: buildNode({ children: [buildNode({ id: 3, cn: 'Sohn' })] }),
+      depth: 0,
+      collapsed: {},
+      memberId: 99,
+    })
+    const caret = wrapper.find('.tree-caret')
+    const name = wrapper.find('.tree-name')
+
+    expect(caret.element.tagName).toBe('BUTTON')
+    expect(caret.attributes('type')).toBe('button')
+    expect(caret.attributes('aria-expanded')).toBe('true')
+    expect(caret.attributes('aria-label')).toBe('Max Mustermann: zuklappen')
+    expect(name.element.tagName).toBe('BUTTON')
+    expect(name.attributes('type')).toBe('button')
+  })
+
+  it('reports a collapsed branch through aria-expanded and offers to expand it', () => {
+    const wrapper = mountWith({
+      node: buildNode({ id: 7, children: [buildNode({ id: 3 })] }),
+      depth: 0,
+      collapsed: { 7: true },
+      memberId: 99,
+    })
+    const caret = wrapper.find('.tree-caret')
+
+    expect(caret.attributes('aria-expanded')).toBe('false')
+    expect(caret.attributes('aria-label')).toBe('Max Mustermann: aufklappen')
+  })
 })

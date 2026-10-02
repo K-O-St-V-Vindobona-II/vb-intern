@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { reactive } from 'vue'
-import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import ChangeRequestReviewView from '../ChangeRequestReviewView.vue'
 import PrimeVue from 'primevue/config'
 import type { MemberChangeRequestDetail } from '@/types/standesdb'
@@ -48,10 +48,6 @@ function buildDetail(
     ...overrides,
   }
 }
-
-// The route mock is shared and reactive: a wrapper left mounted by an earlier case would react to
-// the id changes of a later one.
-enableAutoUnmount(afterEach)
 
 const mountOpts = { global: { plugins: [PrimeVue] } }
 

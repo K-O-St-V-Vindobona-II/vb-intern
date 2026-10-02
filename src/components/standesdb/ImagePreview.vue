@@ -13,10 +13,12 @@ const imageUrl = ref<string | null>(null)
 let loadRequestId = 0
 
 const loadImage = async () => {
+  // Bumped before the guard, so clearing imageId also invalidates a request
+  // that is still in flight for the previous picture.
+  const thisRequest = ++loadRequestId
   imageUrl.value = null
   if (!props.imageId) return
 
-  const thisRequest = ++loadRequestId
   try {
     const resp = await standesdbService.getImageUrl(
       props.ownerType,
@@ -27,8 +29,7 @@ const loadImage = async () => {
     if (thisRequest !== loadRequestId) return
     imageUrl.value = resp.data.url
   } catch {
-    if (thisRequest !== loadRequestId) return
-    imageUrl.value = null
+    // Nothing to do: imageUrl was reset above, so the placeholder shows.
   }
 }
 

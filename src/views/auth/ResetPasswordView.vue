@@ -2,11 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import authService from '@/services/authService'
-import { getApiErrorDetail } from '@/utils/formatters'
+import { formatApiError } from '@/utils/formatters'
 import { passwordMinLength } from '@/runtimeConfig'
 
 import Card from 'primevue/card'
-import Password from 'primevue/password'
+import Password, { type PasswordPassThroughOptions } from 'primevue/password'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 
@@ -18,13 +18,26 @@ const token = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
 
+// Autofill hints for password managers (WCAG 1.3.5): both fields hold a new
+// password, so a stored old one must not be filled in.
+const newPasswordPt: PasswordPassThroughOptions = {
+  pcInputText: { root: { autocomplete: 'new-password' } },
+}
+
+// A repeated query parameter ("?token=a&token=b") arrives as an array; the
+// first value is the one the mail link carries.
+const queryText = (value: unknown): string => {
+  const first = Array.isArray(value) ? value[0] : value
+  return typeof first === 'string' ? first : ''
+}
+
 const isLoading = ref(false)
 const isSuccess = ref(false)
 const errorMessage = ref('')
 
 onMounted(() => {
-  email.value = (route.query['email'] as string) || ''
-  token.value = (route.query['token'] as string) || ''
+  email.value = queryText(route.query['email'])
+  token.value = queryText(route.query['token'])
 
   if (!email.value || !token.value) {
     errorMessage.value =
@@ -77,13 +90,10 @@ const handleReset = async () => {
     })
     isSuccess.value = true
   } catch (error: unknown) {
-    const detail = getApiErrorDetail(error)
-    if (detail) {
-      errorMessage.value = detail as string
-    } else {
-      errorMessage.value =
-        'Ein unerwarteter Fehler ist aufgetreten. Bitte fordere einen neuen Link an.'
-    }
+    errorMessage.value = formatApiError(
+      error,
+      'Ein unerwarteter Fehler ist aufgetreten. Bitte fordere einen neuen Link an.',
+    )
   } finally {
     isLoading.value = false
   }
@@ -127,8 +137,10 @@ const handleReset = async () => {
           <div class="input-group">
             <label for="password">Neues Passwort</label>
             <Password
-              id="password"
               v-model="password"
+              input-id="password"
+              :pt="newPasswordPt"
+              fluid
               toggle-mask
               prompt-label="Bitte Passwort eingeben"
               weak-label="Schwach"
@@ -141,8 +153,10 @@ const handleReset = async () => {
           <div class="input-group">
             <label for="passwordConfirm">Passwort bestätigen</label>
             <Password
-              id="passwordConfirm"
               v-model="passwordConfirm"
+              input-id="passwordConfirm"
+              :pt="newPasswordPt"
+              fluid
               toggle-mask
               :feedback="false"
               placeholder="Passwort wiederholen"

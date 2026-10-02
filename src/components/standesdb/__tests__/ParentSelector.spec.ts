@@ -229,4 +229,119 @@ describe('ParentSelector', () => {
     expect(w.emitted('update:parentCn')).toBeUndefined()
     w.unmount()
   })
+
+  it('regression: a slow answer for an outdated query does not replace the newer suggestions', async () => {
+    let resolveSlow!: (value: unknown) => void
+    const slow = new Promise((resolve) => {
+      resolveSlow = resolve
+    })
+    mockSearchParent
+      .mockReturnValueOnce(slow)
+      .mockResolvedValueOnce({ data: { data: [{ id: 'b', cn: 'Maxi Muster' }] } })
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 'member-1', label: 'Leibbursch' })
+    await openDialog(w)
+    await flushPromises()
+    const autocomplete = w.findComponent({ name: 'AutoComplete' })
+
+    await autocomplete.vm.$emit('complete', { query: 'Max' })
+    await autocomplete.vm.$emit('complete', { query: 'Maxi' })
+    await flushPromises()
+    resolveSlow({ data: { data: [{ id: 'a', cn: 'Max Mustermann' }] } })
+    await flushPromises()
+
+    expect(autocomplete.props('suggestions')).toEqual([{ id: 'b', cn: 'Maxi Muster' }])
+    w.unmount()
+  })
+
+  it('regression: an answer that arrives after the query fell below the minimum is discarded', async () => {
+    let resolveSlow!: (value: unknown) => void
+    mockSearchParent.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSlow = resolve
+      }),
+    )
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 'member-1', label: 'Leibbursch' })
+    await openDialog(w)
+    await flushPromises()
+    const autocomplete = w.findComponent({ name: 'AutoComplete' })
+
+    await autocomplete.vm.$emit('complete', { query: 'Max' })
+    await autocomplete.vm.$emit('complete', { query: 'Ma' })
+    resolveSlow({ data: { data: [{ id: 'a', cn: 'Max Mustermann' }] } })
+    await flushPromises()
+
+    expect(autocomplete.props('suggestions')).toEqual([])
+    w.unmount()
+  })
+
+  it('opens the parent from the keyboard: the readonly link reacts to Enter and has the link role', async () => {
+    const w = mountWith({
+      parentId: 5,
+      parentCn: 'Test',
+      memberId: 1,
+      label: 'Leibbursch',
+      readonly: true,
+    })
+    const link = w.find('.parent-input.clickable')
+
+    expect(link.attributes('role')).toBe('link')
+    await link.trigger('keydown', { key: 'Enter' })
+
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-member-show', params: { id: 5 } })
+    w.unmount()
+  })
+
+  it('links the label to the displayed input and names the search field', async () => {
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 1, label: 'Leibbursch' })
+
+    expect(w.find('label').attributes('for')).toBe(w.find('.parent-input').attributes('id'))
+
+    await openDialog(w)
+    await flushPromises()
+    expect(document.querySelector('input[aria-label="Name suchen"]')).not.toBeNull()
+    w.unmount()
+  })
+
+  it('names the enforced minimum in the search placeholder', async () => {
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 1, label: 'Leibbursch' })
+    await openDialog(w)
+    await flushPromises()
+
+    expect(w.findComponent({ name: 'AutoComplete' }).props('placeholder')).toBe(
+      'Name suchen (mind. 3 Zeichen)...',
+    )
+    w.unmount()
+  })
+
+  it('asks the field to start searching at the same minimum that the handler enforces', async () => {
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 1, label: 'Leibbursch' })
+    await openDialog(w)
+    await flushPromises()
+
+    expect(w.findComponent({ name: 'AutoComplete' }).props('minLength')).toBe(3)
+    w.unmount()
+  })
+
+  it('regression: a failed answer for an outdated query does not clear the newer suggestions', async () => {
+    let rejectSlow!: (reason: Error) => void
+    const slow = new Promise((_resolve, reject) => {
+      rejectSlow = reject
+    })
+    mockSearchParent
+      .mockReturnValueOnce(slow)
+      .mockResolvedValueOnce({ data: { data: [{ id: 'b', cn: 'Maxi Muster' }] } })
+    const w = mountWith({ parentId: null, parentCn: '', memberId: 'member-1', label: 'Leibbursch' })
+    await openDialog(w)
+    await flushPromises()
+    const autocomplete = w.findComponent({ name: 'AutoComplete' })
+
+    await autocomplete.vm.$emit('complete', { query: 'Max' })
+    await autocomplete.vm.$emit('complete', { query: 'Maxi' })
+    await flushPromises()
+    rejectSlow(new Error('timeout'))
+    await flushPromises()
+
+    expect(autocomplete.props('suggestions')).toEqual([{ id: 'b', cn: 'Maxi Muster' }])
+    w.unmount()
+  })
 })

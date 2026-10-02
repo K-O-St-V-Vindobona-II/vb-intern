@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import Textarea from 'primevue/textarea'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -24,6 +24,15 @@ const textareaRef = ref<{ $el: HTMLTextAreaElement } | null>(null)
 
 const linkDialogVisible = ref(false)
 const linkUrl = ref('')
+
+// Same rule the public site and the API apply to saved text: only http(s)
+// links are accepted, anything else is rejected on save. Checking it here
+// gives the editor the message while the dialog is still open, instead of a
+// failed save later.
+const LINK_URL_PATTERN = /^https?:\/\/\S+$/i
+const trimmedUrl = computed(() => linkUrl.value.trim())
+const isUrlValid = computed(() => LINK_URL_PATTERN.test(trimmedUrl.value))
+const showUrlError = computed(() => trimmedUrl.value !== '' && !isUrlValid.value)
 const pendingSelection = ref({ start: 0, end: 0 })
 
 const openLinkDialog = () => {
@@ -38,10 +47,10 @@ const openLinkDialog = () => {
 }
 
 const confirmLink = async () => {
-  if (!linkUrl.value) return
+  if (!isUrlValid.value) return
 
   const { start, end } = pendingSelection.value
-  const result = insertLink(props.modelValue, start, end, linkUrl.value)
+  const result = insertLink(props.modelValue, start, end, trimmedUrl.value)
   emit('update:modelValue', result.text)
   linkDialogVisible.value = false
 
@@ -100,12 +109,17 @@ defineOptions({ inheritAttrs: false })
           class="w-full"
           placeholder="https://…"
           autofocus
+          :invalid="showUrlError"
+          :aria-describedby="showUrlError ? 'link-insert-url-error' : undefined"
           @keyup.enter="confirmLink"
         />
+        <small v-if="showUrlError" id="link-insert-url-error" class="field-error" role="alert">
+          Die Adresse muss mit http:// oder https:// beginnen.
+        </small>
       </div>
       <template #footer>
         <Button label="Abbrechen" severity="secondary" @click="linkDialogVisible = false" />
-        <Button label="Einfügen" :disabled="!linkUrl" @click="confirmLink" />
+        <Button label="Einfügen" :disabled="!isUrlValid" @click="confirmLink" />
       </template>
     </Dialog>
   </div>
@@ -138,5 +152,11 @@ defineOptions({ inheritAttrs: false })
   font-weight: 600;
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--p-red-500);
 }
 </style>

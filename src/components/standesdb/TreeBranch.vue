@@ -17,15 +17,19 @@ const emit = defineEmits<{
 <template>
   <div>
     <div class="tree-row" :style="{ paddingLeft: depth * 20 + 'px' }">
-      <span
+      <button
         v-if="node.children && node.children.length > 0"
+        type="button"
         class="tree-caret"
+        :aria-expanded="!collapsed[node.id]"
+        :aria-label="`${node.cn}: ${collapsed[node.id] ? 'aufklappen' : 'zuklappen'}`"
         @click="emit('toggle', node.id)"
       >
         <i :class="collapsed[node.id] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" />
-      </span>
+      </button>
       <span v-else class="tree-caret tree-caret-spacer" />
-      <span
+      <button
+        type="button"
         class="tree-name"
         :class="{
           'tree-node-inactive': node.verstorben || node.entlassen,
@@ -34,7 +38,7 @@ const emit = defineEmits<{
         @click="emit('navigate', node.id)"
       >
         {{ node.cn }}
-      </span>
+      </button>
     </div>
     <template v-if="node.children && node.children.length > 0 && !collapsed[node.id]">
       <TreeBranch

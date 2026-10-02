@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import activityLogService from '@/services/activityLogService'
-import trackingService from '@/services/trackingService'
+import { useTrackingRetention, type RetentionMonth } from '@/composables/useTrackingRetention'
 import type { ActivityDayGroup, IdLabelOption } from '@/types/activityLog'
 import Select from 'primevue/select'
 import { formatApiError } from '@/utils/formatters'
@@ -14,49 +14,21 @@ const router = useRouter()
 
 const dayGroups = ref<ActivityDayGroup[]>([])
 const loading = ref(false)
-const retentionMonths = ref(6)
 
-const allMonthNames = [
-  '',
-  'Jänner',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-]
+const { months, loadRetention } = useTrackingRetention()
+const validMonths = computed(() => [...months.value].reverse())
 
-const now = new Date()
-const cutoffDate = computed(
-  () => new Date(now.getFullYear(), now.getMonth() - retentionMonths.value, 1),
-)
+// The month is resolved only after the configured retention is known: the
+// month of a deep link (e.g. the way back from a day view) may lie beyond the
+// default window, and resolving it earlier would silently fall back to the
+// current month.
+const selectedMonth = ref<RetentionMonth>()
+const queryYear = Number(route.query['year'])
+const queryMonth = Number(route.query['month'])
 
-const validMonths = computed(() => {
-  const result: { year: number; month: number; label: string }[] = []
-  const d = new Date(cutoffDate.value)
-  while (d <= now) {
-    result.push({
-      year: d.getFullYear(),
-      month: d.getMonth() + 1,
-      label: `${allMonthNames[d.getMonth() + 1]} ${d.getFullYear()}`,
-    })
-    d.setMonth(d.getMonth() + 1)
-  }
-  return result.reverse()
-})
-
-const initialYear = Number(route.query['year']) || now.getFullYear()
-const initialMonth = Number(route.query['month']) || now.getMonth() + 1
-const selectedMonth = ref(
-  validMonths.value.find((m) => m.year === initialYear && m.month === initialMonth) ??
-    validMonths.value[0],
-)
+const resolveInitialMonth = (): RetentionMonth | undefined =>
+  validMonths.value.find((m) => m.year === queryYear && m.month === queryMonth) ??
+  validMonths.value[0]
 
 const formatDayTitle = (day: string): string => {
   const d = new Date(`${day}T00:00:00`)
@@ -68,21 +40,30 @@ const formatDayTitle = (day: string): string => {
   })
 }
 
+// Answers arrive in any order: a slow answer for the month selected before
+// must not replace the days of the month on screen.
+let latestDayGroupsRequestId = 0
+
 const fetchDayGroups = async () => {
+  const requestId = ++latestDayGroupsRequestId
   if (!selectedMonth.value) {
     dayGroups.value = []
+    loading.value = false
     return
   }
   loading.value = true
   try {
-    dayGroups.value = await activityLogService.listDaysWithActivity(
+    const groups = await activityLogService.listDaysWithActivity(
       selectedMonth.value.year,
       selectedMonth.value.month,
     )
+    if (requestId !== latestDayGroupsRequestId) return
+    dayGroups.value = groups
   } catch (e) {
+    if (requestId !== latestDayGroupsRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   } finally {
-    loading.value = false
+    if (requestId === latestDayGroupsRequestId) loading.value = false
   }
 }
 
@@ -102,13 +83,8 @@ watch(selectedMonth, (m) => {
 })
 
 onMounted(async () => {
-  try {
-    const config = await trackingService.getConfig()
-    retentionMonths.value = config.retention_months
-  } catch {
-    /* fallback to default */
-  }
-  fetchDayGroups()
+  await loadRetention()
+  selectedMonth.value = resolveInitialMonth()
 })
 </script>
 

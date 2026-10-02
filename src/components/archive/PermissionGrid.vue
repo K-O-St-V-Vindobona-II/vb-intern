@@ -17,20 +17,20 @@ defineProps<{
   <table class="perm-grid">
     <thead>
       <tr>
-        <th>Status</th>
-        <th v-for="org in orgs" :key="org.id">
+        <th scope="col">Status</th>
+        <th v-for="org in orgs" :key="org.id" scope="col">
           {{ org.label }}
         </th>
       </tr>
     </thead>
     <tbody>
       <tr v-for="state in states" :key="state.id">
-        <td>{{ state.label }}</td>
+        <th scope="row">{{ state.label }}</th>
         <td v-for="org in orgs" :key="org.id" class="perm-cell">
           <Checkbox
             v-model="model"
             :value="`${org.id}_${state.id}`"
-            :binary="false"
+            :aria-label="`${state.label}, ${org.label}`"
             :disabled="!edit"
           />
         </td>
@@ -53,6 +53,11 @@ defineProps<{
 .perm-grid th {
   font-weight: 600;
   background: var(--app-surface-subtle);
+}
+.perm-grid tbody th {
+  font-weight: 400;
+  text-align: left;
+  background: transparent;
 }
 .perm-cell {
   text-align: center;

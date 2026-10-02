@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { formatApiError } from '@/utils/formatters'
 import { socialLinksService } from '@/services/publicContentService'
@@ -10,56 +10,89 @@ import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import Tag from 'primevue/tag'
 
+// Same rule as the API: a lower-case slug that starts with a letter.
+const PLATFORM_SLUG = /^[a-z][a-z0-9_]*$/
+
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
+const moving = ref(false)
 const links = ref<SocialLinkAdminResponse[]>([])
 
 const newPlatform = ref('')
 const newLabel = ref('')
 const newUrl = ref('')
 const adding = ref(false)
+const newPlatformSlug = computed(() => newPlatform.value.trim().toLowerCase())
+const platformInvalid = computed(
+  () => newPlatformSlug.value !== '' && !PLATFORM_SLUG.test(newPlatformSlug.value),
+)
+const canAdd = computed(
+  () =>
+    PLATFORM_SLUG.test(newPlatformSlug.value) &&
+    newLabel.value.trim() !== '' &&
+    newUrl.value.trim() !== '',
+)
 
 const editDialogVisible = ref(false)
 const editLinkId = ref('')
 const editLabel = ref('')
 const editUrl = ref('')
 const editIsEnabled = ref(true)
+const canSaveEdit = computed(() => editLabel.value.trim() !== '' && editUrl.value.trim() !== '')
 
 const deleteDialogVisible = ref(false)
 const deleteLinkId = ref('')
 
+const errorToast = (err: unknown, fallback: string) =>
+  toast.add({
+    severity: 'error',
+    summary: 'Fehler',
+    detail: formatApiError(err, fallback),
+    life: 5000,
+  })
+
+// First load and retry: the page is replaced by the spinner while it runs.
 const loadLinks = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const resp = await socialLinksService.list()
     links.value = resp.data
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Social-Media-Links konnten nicht geladen werden.'),
-      life: 5000,
-    })
+    loadError.value = true
+    errorToast(err, 'Social-Media-Links konnten nicht geladen werden.')
   } finally {
     loading.value = false
   }
 }
 
+// After a change only the list is read again, so the page keeps its scroll
+// position and no failed read is mistaken for an empty list.
+const refreshLinks = async () => {
+  try {
+    const resp = await socialLinksService.list()
+    links.value = resp.data
+  } catch (err: unknown) {
+    errorToast(err, 'Social-Media-Links konnten nicht aktualisiert werden.')
+  }
+}
+
 const addLink = async () => {
-  if (!newPlatform.value.trim() || !newLabel.value.trim() || !newUrl.value.trim()) return
+  if (!canAdd.value) return
   adding.value = true
   try {
     await socialLinksService.create({
-      platform: newPlatform.value.trim().toLowerCase(),
-      label: newLabel.value,
-      url: newUrl.value,
+      platform: newPlatformSlug.value,
+      label: newLabel.value.trim(),
+      url: newUrl.value.trim(),
       is_enabled: true,
     })
     newPlatform.value = ''
     newLabel.value = ''
     newUrl.value = ''
-    await loadLinks()
+    await refreshLinks()
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -67,28 +100,21 @@ const addLink = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Hinzufügen fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Hinzufügen fehlgeschlagen.')
   } finally {
     adding.value = false
   }
 }
 
 const moveLink = async (link: SocialLinkAdminResponse, direction: 'up' | 'down') => {
+  moving.value = true
   try {
     await socialLinksService.move(link.id, direction)
-    await loadLinks()
+    await refreshLinks()
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Verschieben fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Verschieben fehlgeschlagen.')
+  } finally {
+    moving.value = false
   }
 }
 
@@ -103,12 +129,12 @@ const openEdit = (link: SocialLinkAdminResponse) => {
 const saveEdit = async () => {
   try {
     await socialLinksService.update(editLinkId.value, {
-      label: editLabel.value,
-      url: editUrl.value,
+      label: editLabel.value.trim(),
+      url: editUrl.value.trim(),
       is_enabled: editIsEnabled.value,
     })
     editDialogVisible.value = false
-    await loadLinks()
+    await refreshLinks()
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -116,12 +142,7 @@ const saveEdit = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Speichern fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Speichern fehlgeschlagen.')
   }
 }
 
@@ -142,12 +163,7 @@ const doDelete = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Löschen fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Löschen fehlgeschlagen.')
   }
 }
 
@@ -156,7 +172,11 @@ onMounted(loadLinks)
 
 <template>
   <div class="social-links-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Social-Media-Links konnten nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadLinks" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Social Media Verweise</h3>
@@ -168,27 +188,37 @@ onMounted(loadLinks)
           <InputText
             v-model="newPlatform"
             placeholder="Kennung (z. B. linkedin)"
+            aria-label="Kennung des neuen Verweises"
+            :invalid="platformInvalid"
             maxlength="40"
             class="add-platform"
           />
           <InputText
             v-model="newLabel"
             placeholder="Anzeigename"
+            aria-label="Anzeigename des neuen Verweises"
             maxlength="60"
             class="add-label"
           />
-          <InputText v-model="newUrl" placeholder="https://…" class="add-url" />
+          <InputText
+            v-model="newUrl"
+            placeholder="https://…"
+            aria-label="Adresse des neuen Verweises"
+            maxlength="500"
+            class="add-url"
+          />
           <Button
             label="Hinzufügen"
             icon="pi pi-plus"
             size="small"
             :loading="adding"
-            :disabled="!newPlatform.trim() || !newLabel.trim() || !newUrl.trim()"
+            :disabled="!canAdd"
             @click="addLink"
           />
         </div>
         <p class="field-hint">
           Die Kennung wird intern verwendet und kann nach dem Anlegen nicht mehr geändert werden.
+          Erlaubt sind Kleinbuchstaben, Ziffern und Unterstrich, beginnend mit einem Buchstaben.
         </p>
       </div>
 
@@ -212,16 +242,16 @@ onMounted(loadLinks)
               icon="pi pi-arrow-up"
               text
               size="small"
-              :disabled="index === 0"
-              aria-label="Nach oben verschieben"
+              :disabled="index === 0 || moving"
+              :aria-label="`Nach oben verschieben: ${link.label}`"
               @click="moveLink(link, 'up')"
             />
             <Button
               icon="pi pi-arrow-down"
               text
               size="small"
-              :disabled="index === links.length - 1"
-              aria-label="Nach unten verschieben"
+              :disabled="index === links.length - 1 || moving"
+              :aria-label="`Nach unten verschieben: ${link.label}`"
               @click="moveLink(link, 'down')"
             />
             <Button
@@ -229,6 +259,7 @@ onMounted(loadLinks)
               icon="pi pi-pencil"
               text
               size="small"
+              :aria-label="`Bearbeiten: ${link.label}`"
               @click="openEdit(link)"
             />
             <Button
@@ -237,6 +268,7 @@ onMounted(loadLinks)
               text
               size="small"
               severity="danger"
+              :aria-label="`Löschen: ${link.label}`"
               @click="confirmDelete(link)"
             />
           </div>
@@ -257,18 +289,18 @@ onMounted(loadLinks)
           </div>
           <div class="field">
             <label for="edit-link-url">URL</label>
-            <InputText id="edit-link-url" v-model="editUrl" class="w-full" />
+            <InputText id="edit-link-url" v-model="editUrl" maxlength="500" class="w-full" />
           </div>
           <div class="field">
-            <label>
-              <Checkbox v-model="editIsEnabled" :binary="true" />
+            <label for="edit-link-enabled">
+              <Checkbox v-model="editIsEnabled" input-id="edit-link-enabled" :binary="true" />
               Auf der öffentlichen Seite anzeigen
             </label>
           </div>
         </div>
         <template #footer>
           <Button label="Abbrechen" severity="secondary" @click="editDialogVisible = false" />
-          <Button label="Speichern" @click="saveEdit" />
+          <Button label="Speichern" :disabled="!canSaveEdit" @click="saveEdit" />
         </template>
       </Dialog>
 
@@ -312,6 +344,12 @@ onMounted(loadLinks)
   font-size: 1rem;
   font-weight: 600;
   color: var(--p-text-muted-color);
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
 }
 
 .section-label {

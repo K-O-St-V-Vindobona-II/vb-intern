@@ -3,21 +3,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { formatApiError } from '@/utils/formatters'
 import { siteSettingsService } from '@/services/publicContentService'
+import { saveSiteSettings, youtubeWatchUrl } from '@/composables/useSiteSettings'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
 const saving = ref(false)
 
 const heading = ref('')
 const youtubeUrl = ref('')
-// calendar_id/gallery_heading belong to the Programm/Galerie admin views,
-// but all live in the same settings resource on the backend - fetched
-// here and resent unchanged on save so we never accidentally clear them.
-const calendarId = ref('')
-const galleryHeading = ref('')
+const canSave = computed(() => heading.value.trim() !== '' && youtubeUrl.value.trim() !== '')
 
 const previewYoutubeId = ref<string | null>(null)
 const previewSrc = computed(() =>
@@ -28,14 +26,14 @@ const previewSrc = computed(() =>
 
 const loadSettings = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const resp = await siteSettingsService.getSettings()
     heading.value = resp.data.about_video_heading
-    youtubeUrl.value = `https://www.youtube.com/watch?v=${resp.data.about_video_youtube_id}`
-    calendarId.value = resp.data.programm_calendar_id
-    galleryHeading.value = resp.data.gallery_heading
+    youtubeUrl.value = youtubeWatchUrl(resp.data.about_video_youtube_id)
     previewYoutubeId.value = resp.data.about_video_youtube_id
   } catch (err: unknown) {
+    loadError.value = true
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -50,15 +48,13 @@ const loadSettings = async () => {
 const save = async () => {
   saving.value = true
   try {
-    const resp = await siteSettingsService.updateSettings({
-      about_video_heading: heading.value,
-      youtube_url: youtubeUrl.value,
-      calendar_id: calendarId.value,
-      gallery_heading: galleryHeading.value,
+    const saved = await saveSiteSettings({
+      videoHeading: heading.value.trim(),
+      youtubeUrl: youtubeUrl.value.trim(),
     })
-    heading.value = resp.data.about_video_heading
-    youtubeUrl.value = `https://www.youtube.com/watch?v=${resp.data.about_video_youtube_id}`
-    previewYoutubeId.value = resp.data.about_video_youtube_id
+    heading.value = saved.about_video_heading
+    youtubeUrl.value = youtubeWatchUrl(saved.about_video_youtube_id)
+    previewYoutubeId.value = saved.about_video_youtube_id
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -82,7 +78,11 @@ onMounted(loadSettings)
 
 <template>
   <div class="video-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Einstellungen konnten nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadSettings" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Video</h3>
@@ -98,6 +98,7 @@ onMounted(loadSettings)
         <InputText
           id="video-url"
           v-model="youtubeUrl"
+          maxlength="500"
           class="w-full"
           placeholder="z. B. https://www.youtube.com/watch?v=..."
         />
@@ -108,7 +109,13 @@ onMounted(loadSettings)
       </div>
 
       <div class="actions">
-        <Button label="Speichern" icon="pi pi-check" :loading="saving" @click="save" />
+        <Button
+          label="Speichern"
+          icon="pi pi-check"
+          :loading="saving"
+          :disabled="!canSave"
+          @click="save"
+        />
       </div>
 
       <div v-if="previewSrc" class="preview">
@@ -143,6 +150,12 @@ onMounted(loadSettings)
   font-size: 1rem;
   font-weight: 600;
   color: var(--p-text-muted-color);
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
 }
 
 .field {

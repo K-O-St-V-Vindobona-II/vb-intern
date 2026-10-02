@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 import { useRouter } from 'vue-router'
 import standesdbService from '@/services/standesdbService'
 import InputText from 'primevue/inputtext'
@@ -22,6 +22,9 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
+const MIN_SEARCH_LENGTH = 3
+const inputId = `${useId()}-parent`
+
 const dialogVisible = ref(false)
 const candidateId = ref<string | null>(null)
 const candidateCn = ref('')
@@ -35,15 +38,23 @@ const openDialog = () => {
   dialogVisible.value = true
 }
 
+// Only the newest search may write the suggestions: answers arrive in any
+// order, and a slow answer for an outdated query would otherwise replace the
+// list for the query the user sees.
+let latestSearchId = 0
+
 const onSearch = async (event: { query: string }) => {
-  if (event.query.length < 3 || !props.memberId) {
+  const searchId = ++latestSearchId
+  if (event.query.length < MIN_SEARCH_LENGTH || !props.memberId) {
     suggestions.value = []
     return
   }
   try {
     const resp = await standesdbService.searchParent(props.memberId, event.query)
+    if (searchId !== latestSearchId) return
     suggestions.value = resp.data.data
   } catch {
+    if (searchId !== latestSearchId) return
     suggestions.value = []
   }
 }
@@ -81,7 +92,7 @@ const goToParent = () => {
 
 <template>
   <div class="parent-selector">
-    <label class="field-label">{{ label }}</label>
+    <label class="field-label" :for="inputId">{{ label }}</label>
 
     <small v-if="!memberId" class="hint-text">
       (nur auswählbar, wenn Mitglied bereits gespeichert wurde)
@@ -90,12 +101,22 @@ const goToParent = () => {
     <div v-else class="input-row">
       <InputText
         v-if="readonly && parentId"
+        :id="inputId"
         :model-value="parentCn"
         readonly
+        role="link"
         class="parent-input clickable"
         @click="goToParent"
+        @keydown.enter="goToParent"
       />
-      <InputText v-else :model-value="parentCn || '–'" readonly disabled class="parent-input" />
+      <InputText
+        v-else
+        :id="inputId"
+        :model-value="parentCn || '–'"
+        readonly
+        disabled
+        class="parent-input"
+      />
       <Button
         v-if="!readonly && memberId"
         icon="pi pi-pencil"
@@ -118,8 +139,9 @@ const goToParent = () => {
           v-model="searchQuery"
           :suggestions="suggestions"
           option-label="cn"
-          placeholder="Name suchen (mind. 3 Zeichen)..."
-          :min-length="3"
+          aria-label="Name suchen"
+          :placeholder="`Name suchen (mind. ${MIN_SEARCH_LENGTH} Zeichen)...`"
+          :min-length="MIN_SEARCH_LENGTH"
           :auto-option-focus="true"
           class="w-full"
           fluid

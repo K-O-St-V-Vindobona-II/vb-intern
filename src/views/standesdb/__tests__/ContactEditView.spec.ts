@@ -1,12 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ContactEditView from '../ContactEditView.vue'
 import PrimeVue from 'primevue/config'
 import type { ContactDetail, ReferenceData } from '@/types/standesdb'
-
-// Wrappers left mounted by earlier cases would react to the route changes of later ones.
-enableAutoUnmount(afterEach)
 
 function buildReferenceData(): ReferenceData {
   return {

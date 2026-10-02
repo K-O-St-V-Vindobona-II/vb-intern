@@ -6,6 +6,14 @@ import { RouterView } from 'vue-router'
   <RouterView />
 </template>
 
+<!--
+  Deliberately not scoped: the login, forgot-password and reset-password
+  views (rendered inside RouterView) use these classes on their own
+  elements, which a scoped layout style cannot reach. Every helper class is
+  nested under .auth-wrapper (the root element of each of those views), so
+  this stylesheet - which ends up in the app-wide bundle - can never restyle
+  an element outside the authentication screens.
+-->
 <style>
 .auth-wrapper {
   display: flex;
@@ -21,30 +29,26 @@ import { RouterView } from 'vue-router'
   padding: 1rem;
 }
 
-.text-center {
+.auth-wrapper .text-center {
   text-align: center;
   font-size: 1.5rem;
   margin-bottom: 1rem;
 }
 
-.text-muted {
+.auth-wrapper .text-muted {
   color: var(--p-text-muted-color);
   font-size: 0.9rem;
 }
 
-.flex-column {
+.auth-wrapper .flex-column {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.input-group {
+.auth-wrapper .input-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-:deep(.p-password input) {
-  width: 100%;
 }
 </style>

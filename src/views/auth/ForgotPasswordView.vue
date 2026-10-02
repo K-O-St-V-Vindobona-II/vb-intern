@@ -72,7 +72,14 @@ const handleRequestReset = async () => {
 
           <div class="input-group">
             <label for="email">E-Mail</label>
-            <InputText id="email" v-model="email" type="email" placeholder="E-Mail-Adresse" />
+            <InputText
+              id="email"
+              v-model="email"
+              type="email"
+              name="email"
+              autocomplete="email"
+              placeholder="E-Mail-Adresse"
+            />
           </div>
 
           <Button

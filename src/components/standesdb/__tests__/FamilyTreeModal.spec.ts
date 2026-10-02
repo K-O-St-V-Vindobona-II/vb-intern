@@ -139,4 +139,26 @@ describe('FamilyTreeModal', () => {
     expect(wrapper.emitted('update:visible')).toEqual([[false]])
     wrapper.unmount()
   })
+
+  it('renders the ancestry caret and names as buttons that state what they do', async () => {
+    const ancestry = [buildNode({ id: 1, cn: 'Großvater' }), buildNode({ id: 2, cn: 'Ich' })]
+    const wrapper = mount(FamilyTreeModal, {
+      props: { visible: true, ancestry, children: [], memberId: 2 },
+      ...mountOpts,
+    })
+    await wrapper.vm.$nextTick()
+
+    const caret = document.querySelector('.tree-caret') as HTMLElement
+    expect(caret.tagName).toBe('BUTTON')
+    expect(caret.getAttribute('type')).toBe('button')
+    expect(caret.getAttribute('aria-expanded')).toBe('true')
+    expect(caret.getAttribute('aria-label')).toBe('Großvater: zuklappen')
+    const names = document.querySelectorAll('.tree-name')
+    expect(names).toHaveLength(2)
+    for (const name of names) {
+      expect(name.tagName).toBe('BUTTON')
+      expect(name.getAttribute('type')).toBe('button')
+    }
+    wrapper.unmount()
+  })
 })

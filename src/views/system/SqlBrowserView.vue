@@ -30,26 +30,35 @@ const fetchTables = async () => {
   }
 }
 
+// Answers arrive in any order: a slow answer for the table that was selected
+// before must not replace columns, rows and count of the table on screen, or
+// the page would show one table's data under another table's name.
+let latestDataRequestId = 0
+
 const fetchData = async () => {
   if (!selectedTable.value) return
+  const requestId = ++latestDataRequestId
   loading.value = true
   try {
     const resp = await systemService.getTableData(selectedTable.value, {
       page: page.value,
       page_size: pageSize,
     })
+    if (requestId !== latestDataRequestId) return
     const data: TableDataResponse = resp.data
     columns.value = data.columns
     rows.value = data.rows
     total.value = data.total
   } catch (e) {
+    if (requestId !== latestDataRequestId) return
     toast.add({ severity: 'error', summary: formatApiError(e), life: 5000 })
   } finally {
-    loading.value = false
+    if (requestId === latestDataRequestId) loading.value = false
   }
 }
 
 const onTableChange = () => {
+  latestDataRequestId++
   page.value = 1
   rows.value = []
   columns.value = []
@@ -118,7 +127,7 @@ onMounted(fetchTables)
       >
         <Column v-for="col in columns" :key="col.name" :field="col.name" :header="col.name">
           <template #body="{ data }">
-            <span class="cell-value">{{ data[col.name] ?? '' }}</span>
+            <span class="cell-value" :title="data[col.name] ?? ''">{{ data[col.name] ?? '' }}</span>
           </template>
         </Column>
       </DataTable>

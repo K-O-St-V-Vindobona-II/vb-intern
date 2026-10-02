@@ -331,4 +331,18 @@ describe('DirList', () => {
       'Ausgewählte Verzeichnisse in die Zwischenablage',
     )
   })
+
+  it('renders directory names and descriptions as plain text, never as markup', () => {
+    const wrapper = mountDirList({
+      items: [
+        buildDir({ name: '<img src=x onerror="window.__xss = 1">', description: '<b>fett</b>' }),
+      ],
+      title: 'Einsicht',
+    })
+
+    expect(wrapper.find('.dir-link').text()).toBe('<img src=x onerror="window.__xss = 1">')
+    expect(wrapper.find('tbody img').exists()).toBe(false)
+    expect(wrapper.find('tbody b').exists()).toBe(false)
+    expect(wrapper.text()).toContain('<b>fett</b>')
+  })
 })
