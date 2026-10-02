@@ -1,41 +1,27 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import type { PathEntry } from '@/types/archive'
 
 defineProps<{
   path: PathEntry[]
 }>()
-
-const router = useRouter()
-
-const goToDir = (id: string | null) => {
-  if (id === null) {
-    router.push({ name: 'archive-root' })
-  } else {
-    router.push({
-      name: 'archive-dir',
-      params: { id },
-    })
-  }
-}
 </script>
 
 <template>
-  <span class="dir-path">
-    <a class="path-link" @click.prevent="goToDir(null)"> Archiv </a>
+  <nav class="dir-path" aria-label="Verzeichnispfad">
+    <RouterLink :to="{ name: 'archive-root' }" class="path-link"> Archiv </RouterLink>
     <template v-for="entry in path" :key="entry.id">
-      <span class="path-sep"> / </span>
-      <a class="path-link" @click.prevent="goToDir(entry.id)">
+      <span class="path-sep" aria-hidden="true"> / </span>
+      <RouterLink :to="{ name: 'archive-dir', params: { id: entry.id } }" class="path-link">
         {{ entry.name }}
-      </a>
+      </RouterLink>
     </template>
-  </span>
+  </nav>
 </template>
 
 <style scoped>
 .path-link {
   color: var(--p-primary-color);
-  cursor: pointer;
   text-decoration: none;
 }
 .path-link:hover {

@@ -24,18 +24,20 @@ const userDisplayName = computed(() => {
 })
 
 const loadAvatar = async () => {
+  // Bumping the id before the guard also invalidates a request that is still
+  // in flight when default_image is cleared, so its late answer cannot bring
+  // the removed avatar back.
+  const thisRequest = ++avatarRequestId
   avatarUrl.value = null
   const u = authStore.user
   if (!u?.default_image) return
 
-  const thisRequest = ++avatarRequestId
   try {
     const resp = await standesdbService.getImageUrl('member', u.id, u.default_image, true)
     if (thisRequest !== avatarRequestId) return
     avatarUrl.value = resp.data.url
   } catch {
-    if (thisRequest !== avatarRequestId) return
-    avatarUrl.value = null
+    // Nothing to do: avatarUrl was reset above, so the placeholder icon shows.
   }
 }
 
@@ -82,16 +84,27 @@ const toggleUserMenu = () => {
   <div class="navbar-wrapper">
     <Menubar :model="mainMenuItems" class="custom-menubar" :breakpoint="'768px'">
       <template #start>
-        <div class="logo-container" @click="router.push({ name: 'home' })">
+        <button
+          type="button"
+          class="logo-container"
+          aria-label="Zur Startseite"
+          @click="router.push({ name: 'home' })"
+        >
           <i class="pi pi-home logo-icon" />
           <span class="logo-text">VB intern</span>
-        </div>
+        </button>
       </template>
 
       <template #end>
         <div v-if="authStore.user" class="user-actions">
-          <button class="avatar-btn" @click="toggleUserMenu">
-            <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-sm" alt="Profil" />
+          <button
+            type="button"
+            class="avatar-btn"
+            aria-label="Profilmenü öffnen"
+            aria-haspopup="dialog"
+            @click="toggleUserMenu"
+          >
+            <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-sm" alt="" />
             <i v-else class="pi pi-user avatar-fallback" />
           </button>
         </div>
@@ -245,6 +258,10 @@ const toggleUserMenu = () => {
   display: flex;
   align-items: center;
   margin-right: 0.75rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   cursor: pointer;
   white-space: nowrap;
 }

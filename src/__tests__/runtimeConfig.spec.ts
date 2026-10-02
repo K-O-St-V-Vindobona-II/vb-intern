@@ -40,4 +40,29 @@ describe('runtimeConfig', () => {
     expect(apiBaseUrl()).toBe('https://api.vindobona2.at/api')
     expect(passwordMinLength()).toBe(8)
   })
+
+  it('falls through to import.meta.env when a window.__APP_CONFIG__ value is an empty string', () => {
+    window.__APP_CONFIG__ = { API_BASE_URL: '', PASSWORD_MIN_LENGTH: '' }
+    vi.stubEnv('VITE_API_BASE_URL', 'https://dev.example/api')
+    vi.stubEnv('VITE_PASSWORD_MIN_LENGTH', '10')
+
+    expect(apiBaseUrl()).toBe('https://dev.example/api')
+    expect(passwordMinLength()).toBe(10)
+  })
+
+  it.each(['twelve', '0', '-4', '8.5', ' '])(
+    'ignores the invalid PASSWORD_MIN_LENGTH %j instead of disabling the length check with NaN',
+    (invalid) => {
+      window.__APP_CONFIG__ = { PASSWORD_MIN_LENGTH: invalid }
+
+      expect(passwordMinLength()).toBe(8)
+    },
+  )
+
+  it('does not fall back to the build-time PASSWORD_MIN_LENGTH when the runtime one is invalid', () => {
+    window.__APP_CONFIG__ = { PASSWORD_MIN_LENGTH: 'twelve' }
+    vi.stubEnv('VITE_PASSWORD_MIN_LENGTH', '10')
+
+    expect(passwordMinLength()).toBe(8)
+  })
 })

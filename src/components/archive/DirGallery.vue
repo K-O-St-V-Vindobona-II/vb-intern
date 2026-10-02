@@ -17,6 +17,7 @@ const visible = ref(false)
 const currentIndex = ref(0)
 const currentSrc = ref<string | null>(null)
 const loading = ref(false)
+const loadFailed = ref(false)
 
 const currentImage = computed(() => images.value[currentIndex.value] || null)
 
@@ -27,9 +28,16 @@ const loadCurrent = async () => {
   // Guard against race condition when rapidly clicking prev/next
   const thisRequest = ++loadRequestId
   loading.value = true
+  loadFailed.value = false
+  // Drop the previous picture right away: while the next one loads it would
+  // otherwise stay visible under the new caption, and a click on it (which
+  // downloads the *current* image) would hand out a different file than the
+  // one on screen.
+  currentSrc.value = null
   const url = await loadPresignedUrl(currentImage.value.id, 'lg')
   if (thisRequest !== loadRequestId) return
   currentSrc.value = url
+  loadFailed.value = url === null
   loading.value = false
 }
 
@@ -75,8 +83,18 @@ const download = () => {
   >
     <div v-if="currentImage" class="gallery-content">
       <div class="gallery-nav">
-        <Button icon="pi pi-chevron-left" severity="primary" @click="prev" />
-        <Button icon="pi pi-chevron-right" severity="primary" @click="next" />
+        <Button
+          icon="pi pi-chevron-left"
+          severity="primary"
+          aria-label="Vorheriges Bild"
+          @click="prev"
+        />
+        <Button
+          icon="pi pi-chevron-right"
+          severity="primary"
+          aria-label="Nächstes Bild"
+          @click="next"
+        />
       </div>
 
       <div class="gallery-image">
@@ -88,6 +106,9 @@ const download = () => {
           @click="download"
         />
         <i v-else-if="loading" class="pi pi-spin pi-spinner gallery-spinner" />
+        <p v-else-if="loadFailed" class="gallery-error" role="alert">
+          Das Bild konnte nicht geladen werden.
+        </p>
       </div>
 
       <div class="gallery-info">
@@ -140,6 +161,9 @@ const download = () => {
 .gallery-spinner {
   font-size: 2rem;
   color: var(--p-text-muted-color);
+}
+.gallery-error {
+  color: var(--p-red-500);
 }
 .gallery-info h5 {
   margin: 0.5rem 0 0.25rem;

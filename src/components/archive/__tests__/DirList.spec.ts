@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { mount, flushPromises, RouterLinkStub, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DirList from '../DirList.vue'
 import { useArchiveStore } from '@/stores/archive'
 import PrimeVue from 'primevue/config'
 import type { DirShort } from '@/types/archive'
-
-const mockPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRouter: vi.fn(() => ({ push: mockPush })),
-}))
 
 const mockConfirmRequire = vi.fn()
 vi.mock('primevue/useconfirm', () => ({
@@ -49,7 +44,7 @@ let activeWrapper: VueWrapper | null = null
 function mountDirList(props: Record<string, unknown>) {
   const wrapper = mount(DirList, {
     props,
-    global: { plugins: [PrimeVue] },
+    global: { plugins: [PrimeVue], stubs: { RouterLink: RouterLinkStub } },
     attachTo: document.body,
   })
   activeWrapper = wrapper
@@ -86,20 +81,29 @@ describe('DirList', () => {
     expect(wrapper.text()).toContain('B')
   })
 
-  it('navigates to the directory when its name link is clicked', async () => {
-    const wrapper = mountDirList({ items: [buildDir({ id: 5, name: 'Fotos' })], title: 'Einsicht' })
-    await wrapper.find('.dir-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
+  it('keys the table rows by directory id, so sorting moves rows instead of re-using them', () => {
+    const wrapper = mountDirList({ items: [buildDir()], title: 'Einsicht' })
+    expect(wrapper.findComponent({ name: 'DataTable' }).props('dataKey')).toBe('id')
   })
 
-  it('navigates into a trashed directory too, so its remaining content can be managed', async () => {
+  it('links the directory name to its archive-dir route', async () => {
+    const wrapper = mountDirList({ items: [buildDir({ id: 5, name: 'Fotos' })], title: 'Einsicht' })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-dir',
+      params: { id: 5 },
+    })
+  })
+
+  it('links into a trashed directory too, so its remaining content can be managed', async () => {
     const wrapper = mountDirList({
       items: [buildDir({ id: 5, name: 'Fotos' })],
       title: 'Papierkorb',
       trash: true,
     })
-    await wrapper.find('.dir-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-dir',
+      params: { id: 5 },
+    })
   })
 
   it('does not show selection checkboxes or the clipboard button for non-admins', () => {
@@ -279,6 +283,52 @@ describe('DirList', () => {
         severity: 'error',
         detail: 'Verzeichnis konnte nicht endgültig gelöscht werden.',
       }),
+    )
+  })
+
+  it('shows the API detail when deleting or restoring is rejected, else a specific fallback', async () => {
+    mockDeleteDir.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed'), {
+        response: { data: { detail: 'Verzeichnis ist gesperrt.' } },
+      }),
+    )
+    mockRestoreDir.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
+
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Verzeichnis ist gesperrt.' }),
+    )
+
+    wrapper.unmount()
+    const trashWrapper = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+    await trashWrapper.findAll('tbody button')[0]!.trigger('click')
+    await mockConfirmRequire.mock.calls[1]![0].accept()
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Verzeichnis konnte nicht wiederhergestellt werden.' }),
+    )
+  })
+
+  it('names the selection checkboxes and the copy button for assistive technology', () => {
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 1, name: 'Fotos' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+
+    expect(checkboxes[0]!.find('input').attributes('aria-label')).toBe('Alle auswählen')
+    expect(checkboxes[1]!.find('input').attributes('aria-label')).toBe('Fotos auswählen')
+    expect(wrapper.find('.list-header button').attributes('aria-label')).toBe(
+      'Ausgewählte Verzeichnisse in die Zwischenablage',
     )
   })
 })

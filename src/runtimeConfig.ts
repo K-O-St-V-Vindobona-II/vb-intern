@@ -42,10 +42,16 @@ export function googleClientId(): string {
   return readRuntimeConfig('GOOGLE_CLIENT_ID') || import.meta.env.VITE_GOOGLE_CLIENT_ID
 }
 
+const DEFAULT_PASSWORD_MIN_LENGTH = 8
+
+// A value that is not a positive integer (e.g. "twelve") would otherwise
+// become NaN, and every "length < NaN" comparison is false - the client-side
+// minimum-length check would silently switch itself off.
 export function passwordMinLength(): number {
-  return Number(
-    readRuntimeConfig('PASSWORD_MIN_LENGTH') || import.meta.env.VITE_PASSWORD_MIN_LENGTH || 8,
+  const configured = Number(
+    readRuntimeConfig('PASSWORD_MIN_LENGTH') || import.meta.env.VITE_PASSWORD_MIN_LENGTH,
   )
+  return Number.isInteger(configured) && configured > 0 ? configured : DEFAULT_PASSWORD_MIN_LENGTH
 }
 
 export function appEnvironment(): string | undefined {

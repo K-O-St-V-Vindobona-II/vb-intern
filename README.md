@@ -75,13 +75,15 @@ Actual production/stage values (and how they're managed): see
 
 ## CI/CD
 
-The pipeline (`.github/workflows/ci-cd.yml`) runs on every push to
-`development` and on PRs to `main`:
+The pipeline (`.github/workflows/ci-cd.yml`) runs on every push to `main`, on
+PRs targeting `main`, weekly on a schedule (refreshes the CodeQL scan) and on
+manual trigger:
 
 1. **Lint & Format** — ESLint + Prettier
 2. **Typecheck & Test** — `vue-tsc` (strict) + Vitest with coverage
 3. **CodeQL Security Scan**
-4. **Build & Push Image** — pushes to `ghcr.io` on release or manual trigger
+4. **Build & Push Image** — pushes to `ghcr.io` on a push to `main` or a
+   manual trigger (also restricted to `main`); never on a PR or schedule run
 
 Production/stage rollout itself happens outside this pipeline: the host's own
 `podman-auto-update.timer` picks up the new `:latest` image automatically, or
@@ -168,13 +170,16 @@ Echte Production-/Stage-Werte (und wie sie verwaltet werden): siehe
 
 ## CI/CD
 
-Die Pipeline (`.github/workflows/ci-cd.yml`) läuft bei jedem Push nach
-`development` und bei PRs nach `main`:
+Die Pipeline (`.github/workflows/ci-cd.yml`) läuft bei jedem Push nach `main`,
+bei PRs auf `main`, wöchentlich nach Zeitplan (erneuert den CodeQL-Scan) und
+bei manuellem Trigger:
 
 1. **Lint & Format** — ESLint + Prettier
 2. **Typecheck & Test** — `vue-tsc` (strict) + Vitest mit Coverage
 3. **CodeQL Security Scan**
-4. **Build & Push Image** — pusht nach `ghcr.io` bei Release oder manuellem Trigger
+4. **Build & Push Image** — pusht nach `ghcr.io` bei einem Push nach `main`
+   oder einem manuellen Trigger (ebenfalls auf `main` beschränkt); nie bei
+   einem PR- oder Zeitplan-Lauf
 
 Der Production-/Stage-Rollout selbst läuft außerhalb dieser Pipeline: Der
 `podman-auto-update.timer` des Zielsystems holt das neue `:latest`-Image

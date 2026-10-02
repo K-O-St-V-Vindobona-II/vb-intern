@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import type { Comment } from '@/types/archive'
-import { formatDateTime } from '@/utils/formatters'
+import { formatApiError, formatDateTime } from '@/utils/formatters'
 import archiveService from '@/services/archiveService'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -26,22 +26,35 @@ const dialogVisible = ref(false)
 const commentText = ref('')
 const saving = ref(false)
 
+// Same rule the API applies (surrounding whitespace stripped, then 5-1000
+// characters): counting the stripped text keeps the button state in step with
+// what the server will accept.
+const COMMENT_MIN_LENGTH = 5
+const COMMENT_MAX_LENGTH = 1000
+const trimmedComment = computed(() => commentText.value.trim())
+const isCommentValid = computed(
+  () =>
+    trimmedComment.value.length >= COMMENT_MIN_LENGTH &&
+    trimmedComment.value.length <= COMMENT_MAX_LENGTH,
+)
+
 const openDialog = () => {
   commentText.value = ''
   dialogVisible.value = true
 }
 
 const saveComment = async () => {
+  if (!isCommentValid.value) return
   saving.value = true
   try {
-    await archiveService.createComment(props.fileId, { content: commentText.value })
+    await archiveService.createComment(props.fileId, { content: trimmedComment.value })
     dialogVisible.value = false
     emit('changed')
-  } catch {
+  } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Fehler',
-      detail: 'Kommentar konnte nicht gespeichert werden.',
+      detail: formatApiError(err, 'Kommentar konnte nicht gespeichert werden.'),
       life: 5000,
     })
   } finally {
@@ -66,10 +79,11 @@ const deleteComment = (commentId: string) => {
       try {
         await archiveService.deleteComment(props.fileId, commentId)
         emit('changed')
-      } catch {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: 'Fehler',
+          detail: formatApiError(err, 'Kommentar konnte nicht gelöscht werden.'),
           life: 3000,
         })
       }
@@ -89,6 +103,7 @@ const deleteComment = (commentId: string) => {
             <Button
               v-if="admin"
               v-tooltip="'Löschen'"
+              aria-label="Kommentar löschen"
               icon="pi pi-trash"
               severity="danger"
               text
@@ -125,12 +140,14 @@ const deleteComment = (commentId: string) => {
       header="Kommentar hinzufügen"
       modal
       :style="{ width: '450px' }"
+      :breakpoints="{ '600px': '95vw' }"
     >
       <Textarea
         v-model="commentText"
-        rows="5"
+        :rows="5"
         style="width: 100%"
-        placeholder="Kommentar (5-1000 Zeichen)"
+        aria-label="Kommentar"
+        :placeholder="`Kommentar (${COMMENT_MIN_LENGTH}-${COMMENT_MAX_LENGTH} Zeichen)`"
       />
       <template #footer>
         <Button label="Abbrechen" severity="secondary" @click="dialogVisible = false" />
@@ -138,7 +155,7 @@ const deleteComment = (commentId: string) => {
           label="Speichern"
           severity="danger"
           :loading="saving"
-          :disabled="commentText.length < 5 || commentText.length > 1000"
+          :disabled="!isCommentValid"
           @click="saveComment"
         />
       </template>

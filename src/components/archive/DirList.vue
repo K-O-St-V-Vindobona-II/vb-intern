@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useArchiveStore } from '@/stores/archive'
@@ -24,7 +24,6 @@ const emit = defineEmits<{
   (e: 'changed'): void
 }>()
 
-const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 const store = useArchiveStore()
@@ -32,13 +31,6 @@ const { isSelected, toggle, toggleAll, allSelected, selectedItems, deselectAll }
   DirShort,
   string
 >(toRef(props, 'items'), (d) => d.id)
-
-const goToDir = (id: string) => {
-  router.push({
-    name: 'archive-dir',
-    params: { id },
-  })
-}
 
 const copyToClipboard = () => {
   const items = selectedItems.value.map((d) => `dir:${d.id}`)
@@ -67,10 +59,16 @@ const toggleTrash = (dir: DirShort, isTrash: boolean) => {
           await archiveService.deleteDir(dir.id)
         }
         emit('changed')
-      } catch {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: 'Fehler',
+          detail: formatApiError(
+            err,
+            isTrash
+              ? 'Verzeichnis konnte nicht wiederhergestellt werden.'
+              : 'Verzeichnis konnte nicht gelöscht werden.',
+          ),
           life: 3000,
         })
       }
@@ -115,6 +113,7 @@ const purgeTrashedDir = (dir: DirShort) => {
       <Button
         v-if="admin && !trash"
         v-tooltip="'In Zwischenablage'"
+        aria-label="Ausgewählte Verzeichnisse in die Zwischenablage"
         icon="pi pi-copy"
         severity="danger"
         text
@@ -125,25 +124,29 @@ const purgeTrashedDir = (dir: DirShort) => {
         @click="copyToClipboard"
       />
     </div>
-    <DataTable :value="items" striped-rows size="small" scrollable>
+    <DataTable :value="items" data-key="id" striped-rows size="small" scrollable>
       <Column v-if="admin && !trash" style="width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem">
         <template #header>
           <div class="select-cell" @click.prevent="toggleAll()">
-            <Checkbox :model-value="allSelected" :binary="true" />
+            <Checkbox :model-value="allSelected" :binary="true" aria-label="Alle auswählen" />
           </div>
         </template>
         <template #body="{ data }">
           <div class="select-cell" @click="toggle(data, $event)">
-            <Checkbox :model-value="isSelected(data)" :binary="true" />
+            <Checkbox
+              :model-value="isSelected(data)"
+              :binary="true"
+              :aria-label="`${data.name} auswählen`"
+            />
           </div>
         </template>
       </Column>
       <Column field="name" header="Name" sortable>
         <template #body="{ data }">
-          <a class="dir-link" @click.prevent="goToDir(data.id)">
+          <RouterLink :to="{ name: 'archive-dir', params: { id: data.id } }" class="dir-link">
             <i class="pi pi-folder folder-icon" />
             {{ data.name }}
-          </a>
+          </RouterLink>
         </template>
       </Column>
       <Column field="description" header="Beschreibung" sortable />

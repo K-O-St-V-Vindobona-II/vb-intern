@@ -14,8 +14,19 @@ const { loadPresignedUrl } = useArchiveDownload()
 const { schedule } = useThumbnailLoadQueue()
 const thumbSrc = ref<string | null>(null)
 const rootEl = ref<HTMLElement | null>(null)
-const wasVisible = ref(false)
-const observer = ref<IntersectionObserver | null>(null)
+
+// Plain variables: nothing in the template reads them. wasVisible stays true
+// for the life of the instance once the icon has been on screen, so a row
+// that is re-used for another file (DataTable rows without a data-key are
+// keyed by position and re-render in place when the list is sorted) reloads
+// its thumbnail straight away.
+let wasVisible = false
+let observer: IntersectionObserver | null = null
+
+// Answers arrive in any order (the load queue runs several tasks at once):
+// only the newest request may set the thumbnail, or a re-used row could end
+// up showing the picture of the file it displayed before.
+let latestRequestId = 0
 
 const EXTENSION_ICONS: Record<string, string> = {
   jpg: 'pi pi-image',
@@ -37,38 +48,53 @@ const iconClass = computed(() => {
 })
 
 const loadThumb = async () => {
+  const requestId = ++latestRequestId
   thumbSrc.value = null
   if (!props.isImage || !props.fileId) return
   const fileId = props.fileId
   const size = props.size || 'xs'
-  thumbSrc.value = await schedule(() => loadPresignedUrl(fileId, size))
+  const url = await schedule(() => loadPresignedUrl(fileId, size))
+  if (requestId !== latestRequestId) return
+  thumbSrc.value = url
 }
 
-const tryLoad = () => {
-  if (wasVisible.value) loadThumb()
+const stopObserving = () => {
+  observer?.disconnect()
+  observer = null
 }
 
-watch(
-  () => [props.fileId, props.isImage],
-  () => tryLoad(),
-)
-
-onMounted(() => {
-  if (!props.isImage || !props.fileId) return
-  observer.value = new IntersectionObserver(
+const startObserving = () => {
+  if (observer || !rootEl.value) return
+  observer = new IntersectionObserver(
     (entries) => {
-      if (entries[0]?.isIntersecting && !wasVisible.value) {
-        wasVisible.value = true
-        loadThumb()
-        observer.value?.disconnect()
-      }
+      if (!entries[0]?.isIntersecting) return
+      wasVisible = true
+      stopObserving()
+      loadThumb()
     },
     { rootMargin: '200px' },
   )
-  if (rootEl.value) observer.value.observe(rootEl.value)
+  observer.observe(rootEl.value)
+}
+
+// A re-used instance can turn from "no image" into an image after its
+// mount; observing only from onMounted would then never load its thumbnail.
+const refresh = () => {
+  if (wasVisible) {
+    loadThumb()
+    return
+  }
+  if (props.isImage && props.fileId) startObserving()
+  else stopObserving()
+}
+
+watch(() => [props.fileId, props.isImage], refresh)
+
+onMounted(() => {
+  if (props.isImage && props.fileId) startObserving()
 })
 
-onUnmounted(() => observer.value?.disconnect())
+onUnmounted(stopObserving)
 </script>
 
 <template>

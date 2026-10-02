@@ -10,6 +10,14 @@ function buildResult(overrides: Partial<SearchResult> = {}): SearchResult {
 
 const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 
+function deferredResults() {
+  let resolvePromise!: (value: SearchResult[]) => void
+  const promise = new Promise<SearchResult[]>((resolve) => {
+    resolvePromise = resolve
+  })
+  return { promise, resolve: resolvePromise }
+}
+
 describe('SearchField', () => {
   it('does not search below the default minimum length', async () => {
     const searchFn = vi.fn()
@@ -113,6 +121,89 @@ describe('SearchField', () => {
     await flushPromises()
 
     expect(document.activeElement?.tagName).toBe('INPUT')
+    wrapper.unmount()
+  })
+
+  it('clears suggestions from an earlier search when the query drops below the minimum', async () => {
+    const searchFn = vi.fn().mockResolvedValue([buildResult()])
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+
+    await ac.vm.$emit('complete', { query: 'Max' })
+    await flushPromises()
+    expect(ac.props('suggestions')).toHaveLength(1)
+
+    await ac.vm.$emit('complete', { query: 'Ma' })
+    await flushPromises()
+
+    expect(ac.props('suggestions')).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('regression: a slow answer for an outdated query does not replace the newer suggestions', async () => {
+    const slow = deferredResults()
+    const fast = deferredResults()
+    const searchFn = vi.fn().mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise)
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+
+    await ac.vm.$emit('complete', { query: 'Max' })
+    await ac.vm.$emit('complete', { query: 'Maxi' })
+    fast.resolve([buildResult({ id: 2, label: 'Maxi Muster' })])
+    await flushPromises()
+    slow.resolve([buildResult({ id: 1, label: 'Max Mustermann' })])
+    await flushPromises()
+
+    expect(ac.props('suggestions')).toEqual([buildResult({ id: 2, label: 'Maxi Muster' })])
+    wrapper.unmount()
+  })
+
+  it('regression: a late failure of an outdated query does not clear the newer suggestions', async () => {
+    let rejectSlow!: (reason: Error) => void
+    const slow = new Promise<SearchResult[]>((_, reject) => {
+      rejectSlow = reject
+    })
+    const searchFn = vi
+      .fn()
+      .mockReturnValueOnce(slow)
+      .mockResolvedValueOnce([buildResult({ id: 2, label: 'Maxi Muster' })])
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+
+    await ac.vm.$emit('complete', { query: 'Max' })
+    await ac.vm.$emit('complete', { query: 'Maxi' })
+    await flushPromises()
+    rejectSlow(new Error('offline'))
+    await flushPromises()
+
+    expect(ac.props('suggestions')).toEqual([buildResult({ id: 2, label: 'Maxi Muster' })])
+    wrapper.unmount()
+  })
+
+  it('regression: an answer that arrives after the query fell below the minimum is discarded', async () => {
+    const pending = deferredResults()
+    const searchFn = vi.fn().mockReturnValueOnce(pending.promise)
+    const wrapper = mount(SearchField, { props: { searchFn }, ...mountOpts })
+    const ac = wrapper.findComponent({ name: 'AutoComplete' })
+
+    await ac.vm.$emit('complete', { query: 'Max' })
+    await ac.vm.$emit('complete', { query: 'Ma' })
+    pending.resolve([buildResult()])
+    await flushPromises()
+
+    expect(ac.props('suggestions')).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('names the enforced minimum in the default placeholder', () => {
+    const wrapper = mount(SearchField, {
+      props: { searchFn: vi.fn(), minLength: 1 },
+      ...mountOpts,
+    })
+
+    expect(wrapper.findComponent({ name: 'AutoComplete' }).props('placeholder')).toBe(
+      'Suchen (mind. 1 Zeichen)...',
+    )
     wrapper.unmount()
   })
 })
