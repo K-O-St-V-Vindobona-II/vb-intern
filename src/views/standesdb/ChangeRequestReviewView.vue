@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { formatDateTime } from '@/utils/formatters'
+import { formatApiError, formatDateTime, getApiErrorStatus } from '@/utils/formatters'
 import type { MemberChangeRequestDetail } from '@/types/standesdb'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -12,6 +12,10 @@ import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 
+type Decision = 'approved' | 'rejected'
+
+const HTTP_CONFLICT = 409
+
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -19,7 +23,8 @@ const toast = useToast()
 const loading = ref(true)
 const submitting = ref(false)
 const request = ref<MemberChangeRequestDetail | null>(null)
-const decisions = ref<Record<string, 'approved' | 'rejected'>>({})
+const decisions = ref<Record<string, Decision>>({})
+let loadRequestId = 0
 
 const decisionOptions = [
   { label: 'Genehmigen', value: 'approved' as const },
@@ -36,39 +41,50 @@ const wasResubmitted = computed(() => {
   if (!req) return false
   return req.created_at !== null && req.updated_at !== null && req.updated_at !== req.created_at
 })
+// The complete decision set, or null while any field is still undecided.
 // Checked against the two literal decision values rather than
 // "!== undefined": PrimeVue's SelectButton emits null (not undefined) when
 // the already-selected option is clicked again to deselect it, which would
 // otherwise still count as "decided" and leave the submit button enabled.
-const allDecided = computed(
-  () =>
-    request.value !== null &&
-    request.value.diff.every((entry) => {
-      const decision = decisions.value[entry.field]
-      return decision === 'approved' || decision === 'rejected'
-    }),
-)
+const decisionPayload = computed<Record<string, Decision> | null>(() => {
+  const current = request.value
+  if (!current) return null
+  const payload: Record<string, Decision> = {}
+  for (const entry of current.diff) {
+    const decision = decisions.value[entry.field]
+    if (decision !== 'approved' && decision !== 'rejected') return null
+    payload[entry.field] = decision
+  }
+  return payload
+})
+const allDecided = computed(() => decisionPayload.value !== null)
 
-const setAllDecisions = (decision: 'approved' | 'rejected') => {
+const setAllDecisions = (decision: Decision) => {
   if (!request.value) return
   request.value.diff.forEach((entry) => {
     decisions.value[entry.field] = decision
   })
 }
 
-onMounted(async () => {
-  const id = route.params['id'] as string
+const applyRequest = (detail: MemberChangeRequestDetail) => {
+  request.value = detail
+  decisions.value = {}
+  Object.entries(detail.field_decisions ?? {}).forEach(([field, decision]) => {
+    if (decision === 'approved' || decision === 'rejected') {
+      decisions.value[field] = decision
+    }
+  })
+}
+
+const loadRequest = async (id: string) => {
+  const thisRequest = ++loadRequestId
+  loading.value = true
   try {
     const resp = await standesdbService.getChangeRequest(id)
-    request.value = resp.data
-    if (resp.data.field_decisions) {
-      Object.entries(resp.data.field_decisions).forEach(([field, decision]) => {
-        if (decision === 'approved' || decision === 'rejected') {
-          decisions.value[field] = decision
-        }
-      })
-    }
+    if (thisRequest !== loadRequestId) return
+    applyRequest(resp.data)
   } catch {
+    if (thisRequest !== loadRequestId) return
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -77,15 +93,38 @@ onMounted(async () => {
     })
     router.push({ name: 'standesdb-change-requests' })
   } finally {
-    loading.value = false
+    if (thisRequest === loadRequestId) loading.value = false
   }
-})
+}
+
+watch(
+  () => route.params['id'],
+  (id) => loadRequest(String(id)),
+  { immediate: true },
+)
+
+// After a 409 the request may have been decided by another admin or
+// overwritten by the member; show the current state in that case. A 409 for
+// another reason (e.g. a name collision at resolution) leaves the page as it
+// is, so the reviewer keeps the decisions made so far.
+const refreshAfterConflict = async (id: string, sentUpdatedAt: string) => {
+  try {
+    const resp = await standesdbService.getChangeRequest(id)
+    if (resp.data.status === 'resolved' || resp.data.updated_at !== sentUpdatedAt) {
+      applyRequest(resp.data)
+    }
+  } catch {
+    // The conflict toast already told the reviewer what happened.
+  }
+}
 
 const submitDecision = async () => {
-  if (!request.value || !allDecided.value) return
+  const current = request.value
+  const payload = decisionPayload.value
+  if (!current || !payload || !current.updated_at) return
   submitting.value = true
   try {
-    await standesdbService.decideChangeRequest(request.value.id, decisions.value)
+    await standesdbService.decideChangeRequest(current.id, payload, current.updated_at)
     toast.add({
       severity: 'success',
       summary: 'Entschieden',
@@ -93,13 +132,16 @@ const submitDecision = async () => {
       life: 4000,
     })
     router.push({ name: 'standesdb-change-requests' })
-  } catch {
+  } catch (err: unknown) {
     toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Entscheidung konnte nicht gespeichert werden.',
-      life: 5000,
+      severity: getApiErrorStatus(err) === HTTP_CONFLICT ? 'warn' : 'error',
+      summary: 'Entscheidung nicht gespeichert',
+      detail: formatApiError(err, 'Entscheidung konnte nicht gespeichert werden.'),
+      life: 8000,
     })
+    if (getApiErrorStatus(err) === HTTP_CONFLICT) {
+      await refreshAfterConflict(current.id, current.updated_at)
+    }
   } finally {
     submitting.value = false
   }
