@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useId } from 'vue'
 import type { OrgRef, StateRef } from '@/types/archive'
 import PermissionGrid from './PermissionGrid.vue'
 
@@ -15,16 +15,23 @@ defineProps<{
 }>()
 
 const expanded = ref(false)
+const bodyId = `${useId()}-body`
 </script>
 
 <template>
   <div class="perm-viewer">
-    <div class="perm-header" @click="expanded = !expanded">
+    <button
+      type="button"
+      class="perm-header"
+      :aria-expanded="expanded"
+      :aria-controls="bodyId"
+      @click="expanded = !expanded"
+    >
       <i :class="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="perm-caret" />
       <span>{{ title }}</span>
       <span v-if="recursive" class="recursive-badge"> [rekursiv] </span>
-    </div>
-    <div v-if="expanded" class="perm-body">
+    </button>
+    <div v-if="expanded" :id="bodyId" class="perm-body">
       <PermissionGrid v-model="model" :orgs="orgs" :states="states" />
     </div>
   </div>
@@ -32,8 +39,15 @@ const expanded = ref(false)
 
 <style scoped>
 .perm-header {
-  cursor: pointer;
+  display: block;
+  width: 100%;
   padding: 0.25rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   user-select: none;
 }
 .perm-caret {

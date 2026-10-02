@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import LoginView from '../LoginView.vue'
 import PrimeVue from 'primevue/config'
 import { googleClientId } from '@/runtimeConfig'
@@ -38,7 +38,26 @@ vi.mock('@/stores/auth', () => ({
   })),
 }))
 
+// The tests replace window.location; the original property is put back after
+// each case so no other test in the file (or a later change to it) inherits
+// a stub.
+const originalLocation = Object.getOwnPropertyDescriptor(window, 'location')!
+
+function apiError(status: number, detail: unknown) {
+  return { response: { status, data: { detail } } }
+}
+
+async function submitLogin(wrapper: ReturnType<typeof mount>) {
+  await wrapper.find('input#email').setValue('test@verein.at')
+  await wrapper.find('input#password').setValue('secret')
+  await wrapper.find('form').trigger('submit.prevent')
+}
+
 describe('LoginView.vue', () => {
+  afterEach(() => {
+    Object.defineProperty(window, 'location', originalLocation)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockRouteState.query = {}
@@ -65,7 +84,7 @@ describe('LoginView.vue', () => {
       global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
     })
     await wrapper.find('input#email').setValue('wrong@verein.at')
-    await wrapper.find('#password input').setValue('wrong')
+    await wrapper.find('input#password').setValue('wrong')
 
     mockLogin.mockRejectedValueOnce({ response: { status: 401 } })
     await wrapper.find('form').trigger('submit.prevent')
@@ -78,7 +97,7 @@ describe('LoginView.vue', () => {
       global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
     })
     await wrapper.find('input#email').setValue('test@verein.at')
-    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('input#password').setValue('secret')
 
     mockLogin.mockRejectedValueOnce(new Error('Network Error'))
     await wrapper.find('form').trigger('submit.prevent')
@@ -100,7 +119,7 @@ describe('LoginView.vue', () => {
     mockLogin.mockResolvedValueOnce(undefined)
 
     await wrapper.find('input#email').setValue('test@verein.at')
-    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('input#password').setValue('secret')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mockPush).toHaveBeenCalledWith('/profile')
@@ -119,7 +138,7 @@ describe('LoginView.vue', () => {
     mockLogin.mockResolvedValueOnce(undefined)
 
     await wrapper.find('input#email').setValue('test@verein.at')
-    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('input#password').setValue('secret')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
@@ -138,7 +157,7 @@ describe('LoginView.vue', () => {
     mockLogin.mockResolvedValueOnce(undefined)
 
     await wrapper.find('input#email').setValue('test@verein.at')
-    await wrapper.find('#password input').setValue('secret')
+    await wrapper.find('input#password').setValue('secret')
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
@@ -174,7 +193,7 @@ describe('LoginView.vue', () => {
     expect(wrapper.text()).toContain('Dein Google-Konto ist noch mit keinem Profil verknüpft')
 
     await wrapper.find('input#linkEmail').setValue('test@verein.at')
-    await wrapper.find('#linkPassword input').setValue('secret')
+    await wrapper.find('input#linkPassword').setValue('secret')
 
     mockLinkGoogle.mockResolvedValueOnce(undefined)
     await wrapper.find('form').trigger('submit.prevent')
@@ -218,5 +237,173 @@ describe('LoginView.vue', () => {
 
     expect(wrapper.findComponent({ name: 'GoogleLogin' }).exists()).toBe(false)
     expect(wrapper.text()).not.toContain('ODER')
+  })
+
+  // --- REDIRECT TARGET EDGE CASES ---
+
+  it.each(['/\\evil.example.com/phish', '/profile\nSet-Cookie: x=1'])(
+    'falls back to home for the unsafe redirect target %j',
+    async (target) => {
+      mockRouteState.query = { redirect: target }
+      const wrapper = mount(LoginView, {
+        global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+      })
+      mockLogin.mockResolvedValueOnce(undefined)
+
+      await submitLogin(wrapper)
+
+      expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
+    },
+  )
+
+  it('follows a same-app path with a query string', async () => {
+    mockRouteState.query = { redirect: '/standesdb/members?page=2' }
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockLogin.mockResolvedValueOnce(undefined)
+
+    await submitLogin(wrapper)
+
+    expect(mockPush).toHaveBeenCalledWith('/standesdb/members?page=2')
+  })
+
+  it('uses the first value of a repeated redirect parameter', async () => {
+    mockRouteState.query = { redirect: ['/profile', '//evil.example.com'] } as unknown as Record<
+      string,
+      string
+    >
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockLogin.mockResolvedValueOnce(undefined)
+
+    await submitLogin(wrapper)
+
+    expect(mockPush).toHaveBeenCalledWith('/profile')
+  })
+
+  // --- ERROR TEXT FROM THE API ---
+
+  it('shows the API detail when the Google login is rejected with 401', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(401, 'Google-Konto gesperrt.'))
+
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+
+    expect(wrapper.text()).toContain('Google-Konto gesperrt.')
+  })
+
+  it('shows a readable text, not a serialised list, when the detail is a validation list', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(
+      apiError(401, [{ loc: ['body', 'credential'], msg: 'Value error, Token ungültig' }]),
+    )
+
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+
+    expect(wrapper.text()).toContain('credential: Token ungültig')
+    expect(wrapper.text()).not.toContain('"loc"')
+  })
+
+  it('shows the API detail when linking the account is rejected with 401, else a fallback', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(404, 'ACCOUNT_NOT_LINKED'))
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+    await wrapper.find('input#linkEmail').setValue('test@verein.at')
+    await wrapper.find('input#linkPassword').setValue('secret')
+
+    mockLinkGoogle.mockRejectedValueOnce(apiError(401, 'Passwort falsch.'))
+    await wrapper.find('form').trigger('submit.prevent')
+    expect(wrapper.text()).toContain('Passwort falsch.')
+
+    mockLinkGoogle.mockRejectedValueOnce(new Error('Network Error'))
+    await wrapper.find('form').trigger('submit.prevent')
+    expect(wrapper.text()).toContain('Ein unerwarteter Fehler ist aufgetreten.')
+  })
+
+  it('uses the specific fallback text when the Google login is rejected with 401 and no detail', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(401, undefined))
+
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+
+    expect(wrapper.text()).toContain('Google Login fehlgeschlagen.')
+  })
+
+  it('shows a fallback or a readable list when linking is rejected with 401 and no or a list detail', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(404, 'ACCOUNT_NOT_LINKED'))
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+    await wrapper.find('input#linkEmail').setValue('test@verein.at')
+    await wrapper.find('input#linkPassword').setValue('secret')
+
+    mockLinkGoogle.mockRejectedValueOnce(apiError(401, undefined))
+    await wrapper.find('form').trigger('submit.prevent')
+    expect(wrapper.text()).toContain('Falsche Zugangsdaten.')
+
+    mockLinkGoogle.mockRejectedValueOnce(
+      apiError(401, [{ loc: ['body', 'password'], msg: 'Value error, Passwort zu kurz' }]),
+    )
+    await wrapper.find('form').trigger('submit.prevent')
+    expect(wrapper.text()).toContain('password: Passwort zu kurz')
+    expect(wrapper.text()).not.toContain('"loc"')
+  })
+
+  it('returns to the sign-in form when linking is cancelled', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(404, 'ACCOUNT_NOT_LINKED'))
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+
+    const cancel = wrapper.findAll('button').find((b) => b.text() === 'Abbrechen')!
+    await cancel.trigger('click')
+
+    expect(wrapper.find('input#email').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('noch mit keinem Profil verknüpft')
+  })
+
+  // --- FORM SEMANTICS ---
+
+  it('points every label at its input and gives password managers their hints', () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+
+    for (const label of wrapper.findAll('label')) {
+      const target = wrapper.find(`#${label.attributes('for')}`)
+      expect(target.element.tagName).toBe('INPUT')
+    }
+    expect(wrapper.find('input#email').attributes('autocomplete')).toBe('username')
+    expect(wrapper.find('input#email').attributes('name')).toBe('email')
+    expect(wrapper.find('input#password').attributes('autocomplete')).toBe('current-password')
+    expect(wrapper.find('input#password').attributes('name')).toBe('password')
+  })
+
+  it('gives the account linking form the same labels and hints', async () => {
+    const wrapper = mount(LoginView, {
+      global: { plugins: [PrimeVue], stubs: { GoogleLogin: true } },
+    })
+    mockGoogleLogin.mockRejectedValueOnce(apiError(404, 'ACCOUNT_NOT_LINKED'))
+    await wrapper.findComponent({ name: 'GoogleLogin' }).props('callback')({ credential: 't' })
+
+    for (const label of wrapper.findAll('label')) {
+      expect(wrapper.find(`#${label.attributes('for')}`).element.tagName).toBe('INPUT')
+    }
+    expect(wrapper.find('input#linkEmail').attributes('autocomplete')).toBe('username')
+    expect(wrapper.find('input#linkEmail').attributes('name')).toBe('email')
+    expect(wrapper.find('input#linkPassword').attributes('autocomplete')).toBe('current-password')
+    expect(wrapper.find('input#linkPassword').attributes('name')).toBe('password')
   })
 })

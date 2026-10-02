@@ -9,6 +9,11 @@ vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
+}))
+
 const mockGetFeeConfig = vi.fn()
 const mockCreateFee = vi.fn()
 const mockDeleteFee = vi.fn()
@@ -58,13 +63,28 @@ describe('FeeConfigView', () => {
     wrapper.unmount()
   })
 
-  it('deletes a fee entry and shows a success toast', async () => {
+  it('asks for confirmation before deleting, and does not delete without accepting it', async () => {
+    mockGetFeeConfig.mockResolvedValue({ data: [buildFee()] })
+    const wrapper = mount(FeeConfigView, mountOpts)
+    await flushPromises()
+
+    await wrapper.find('.clickable').trigger('click')
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('Jänner 2026')
+    expect(mockDeleteFee).not.toHaveBeenCalled()
+    expect(wrapper.findAll('.fee-row')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('deletes a fee entry and shows a success toast once the confirmation is accepted', async () => {
     mockGetFeeConfig.mockResolvedValue({ data: [buildFee()] })
     mockDeleteFee.mockResolvedValue({ data: [] })
     const wrapper = mount(FeeConfigView, mountOpts)
     await flushPromises()
 
     await wrapper.find('.clickable').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockDeleteFee).toHaveBeenCalledWith('2026-01-01')
@@ -82,6 +102,7 @@ describe('FeeConfigView', () => {
     await flushPromises()
 
     await wrapper.find('.clickable').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -140,6 +161,26 @@ describe('FeeConfigView', () => {
     await flushPromises()
 
     expect(mockCreateFee).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a silently empty page when loading fails', async () => {
+    mockGetFeeConfig.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(FeeConfigView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Beitragskonfiguration konnte nicht geladen werden.')
+    expect(wrapper.find('table').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetFeeConfig).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.text()).toContain('Mitgliedsbeiträge')
     wrapper.unmount()
   })
 })

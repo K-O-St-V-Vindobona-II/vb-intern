@@ -121,4 +121,44 @@ describe('ClipboardBar', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
     expect(store.clipboard).toEqual(['dir:1'])
   })
+
+  it('shows the API detail in the error toast when moving is rejected', async () => {
+    mockReceiveItems.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed'), {
+        response: { data: { detail: 'Verzeichnis kann nicht in sich selbst verschoben werden.' } },
+      }),
+    )
+    const store = useArchiveStore()
+    store.addToClipboard(['dir:1'])
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '9' }, ...mountOpts })
+
+    await wrapper.find('.clipboard-row button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        detail: 'Verzeichnis kann nicht in sich selbst verschoben werden.',
+      }),
+    )
+  })
+
+  it('names the file confirmation and gives the icon-only buttons accessible names', async () => {
+    const store = useArchiveStore()
+    store.addToClipboard(['dir:1', 'file:2'])
+    const wrapper = mount(ClipboardBar, { props: { targetDirId: '9' }, ...mountOpts })
+
+    expect(wrapper.find('.clipboard-header button').attributes('aria-label')).toBe(
+      'Zwischenablage leeren',
+    )
+    const rowButtons = wrapper.findAll('.clipboard-row button')
+    expect(rowButtons[0]!.attributes('aria-label')).toBe('Verzeichnisse hierher verschieben')
+    expect(rowButtons[1]!.attributes('aria-label')).toBe('Dateien hierher verschieben')
+
+    await rowButtons[1]!.trigger('click')
+    expect(mockConfirmRequire.mock.calls[0]![0]).toMatchObject({
+      message: '1 Dateien hierher verschieben?',
+    })
+  })
 })

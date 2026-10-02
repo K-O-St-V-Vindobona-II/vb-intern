@@ -23,7 +23,14 @@ const loading = ref(false)
 const detailVisible = ref(false)
 const selectedDetail = ref<ActivityLogDetail | null>(null)
 
-const day = computed(() => String(route.query['day'] ?? ''))
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+// Only a well-formed calendar day reaches the API; a missing, repeated or
+// malformed query value counts as "no day".
+const day = computed(() => {
+  const value = route.query['day']
+  return typeof value === 'string' && DAY_PATTERN.test(value) ? value : ''
+})
 
 const backTarget = computed(() => {
   const [year, month] = day.value.split('-')
@@ -41,25 +48,42 @@ const methodSeverity = (method: string): string => {
   return map[method] || 'secondary'
 }
 
+// Answers arrive in any order: a slow answer for the member or day shown
+// before must not replace the entries of the current one.
+let latestEntriesRequestId = 0
+let latestDetailRequestId = 0
+
 const fetchEntries = async () => {
-  if (!day.value) return
+  const requestId = ++latestEntriesRequestId
+  memberName.value = ''
+  entries.value = []
+  if (!day.value) {
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const detail = await activityLogService.getForMemberDay(props.memberId, day.value)
+    if (requestId !== latestEntriesRequestId) return
     memberName.value = detail.member_name
     entries.value = detail.entries
   } catch (e) {
+    if (requestId !== latestEntriesRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   } finally {
-    loading.value = false
+    if (requestId === latestEntriesRequestId) loading.value = false
   }
 }
 
 const showDetail = async (entry: ActivityLogEntry) => {
+  const requestId = ++latestDetailRequestId
   try {
-    selectedDetail.value = await activityLogService.getEntry(entry.id)
+    const detail = await activityLogService.getEntry(entry.id)
+    if (requestId !== latestDetailRequestId) return
+    selectedDetail.value = detail
     detailVisible.value = true
   } catch (e) {
+    if (requestId !== latestDetailRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   }
 }

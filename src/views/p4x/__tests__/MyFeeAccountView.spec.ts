@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import MyFeeAccountView from '../MyFeeAccountView.vue'
 import PrimeVue from 'primevue/config'
@@ -20,15 +20,22 @@ vi.mock('primevue/usetoast', () => ({
 
 const mockCreateObjectURL = vi.fn(() => 'blob:mock-url')
 const mockRevokeObjectURL = vi.fn()
-vi.stubGlobal('URL', {
-  ...URL,
-  createObjectURL: mockCreateObjectURL,
-  revokeObjectURL: mockRevokeObjectURL,
+const originalCreateObjectURL = URL.createObjectURL
+const originalRevokeObjectURL = URL.revokeObjectURL
+
+beforeAll(() => {
+  URL.createObjectURL = mockCreateObjectURL
+  URL.revokeObjectURL = mockRevokeObjectURL
+})
+
+afterAll(() => {
+  URL.createObjectURL = originalCreateObjectURL
+  URL.revokeObjectURL = originalRevokeObjectURL
 })
 
 function buildAccount(overrides: Partial<FeeMemberSelf> = {}): FeeMemberSelf {
   return {
-    id: 1,
+    id: '0198f2a4-7b1c-7a3e-8d21-5f6a9c1e2b34',
     cn: 'Max Mustermann',
     p4x_init_date: '2020-01-01',
     p4x_init_balance: 10,
@@ -176,6 +183,72 @@ describe('MyFeeAccountView', () => {
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    wrapper.unmount()
+  })
+
+  describe('export download', () => {
+    let downloads: string[]
+
+    beforeEach(() => {
+      downloads = []
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        downloads.push(this.download)
+      })
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('saves the file under the name from the content-disposition header and reports it', async () => {
+      mockGetOwnFeeMember.mockResolvedValue({ data: buildAccount() })
+      mockExportOwnFeeMember.mockResolvedValue({
+        data: new Blob(['x']),
+        headers: {
+          'content-disposition': 'attachment; filename="Beitragskonto_Max_Mustermann.xlsx"',
+        },
+      })
+      const wrapper = mount(MyFeeAccountView, mountOpts)
+      await flushPromises()
+
+      await findButtonByText(wrapper, 'Export Excel').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual(['Beitragskonto_Max_Mustermann.xlsx'])
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          detail: 'Beitragskonto_Max_Mustermann.xlsx wurde heruntergeladen.',
+        }),
+      )
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+      wrapper.unmount()
+    })
+
+    it('falls back to a fixed name without a content-disposition header', async () => {
+      mockGetOwnFeeMember.mockResolvedValue({ data: buildAccount() })
+      mockExportOwnFeeMember.mockResolvedValue({ data: new Blob(['x']), headers: {} })
+      const wrapper = mount(MyFeeAccountView, mountOpts)
+      await flushPromises()
+
+      await findButtonByText(wrapper, 'Export Excel').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual(['Mein_Beitragskonto.xlsx'])
+      wrapper.unmount()
+    })
+  })
+
+  it('shows the sums and the end balance of the account', async () => {
+    mockGetOwnFeeMember.mockResolvedValue({ data: buildAccount() })
+    const wrapper = mount(MyFeeAccountView, mountOpts)
+    await flushPromises()
+
+    const rowTexts = wrapper.findAll('.balance-row').map((row) => row.text().replace(/\s+/g, ' '))
+    expect(rowTexts.find((t) => t.startsWith('4 verrechnete Beiträge'))).toContain('40,00')
+    expect(rowTexts.find((t) => t.startsWith('3 geleistete Zahlungen'))).toContain('30,00')
+    expect(rowTexts.find((t) => t.startsWith('Endstand'))).toContain('20,00')
     wrapper.unmount()
   })
 })

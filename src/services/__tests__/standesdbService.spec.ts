@@ -161,13 +161,18 @@ describe('standesdbService', () => {
     )
   })
 
-  it('decideChangeRequest posts the field decisions', () => {
-    standesdbService.decideChangeRequest('11111111-1111-1111-1111-111111111111', {
-      nachname: 'approved',
-    })
+  it('decideChangeRequest posts the field decisions and the reviewed version', () => {
+    standesdbService.decideChangeRequest(
+      '11111111-1111-1111-1111-111111111111',
+      { nachname: 'approved' },
+      '2026-08-06T10:00:00.123456Z',
+    )
     expect(mockPost).toHaveBeenCalledWith(
       '/standesdb/member-change-requests/11111111-1111-1111-1111-111111111111/decide',
-      { field_decisions: { nachname: 'approved' } },
+      {
+        field_decisions: { nachname: 'approved' },
+        expected_updated_at: '2026-08-06T10:00:00.123456Z',
+      },
     )
   })
 

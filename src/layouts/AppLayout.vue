@@ -46,7 +46,12 @@ const loadingStore = useLoadingStore()
   flex-direction: column;
   min-height: 100vh;
   background-color: var(--app-surface-subtle);
-  overflow-x: hidden;
+  /* "clip", not "hidden": any overflow value other than visible/clip turns
+     this element into the scroll container that the sticky header below
+     resolves against. This element is as tall as its content and never
+     scrolls itself, so a sticky header would never stick to the viewport.
+     "clip" cuts horizontal overflow without creating a scroll container. */
+  overflow-x: clip;
 }
 
 .layout-header {

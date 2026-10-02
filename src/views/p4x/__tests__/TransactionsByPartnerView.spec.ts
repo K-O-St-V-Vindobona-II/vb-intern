@@ -80,6 +80,18 @@ async function selectPartner(
   await search.vm.$emit('select', item)
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+function findRetryButton(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+}
+
 describe('TransactionsByPartnerView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -190,6 +202,80 @@ describe('TransactionsByPartnerView', () => {
     await flushPromises()
 
     expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 3)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state when the categories cannot be loaded, and recovers on retry', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByPartnerView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Kategorien konnten nicht geladen werden.')
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a table when the transactions cannot be loaded', async () => {
+    const wrapper = mount(TransactionsByPartnerView, mountOpts)
+    await flushPromises()
+    mockGetTransactionsByPartner.mockRejectedValueOnce(new Error('boom'))
+
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-5', label: 'Mitglied: Max' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Transaktionen konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetTransactionsByPartner).toHaveBeenLastCalledWith('2', 'member', 'member-uuid-5', 1)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('never shows the rows or the name of the previous partner when loading another partner fails', async () => {
+    const wrapper = mount(TransactionsByPartnerView, mountOpts)
+    await flushPromises()
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-1', label: 'Mitglied: Anna' })
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+
+    mockGetTransactionsByPartner.mockRejectedValueOnce(new Error('boom'))
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-2', label: 'Mitglied: Berta' })
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    expect(wrapper.find('.info-card').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Berta')
+    wrapper.unmount()
+  })
+
+  it('shows the rows of the newest partner when an older, slower response arrives late', async () => {
+    const slow = deferred<{ data: PaginatedTransactions }>()
+    mockGetTransactionsByPartner.mockReturnValueOnce(slow.promise)
+    mockGetTransactionsByPartner.mockResolvedValueOnce({
+      data: buildResult({ items: [buildTx({ id: 'newest-tx' })] }),
+    })
+    const wrapper = mount(TransactionsByPartnerView, mountOpts)
+    await flushPromises()
+
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-1', label: 'Mitglied: Anna' })
+    await selectPartner(wrapper, { type: 'member', id: 'member-uuid-2', label: 'Mitglied: Berta' })
+    await flushPromises()
+    slow.resolve({ data: buildResult({ items: [buildTx({ id: 'older-tx' })] }) })
+    await flushPromises()
+
+    const table = wrapper.findComponent({ name: 'TransactionTable' })
+    expect((table.props('transactions') as P4xTransaction[]).map((t) => t.id)).toEqual([
+      'newest-tx',
+    ])
     wrapper.unmount()
   })
 })

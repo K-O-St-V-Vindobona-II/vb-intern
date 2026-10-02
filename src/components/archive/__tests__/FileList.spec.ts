@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { mount, flushPromises, RouterLinkStub, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import FileList from '../FileList.vue'
 import { useArchiveStore } from '@/stores/archive'
 import PrimeVue from 'primevue/config'
 import type { FileShort } from '@/types/archive'
-
-const mockPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRouter: vi.fn(() => ({ push: mockPush })),
-}))
 
 const mockConfirmRequire = vi.fn()
 vi.mock('primevue/useconfirm', () => ({
@@ -73,19 +68,23 @@ let activeWrapper: VueWrapper | null = null
 function mountFileList(props: Record<string, unknown>) {
   const wrapper = mount(FileList, {
     props,
-    global: { plugins: [PrimeVue] },
+    global: { plugins: [PrimeVue], stubs: { RouterLink: RouterLinkStub } },
     attachTo: document.body,
   })
   activeWrapper = wrapper
   return wrapper
 }
 
-// jsdom defines `ontouchstart` as an own property of window (even though it's
-// not a real touch device), which would make the component's touchDevice
-// check always true and the hover-preview handler unreachable. Remove it for
-// the duration of this suite to simulate a real desktop browser, and restore
-// it afterwards so other test files aren't affected.
-let ontouchstartDescriptor: PropertyDescriptor | undefined
+// The hover preview asks matchMedia whether the primary input can hover; the
+// shared test setup stubs it with "no match", i.e. a device that can hover.
+const sharedMatchMedia = window.matchMedia
+
+function simulateTouchOnlyDevice() {
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) => ({ matches: query === '(hover: none)', media: query }) as MediaQueryList,
+  )
+}
 
 describe('FileList', () => {
   beforeEach(() => {
@@ -94,8 +93,6 @@ describe('FileList', () => {
     mockLoadPresignedUrl.mockResolvedValue(null)
     sessionStorage.clear()
     mockRestoreFile.mockResolvedValue({})
-    ontouchstartDescriptor = Object.getOwnPropertyDescriptor(window, 'ontouchstart')
-    delete (window as unknown as { ontouchstart?: unknown }).ontouchstart
     mockDeleteFile.mockResolvedValue({})
   })
 
@@ -103,9 +100,7 @@ describe('FileList', () => {
     activeWrapper?.unmount()
     activeWrapper = null
     vi.useRealTimers()
-    if (ontouchstartDescriptor) {
-      Object.defineProperty(window, 'ontouchstart', ontouchstartDescriptor)
-    }
+    vi.stubGlobal('matchMedia', sharedMatchMedia)
   })
 
   it('renders nothing when there are no items', () => {
@@ -123,30 +118,33 @@ describe('FileList', () => {
     expect(wrapper.text()).toContain('(1 KB)')
   })
 
-  it('navigates to the file when its name link is clicked', async () => {
+  it('links the file name to its archive-file route', () => {
     const wrapper = mountFileList({ items: [buildFile({ id: '7' })], title: 'Einsicht' })
-    await wrapper.find('.file-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: '7' } })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-file',
+      params: { id: '7' },
+    })
   })
 
-  it('still navigates to the file when its name link is clicked in trash mode, but hides the download icon', async () => {
+  it('still links to the file in trash mode, but hides the download button', () => {
     const wrapper = mountFileList({
       items: [buildFile({ id: '7', name: 'Bericht', extension: 'pdf' })],
       title: 'Papierkorb',
       trash: true,
     })
-    expect(wrapper.find('.download-icon').exists()).toBe(false)
-
-    await wrapper.find('.file-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-file', params: { id: '7' } })
+    expect(wrapper.find('.download-btn').exists()).toBe(false)
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-file',
+      params: { id: '7' },
+    })
   })
 
-  it('triggers a download when the download icon is clicked', async () => {
+  it('triggers a download when the download button is clicked', async () => {
     const wrapper = mountFileList({
       items: [buildFile({ id: '3', name: 'Bericht', extension: 'pdf' })],
       title: 'Einsicht',
     })
-    await wrapper.find('.download-icon').trigger('click')
+    await wrapper.find('.download-btn').trigger('click')
     expect(mockTriggerDownload).toHaveBeenCalledWith('3', 'Bericht.pdf')
   })
 
@@ -171,6 +169,27 @@ describe('FileList', () => {
     expect(wrapper.findComponent({ name: 'Checkbox' }).props('modelValue')).toBe(false)
   })
 
+  it('selects the file that is shown in the clicked row after the table was sorted by name', async () => {
+    const store = useArchiveStore()
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '1', name: 'Alpha' }), buildFile({ id: '2', name: 'Zulu' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+
+    // First click sorts ascending, the second descending: "Zulu" is now the first row.
+    const nameHeader = wrapper.find('th.p-datatable-sortable-column')
+    await nameHeader.trigger('click')
+    await nameHeader.trigger('click')
+    expect(wrapper.findAll('.file-link')[0]!.text()).toContain('Zulu')
+
+    // selectCells[0] is the header "select all" cell, [1] is the first displayed row.
+    await wrapper.findAll('.select-cell')[1]!.trigger('click')
+    await wrapper.find('.list-header button').trigger('click')
+
+    expect(store.clipboard).toEqual(['file:2'])
+  })
+
   it('asks for confirmation before deleting a file and emits changed on accept', async () => {
     const wrapper = mountFileList({
       items: [buildFile({ id: '5' })],
@@ -178,7 +197,7 @@ describe('FileList', () => {
       admin: true,
     })
 
-    await wrapper.find('tbody button').trigger('click')
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
     expect(mockConfirmRequire.mock.calls[0]![0].message).toBe('Datei wirklich löschen?')
 
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -196,7 +215,7 @@ describe('FileList', () => {
       trash: true,
     })
 
-    await wrapper.find('tbody button').trigger('click')
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
     expect(mockConfirmRequire.mock.calls[0]![0].message).toBe('Datei wiederherstellen?')
 
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -213,7 +232,7 @@ describe('FileList', () => {
       admin: true,
     })
 
-    await wrapper.find('tbody button').trigger('click')
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
@@ -282,5 +301,145 @@ describe('FileList', () => {
     await flushPromises()
 
     expect(wrapper.emitted('preview')).toEqual([[null], ['9']])
+  })
+
+  it('renders the download control as a real, named button', () => {
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '3', name: 'Bericht', extension: 'pdf' })],
+      title: 'Einsicht',
+    })
+    const button = wrapper.find('.download-btn')
+
+    expect(button.element.tagName).toBe('BUTTON')
+    expect(button.attributes('type')).toBe('button')
+    expect(button.attributes('aria-label')).toBe('Bericht.pdf herunterladen')
+  })
+
+  it('names the selection checkboxes and the icon-only admin buttons after their file', () => {
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '1', name: 'Bericht', extension: 'pdf' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+
+    expect(checkboxes[0]!.find('input').attributes('aria-label')).toBe('Alle auswählen')
+    expect(checkboxes[1]!.find('input').attributes('aria-label')).toBe('Bericht.pdf auswählen')
+    expect(wrapper.find('.list-header button').attributes('aria-label')).toBe(
+      'Ausgewählte Dateien in die Zwischenablage',
+    )
+    expect(wrapper.findAll('tbody button').at(-1)!.attributes('aria-label')).toBe(
+      'Bericht.pdf löschen',
+    )
+  })
+
+  it('keys the table rows by file id, so sorting moves rows instead of re-using them', () => {
+    const wrapper = mountFileList({ items: [buildFile()], title: 'Einsicht' })
+    expect(wrapper.findComponent({ name: 'DataTable' }).props('dataKey')).toBe('id')
+  })
+
+  it('shows the API detail when deleting or restoring is rejected', async () => {
+    mockDeleteFile.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed'), {
+        response: { data: { detail: 'Datei ist gesperrt.' } },
+      }),
+    )
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '5' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: 'Datei ist gesperrt.' }),
+    )
+  })
+
+  it('uses a specific fallback text when the rejection carries no API detail', async () => {
+    mockRestoreFile.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '5' })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: 'Datei konnte nicht wiederhergestellt werden.' }),
+    )
+  })
+
+  it('uses a specific fallback text when deleting fails without an API detail', async () => {
+    mockDeleteFile.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '5' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: 'Datei konnte nicht gelöscht werden.' }),
+    )
+  })
+
+  it('does not start a preview on a touch-only device', async () => {
+    simulateTouchOnlyDevice()
+    vi.useFakeTimers()
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '9', is_image: true })],
+      title: 'Einsicht',
+    })
+
+    await wrapper.find('.file-icon-wrap').trigger('mouseenter')
+    vi.advanceTimersByTime(300)
+    await flushPromises()
+
+    expect(wrapper.emitted('preview')).toBeUndefined()
+  })
+
+  it('still starts a preview when a touch event handler exists but the primary input can hover', async () => {
+    Object.defineProperty(window, 'ontouchstart', { value: null, configurable: true })
+    vi.useFakeTimers()
+    const wrapper = mountFileList({
+      items: [buildFile({ id: '9', is_image: true })],
+      title: 'Einsicht',
+    })
+
+    await wrapper.find('.file-icon-wrap').trigger('mouseenter')
+    vi.advanceTimersByTime(300)
+    await flushPromises()
+
+    expect(wrapper.emitted('preview')).toEqual([[null], ['9']])
+    delete (window as unknown as { ontouchstart?: unknown }).ontouchstart
+  })
+
+  it('renders file names and descriptions as plain text, never as markup', () => {
+    const wrapper = mountFileList({
+      items: [
+        buildFile({
+          name: '<img src=x onerror="window.__xss = 1">',
+          extension: 'jpg',
+          description: '<b>fett</b>',
+        }),
+      ],
+      title: 'Einsicht',
+    })
+
+    expect(wrapper.find('.file-link').text()).toBe('<img src=x onerror="window.__xss = 1">.jpg')
+    expect(wrapper.find('tbody img').exists()).toBe(false)
+    expect(wrapper.find('tbody b').exists()).toBe(false)
+    expect(wrapper.text()).toContain('<b>fett</b>')
   })
 })

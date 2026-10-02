@@ -14,6 +14,12 @@ dist-ssr
 coverage
 *.local
 
+# Local env files - never committed, even though the app only ever puts
+# non-secret VITE_* values here (see the warning in .env.example)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

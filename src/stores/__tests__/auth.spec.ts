@@ -4,7 +4,9 @@ import { useAuthStore } from '@/stores/auth'
 import authService from '@/services/authService'
 import memberService from '@/services/memberService'
 import api from '@/services/api'
+import { clearPresignedUrlCache } from '@/composables/useArchiveDownload'
 
+vi.mock('@/composables/useArchiveDownload', () => ({ clearPresignedUrlCache: vi.fn() }))
 vi.mock('@/services/authService')
 vi.mock('@/services/memberService')
 vi.mock('@/services/api', () => ({
@@ -47,6 +49,49 @@ describe('Auth Store', () => {
 
     expect(authService.logout).toHaveBeenCalledOnce()
     expect(store.token).toBeNull()
+  })
+
+  // A presigned URL fetched under one member's session must never be served to the member who
+  // logs in next in the same tab, so every path that ends a session empties the URL cache.
+  describe('presigned URL cache', () => {
+    it('should be emptied on logout()', async () => {
+      const store = useAuthStore()
+      store.token = 'old-token'
+
+      await store.logout()
+
+      expect(clearPresignedUrlCache).toHaveBeenCalledOnce()
+    })
+
+    it('should be emptied on logout() even when the backend logout fails', async () => {
+      const store = useAuthStore()
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      vi.mocked(authService.logout).mockRejectedValue(new Error('already expired'))
+
+      await store.logout()
+
+      expect(clearPresignedUrlCache).toHaveBeenCalledOnce()
+      consoleSpy.mockRestore()
+    })
+
+    it('should be emptied when a session restore fails', async () => {
+      const store = useAuthStore()
+      vi.mocked(api.post).mockRejectedValue(new Error('refresh token expired'))
+
+      await store.restoreSession()
+
+      expect(clearPresignedUrlCache).toHaveBeenCalledOnce()
+    })
+
+    it('should be kept while a session is established', async () => {
+      const store = useAuthStore()
+      vi.mocked(authService.login).mockResolvedValue('fake-jwt')
+      vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Max' })
+
+      await store.login(new URLSearchParams())
+
+      expect(clearPresignedUrlCache).not.toHaveBeenCalled()
+    })
   })
 
   it('should save token and fetch user on googleLogin()', async () => {

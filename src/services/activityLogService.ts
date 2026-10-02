@@ -12,14 +12,14 @@ export default {
   },
 
   async getForMemberDay(memberId: string, day: string): Promise<ActivityMemberDayDetail> {
-    const { data } = await api.get(`/tracking/activity/members/${memberId}`, {
+    const { data } = await api.get(`/tracking/activity/members/${encodeURIComponent(memberId)}`, {
       params: { day },
     })
     return data
   },
 
   async getEntry(id: string): Promise<ActivityLogDetail> {
-    const { data } = await api.get(`/tracking/activity/${id}`)
+    const { data } = await api.get(`/tracking/activity/${encodeURIComponent(id)}`)
     return data
   },
 }

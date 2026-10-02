@@ -3,6 +3,7 @@ import { formatApiError, formatDateLong } from '@/utils/formatters'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import p4xService from '@/services/p4xService'
 import type { CategoryFilter, P4xCategory, FilterHit } from '@/types/p4x'
 import CategoryLabel from './components/CategoryLabel.vue'
@@ -11,13 +12,16 @@ import Card from 'primevue/card'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const confirm = useConfirm()
 const filterId = String(route.params['id'])
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const processing = ref(false)
 const warningsCount = ref(0)
 const filter = ref<CategoryFilter | null>(null)
@@ -33,17 +37,23 @@ const subjectModeLabel = (mode: string): string => {
   return labels[mode] ?? mode
 }
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await p4xService.getFilter2DirectPreview(filterId)
     warningsCount.value = resp.data.warningsCount
     filter.value = resp.data.filter
     category.value = resp.data.category
     hits.value = resp.data.hits
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 const process = async () => {
   processing.value = true
@@ -58,10 +68,27 @@ const process = async () => {
     processing.value = false
   }
 }
+
+const confirmProcess = () => {
+  const subject =
+    hits.value.length === 1 ? '1 Transaktion wird' : `${hits.value.length} Transaktionen werden`
+  confirm.require({
+    message: `${subject} dauerhaft der Kategorie "${category.value?.label ?? ''}" direkt zugewiesen. Fortfahren?`,
+    header: 'Filter in Direktzuweisungen umwandeln',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Umwandeln', severity: 'danger' },
+    accept: process,
+  })
+}
 </script>
 
 <template>
-  <div v-if="!loading" class="f2d-view">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Die Daten konnten nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="f2d-view">
     <div class="page-header">
       <h2>Kategorie-Filter</h2>
       <p class="subtitle">Treffer in Direktkategorisierung umwandeln</p>
@@ -126,7 +153,7 @@ const process = async () => {
         :label="`${hits.length} Filter-Treffer jetzt umwandeln.`"
         severity="danger"
         :loading="processing"
-        @click="process"
+        @click="confirmProcess"
       />
       <Button
         label="Zur Liste"
@@ -159,6 +186,12 @@ const process = async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
 .f2d-view {
   max-width: 1000px;
   margin: 0 auto;

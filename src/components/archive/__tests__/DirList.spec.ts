@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { mount, flushPromises, RouterLinkStub, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DirList from '../DirList.vue'
 import { useArchiveStore } from '@/stores/archive'
 import PrimeVue from 'primevue/config'
 import type { DirShort } from '@/types/archive'
-
-const mockPush = vi.fn()
-vi.mock('vue-router', () => ({
-  useRouter: vi.fn(() => ({ push: mockPush })),
-}))
 
 const mockConfirmRequire = vi.fn()
 vi.mock('primevue/useconfirm', () => ({
@@ -49,7 +44,7 @@ let activeWrapper: VueWrapper | null = null
 function mountDirList(props: Record<string, unknown>) {
   const wrapper = mount(DirList, {
     props,
-    global: { plugins: [PrimeVue] },
+    global: { plugins: [PrimeVue], stubs: { RouterLink: RouterLinkStub } },
     attachTo: document.body,
   })
   activeWrapper = wrapper
@@ -86,20 +81,29 @@ describe('DirList', () => {
     expect(wrapper.text()).toContain('B')
   })
 
-  it('navigates to the directory when its name link is clicked', async () => {
-    const wrapper = mountDirList({ items: [buildDir({ id: 5, name: 'Fotos' })], title: 'Einsicht' })
-    await wrapper.find('.dir-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
+  it('keys the table rows by directory id, so sorting moves rows instead of re-using them', () => {
+    const wrapper = mountDirList({ items: [buildDir()], title: 'Einsicht' })
+    expect(wrapper.findComponent({ name: 'DataTable' }).props('dataKey')).toBe('id')
   })
 
-  it('navigates into a trashed directory too, so its remaining content can be managed', async () => {
+  it('links the directory name to its archive-dir route', async () => {
+    const wrapper = mountDirList({ items: [buildDir({ id: 5, name: 'Fotos' })], title: 'Einsicht' })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-dir',
+      params: { id: 5 },
+    })
+  })
+
+  it('links into a trashed directory too, so its remaining content can be managed', async () => {
     const wrapper = mountDirList({
       items: [buildDir({ id: 5, name: 'Fotos' })],
       title: 'Papierkorb',
       trash: true,
     })
-    await wrapper.find('.dir-link').trigger('click')
-    expect(mockPush).toHaveBeenCalledWith({ name: 'archive-dir', params: { id: 5 } })
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
+      name: 'archive-dir',
+      params: { id: 5 },
+    })
   })
 
   it('does not show selection checkboxes or the clipboard button for non-admins', () => {
@@ -123,6 +127,27 @@ describe('DirList', () => {
 
     expect(store.clipboard).toEqual(['dir:1'])
     expect(wrapper.findComponent({ name: 'Checkbox' }).props('modelValue')).toBe(false)
+  })
+
+  it('selects the directory that is shown in the clicked row after the table was sorted by name', async () => {
+    const store = useArchiveStore()
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 1, name: 'Alpha' }), buildDir({ id: 2, name: 'Zulu' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+
+    // First click sorts ascending, the second descending: "Zulu" is now the first row.
+    const nameHeader = wrapper.find('th.p-datatable-sortable-column')
+    await nameHeader.trigger('click')
+    await nameHeader.trigger('click')
+    expect(wrapper.findAll('.dir-link')[0]!.text()).toContain('Zulu')
+
+    // selectCells[0] is the header "select all" cell, [1] is the first displayed row.
+    await wrapper.findAll('.select-cell')[1]!.trigger('click')
+    await wrapper.find('.list-header button').trigger('click')
+
+    expect(store.clipboard).toEqual(['dir:2'])
   })
 
   it('asks for confirmation before deleting a directory and emits changed on accept', async () => {
@@ -259,5 +284,65 @@ describe('DirList', () => {
         detail: 'Verzeichnis konnte nicht endgültig gelöscht werden.',
       }),
     )
+  })
+
+  it('shows the API detail when deleting or restoring is rejected, else a specific fallback', async () => {
+    mockDeleteDir.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed'), {
+        response: { data: { detail: 'Verzeichnis ist gesperrt.' } },
+      }),
+    )
+    mockRestoreDir.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
+
+    await wrapper.findAll('tbody button').at(-1)!.trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Verzeichnis ist gesperrt.' }),
+    )
+
+    wrapper.unmount()
+    const trashWrapper = mountDirList({
+      items: [buildDir({ id: 5 })],
+      title: 'Papierkorb',
+      admin: true,
+      trash: true,
+    })
+    await trashWrapper.findAll('tbody button')[0]!.trigger('click')
+    await mockConfirmRequire.mock.calls[1]![0].accept()
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Verzeichnis konnte nicht wiederhergestellt werden.' }),
+    )
+  })
+
+  it('names the selection checkboxes and the copy button for assistive technology', () => {
+    const wrapper = mountDirList({
+      items: [buildDir({ id: 1, name: 'Fotos' })],
+      title: 'Einsicht',
+      admin: true,
+    })
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+
+    expect(checkboxes[0]!.find('input').attributes('aria-label')).toBe('Alle auswählen')
+    expect(checkboxes[1]!.find('input').attributes('aria-label')).toBe('Fotos auswählen')
+    expect(wrapper.find('.list-header button').attributes('aria-label')).toBe(
+      'Ausgewählte Verzeichnisse in die Zwischenablage',
+    )
+  })
+
+  it('renders directory names and descriptions as plain text, never as markup', () => {
+    const wrapper = mountDirList({
+      items: [
+        buildDir({ name: '<img src=x onerror="window.__xss = 1">', description: '<b>fett</b>' }),
+      ],
+      title: 'Einsicht',
+    })
+
+    expect(wrapper.find('.dir-link').text()).toBe('<img src=x onerror="window.__xss = 1">')
+    expect(wrapper.find('tbody img').exists()).toBe(false)
+    expect(wrapper.find('tbody b').exists()).toBe(false)
+    expect(wrapper.text()).toContain('<b>fett</b>')
   })
 })

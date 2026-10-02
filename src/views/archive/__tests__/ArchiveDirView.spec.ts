@@ -296,7 +296,7 @@ describe('ArchiveDirView', () => {
   })
 
   it('loads and clears the hover preview via the preview event', async () => {
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/preview.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/preview.jpg')
     const wrapper = await mountAt('/archive')
     await flushPromises()
 

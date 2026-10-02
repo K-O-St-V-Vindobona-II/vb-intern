@@ -2,16 +2,20 @@
 import { formatApiError } from '@/utils/formatters'
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import p4xService from '@/services/p4xService'
 import type { P4xFee } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import FormAmount from './components/FormAmount.vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 import DatePicker from 'primevue/datepicker'
 
 const toast = useToast()
+const confirm = useConfirm()
 const loading = ref(true)
+const loadFailed = ref(false)
 const fees = ref<P4xFee[]>([])
 const dialogVisible = ref(false)
 
@@ -30,9 +34,12 @@ const formatMonth = (start: string): string => {
 
 const load = async () => {
   loading.value = true
+  loadFailed.value = false
   try {
     const resp = await p4xService.getFeeConfig()
     fees.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -55,22 +62,37 @@ const save = async () => {
   }
 }
 
-const deleteFee = async (start: string) => {
-  try {
-    const resp = await p4xService.deleteFee(start)
-    fees.value = resp.data
-    toast.add({ severity: 'success', summary: 'Eintrag entfernt', life: 2000 })
-  } catch (e: unknown) {
-    const msg = formatApiError(e)
-    toast.add({ severity: 'error', summary: msg, life: 4000 })
-  }
+const deleteFee = (start: string) => {
+  confirm.require({
+    message: `Beitragseintrag "${formatMonth(start)}" wirklich entfernen?`,
+    header: 'Eintrag entfernen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Entfernen', severity: 'danger' },
+    accept: async () => {
+      try {
+        const resp = await p4xService.deleteFee(start)
+        fees.value = resp.data
+        toast.add({ severity: 'success', summary: 'Eintrag entfernt', life: 2000 })
+      } catch (e: unknown) {
+        const msg = formatApiError(e)
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
+    },
+  })
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <div v-if="!loading" class="fee-config">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false"
+      >Die Beitragskonfiguration konnte nicht geladen werden.</Message
+    >
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="fee-config">
     <h2>Mitgliedsbeiträge</h2>
     <p class="subtitle">Beitragskonfiguration</p>
 
@@ -127,6 +149,13 @@ onMounted(load)
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .fee-config {
   max-width: 600px;
   margin: 0 auto;

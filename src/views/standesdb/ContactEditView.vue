@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { getApiErrorDetail } from '@/utils/formatters'
+import { getApiErrorDetail, getApiErrorStatus } from '@/utils/formatters'
 import type {
   ContactDetail,
   ContactFormData,
@@ -23,14 +23,17 @@ const router = useRouter()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const refs = ref<ReferenceData | null>(null)
+// Numbers each load so that the answer of an earlier one can be recognised and dropped.
+let loadRequestId = 0
 
 const isNew = computed(() => route.name === 'standesdb-contact-new')
 const contactId = computed(() => (isNew.value ? null : String(route.params['id'])))
 
-const form = ref<ContactFormData>({
+const emptyForm = (): ContactFormData => ({
   kontakttyp: 'person',
   anrede: null,
   name: '',
@@ -48,6 +51,8 @@ const form = ref<ContactFormData>({
   anmerkungen: null,
 })
 
+const form = ref<ContactFormData>(emptyForm())
+
 const kontakttypOptions = [
   { label: 'Person', value: 'person' },
   { label: 'Organisation', value: 'organisation' },
@@ -57,30 +62,52 @@ const copyField = <K extends keyof ContactFormData>(key: K, data: ContactDetail)
   form.value[key] = data[key]
 }
 
-onMounted(async () => {
-  try {
-    const refResp = await standesdbService.getReferenceData()
-    refs.value = refResp.data
+const fillForm = (data: ContactDetail) => {
+  ;(Object.keys(form.value) as (keyof ContactFormData)[]).forEach((key) => {
+    if (key in data) {
+      copyField(key, data)
+    }
+  })
+}
 
-    if (!isNew.value && contactId.value) {
-      const resp = await standesdbService.getContact(contactId.value)
-      const data = resp.data as ContactDetail
-      ;(Object.keys(form.value) as (keyof ContactFormData)[]).forEach((key) => {
-        if (key in data) {
-          copyField(key, data)
-        }
-      })
-    }
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404 || status === 403) {
-      router.replace({ name: 'not-found' })
-      return
-    }
-  } finally {
-    loading.value = false
+const fetchFormData = (id: string | null) =>
+  Promise.all([
+    standesdbService.getReferenceData(),
+    id ? standesdbService.getContact(id) : Promise.resolve(null),
+  ])
+
+const failLoad = (err: unknown) => {
+  const status = getApiErrorStatus(err)
+  if (status === 404 || status === 403) {
+    router.replace({ name: 'not-found' })
+    return
   }
-})
+  loadFailed.value = true
+}
+
+// Loads the reference data and, when editing, the contact. A failed load never
+// leaves a blank form behind for an existing contact: saving that form would
+// overwrite the stored data with empty values.
+const loadForm = async () => {
+  const thisRequest = ++loadRequestId
+  loading.value = true
+  loadFailed.value = false
+  errors.value = {}
+  form.value = emptyForm()
+  try {
+    const [refResp, contactResp] = await fetchFormData(contactId.value)
+    if (thisRequest !== loadRequestId) return
+    refs.value = refResp.data
+    if (contactResp) fillForm(contactResp.data as ContactDetail)
+  } catch (err: unknown) {
+    if (thisRequest !== loadRequestId) return
+    failLoad(err)
+  } finally {
+    if (thisRequest === loadRequestId) loading.value = false
+  }
+}
+
+watch(() => [route.name, route.params['id']], loadForm, { immediate: true })
 
 const save = async () => {
   saving.value = true
@@ -160,7 +187,18 @@ const save = async () => {
 
 <template>
   <div class="contact-edit">
-    <template v-if="!loading">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        {{
+          isNew
+            ? 'Das Formular konnte nicht geladen werden.'
+            : 'Der Kontakt konnte nicht geladen werden.'
+        }}
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadForm" />
+    </div>
+
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">Standesdatenbank</h2>
         <h3 class="page-subtitle">
@@ -310,6 +348,13 @@ const save = async () => {
   max-width: 1100px;
   margin: 0 auto;
   width: 100%;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-header {

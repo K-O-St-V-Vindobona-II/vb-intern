@@ -1,32 +1,33 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
-import { ref, onMounted } from 'vue'
+import { formatApiError, formatSize } from '@/utils/formatters'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import publicGalleryService from '@/services/publicGalleryService'
 import type { GalleryImageAdminResponse } from '@/services/publicGalleryService'
 import { siteSettingsService } from '@/services/publicContentService'
+import { saveSiteSettings } from '@/composables/useSiteSettings'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import Tag from 'primevue/tag'
 
+const ALLOWED_UPLOAD_TYPES = ['image/jpeg', 'image/png']
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
 const uploading = ref(false)
+const moving = ref(false)
 const images = ref<GalleryImageAdminResponse[]>([])
 
-// about_video_heading/youtube_url/calendar_id belong to the Video/Programm
-// admin views, but all live in the same settings resource on the backend -
-// fetched here and resent unchanged on save so we never accidentally
-// clear them.
 const sectionHeading = ref('')
-const videoHeading = ref('')
-const videoYoutubeUrl = ref('')
-const calendarId = ref('')
+const headingValid = computed(() => sectionHeading.value.trim().length > 0)
 const savingHeading = ref(false)
 
+const uploadInput = ref<HTMLInputElement | null>(null)
 const uploadFile = ref<File | null>(null)
 const uploadCaption = ref('')
 
@@ -38,8 +39,13 @@ const editIsPublished = ref(true)
 const deleteDialogVisible = ref(false)
 const deleteImageId = ref('')
 
+const imageName = (img: GalleryImageAdminResponse, index: number) =>
+  img.caption || `Bild ${index + 1}`
+
+// First load and retry: the page is replaced by the spinner while it runs.
 const loadGallery = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const [imagesResp, settingsResp] = await Promise.all([
       publicGalleryService.listImages(),
@@ -47,10 +53,8 @@ const loadGallery = async () => {
     ])
     images.value = imagesResp.data
     sectionHeading.value = settingsResp.data.gallery_heading
-    videoHeading.value = settingsResp.data.about_video_heading
-    videoYoutubeUrl.value = `https://www.youtube.com/watch?v=${settingsResp.data.about_video_youtube_id}`
-    calendarId.value = settingsResp.data.programm_calendar_id
   } catch (err: unknown) {
+    loadError.value = true
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -62,16 +66,27 @@ const loadGallery = async () => {
   }
 }
 
+// After a change only the list is read again. The page stays mounted, so the
+// scroll position, an unsaved section title and the chosen upload file survive.
+const refreshImages = async () => {
+  try {
+    const resp = await publicGalleryService.listImages()
+    images.value = resp.data
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Galerie konnte nicht aktualisiert werden.'),
+      life: 5000,
+    })
+  }
+}
+
 const saveHeading = async () => {
   savingHeading.value = true
   try {
-    const resp = await siteSettingsService.updateSettings({
-      about_video_heading: videoHeading.value,
-      youtube_url: videoYoutubeUrl.value,
-      calendar_id: calendarId.value,
-      gallery_heading: sectionHeading.value,
-    })
-    sectionHeading.value = resp.data.gallery_heading
+    const saved = await saveSiteSettings({ galleryHeading: sectionHeading.value.trim() })
+    sectionHeading.value = saved.gallery_heading
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -90,36 +105,29 @@ const saveHeading = async () => {
   }
 }
 
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+const clearUploadSelection = () => {
+  uploadFile.value = null
+  if (uploadInput.value) uploadInput.value.value = ''
+}
+
+const rejectUploadFile = (detail: string) => {
+  toast.add({ severity: 'error', summary: 'Fehler', detail, life: 5000 })
+  clearUploadSelection()
 }
 
 const onFileSelect = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  const allowed = ['image/jpeg', 'image/png']
-  if (!allowed.includes(file.type)) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Nur JPEG- und PNG-Dateien erlaubt.',
-      life: 5000,
-    })
-    input.value = ''
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) {
+    // The picker was cancelled: the input shows no file any more.
+    uploadFile.value = null
     return
   }
-  if (file.size > 8 * 1024 * 1024) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Datei zu groß (max. 8 MB).',
-      life: 5000,
-    })
-    input.value = ''
+  if (!ALLOWED_UPLOAD_TYPES.includes(file.type)) {
+    rejectUploadFile('Nur JPEG- und PNG-Dateien erlaubt.')
+    return
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    rejectUploadFile('Datei zu groß (max. 8 MB).')
     return
   }
   uploadFile.value = file
@@ -129,18 +137,16 @@ const doUpload = async () => {
   if (!uploadFile.value) return
   uploading.value = true
   try {
-    await publicGalleryService.uploadImage(uploadFile.value, uploadCaption.value || null)
+    await publicGalleryService.uploadImage(uploadFile.value, uploadCaption.value.trim() || null)
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
       detail: 'Bild zur Galerie hinzugefügt.',
       life: 3000,
     })
-    uploadFile.value = null
+    clearUploadSelection()
     uploadCaption.value = ''
-    const fileInput = document.querySelector('.upload-file-input') as HTMLInputElement
-    if (fileInput) fileInput.value = ''
-    await loadGallery()
+    await refreshImages()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -154,9 +160,10 @@ const doUpload = async () => {
 }
 
 const doMove = async (img: GalleryImageAdminResponse, direction: 'up' | 'down') => {
+  moving.value = true
   try {
     await publicGalleryService.moveImage(img.id, direction)
-    await loadGallery()
+    await refreshImages()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -164,6 +171,8 @@ const doMove = async (img: GalleryImageAdminResponse, direction: 'up' | 'down') 
       detail: formatApiError(err, 'Verschieben fehlgeschlagen.'),
       life: 5000,
     })
+  } finally {
+    moving.value = false
   }
 }
 
@@ -177,7 +186,9 @@ const openEdit = (img: GalleryImageAdminResponse) => {
 const saveEdit = async () => {
   try {
     await publicGalleryService.updateImage(editImageId.value, {
-      caption: editCaption.value,
+      // An empty alt text is stored as "none", so that the public page falls
+      // back to its default description instead of an empty alt attribute.
+      caption: editCaption.value?.trim() || null,
       is_published: editIsPublished.value,
     })
     toast.add({
@@ -187,7 +198,7 @@ const saveEdit = async () => {
       life: 3000,
     })
     editDialogVisible.value = false
-    await loadGallery()
+    await refreshImages()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -213,7 +224,7 @@ const doDelete = async () => {
       detail: 'Bild aus der Galerie entfernt.',
       life: 3000,
     })
-    await loadGallery()
+    await refreshImages()
   } catch (err: unknown) {
     toast.add({
       severity: 'error',
@@ -229,7 +240,11 @@ onMounted(loadGallery)
 
 <template>
   <div class="gallery-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Galerie konnte nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadGallery" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Galerie</h3>
@@ -244,6 +259,7 @@ onMounted(loadGallery)
             icon="pi pi-check"
             size="small"
             :loading="savingHeading"
+            :disabled="!headingValid"
             @click="saveHeading"
           />
         </div>
@@ -252,9 +268,11 @@ onMounted(loadGallery)
       <p class="image-count">{{ images.length }} Bild{{ images.length !== 1 ? 'er' : '' }}</p>
 
       <div class="upload-section">
-        <label class="section-label">Neues Bild hochladen</label>
+        <label for="upload-file" class="section-label">Neues Bild hochladen</label>
         <div class="upload-row">
           <input
+            id="upload-file"
+            ref="uploadInput"
             type="file"
             accept="image/jpeg,image/png"
             class="upload-file-input"
@@ -263,6 +281,7 @@ onMounted(loadGallery)
           <InputText
             v-model="uploadCaption"
             placeholder="Alt-Text für Screenreader (optional, max. 150 Zeichen)"
+            aria-label="Alt-Text für das neue Bild"
             maxlength="150"
             class="upload-caption"
           />
@@ -300,16 +319,16 @@ onMounted(loadGallery)
                 icon="pi pi-arrow-up"
                 text
                 size="small"
-                :disabled="index === 0"
-                aria-label="Nach oben verschieben"
+                :disabled="index === 0 || moving"
+                :aria-label="`Nach oben verschieben: ${imageName(img, index)}`"
                 @click="doMove(img, 'up')"
               />
               <Button
                 icon="pi pi-arrow-down"
                 text
                 size="small"
-                :disabled="index === images.length - 1"
-                aria-label="Nach unten verschieben"
+                :disabled="index === images.length - 1 || moving"
+                :aria-label="`Nach unten verschieben: ${imageName(img, index)}`"
                 @click="doMove(img, 'down')"
               />
               <Button
@@ -317,6 +336,7 @@ onMounted(loadGallery)
                 icon="pi pi-pencil"
                 text
                 size="small"
+                :aria-label="`Bearbeiten: ${imageName(img, index)}`"
                 @click="openEdit(img)"
               />
               <Button
@@ -325,6 +345,7 @@ onMounted(loadGallery)
                 text
                 size="small"
                 severity="danger"
+                :aria-label="`Löschen: ${imageName(img, index)}`"
                 @click="confirmDelete(img)"
               />
             </div>
@@ -341,16 +362,16 @@ onMounted(loadGallery)
       >
         <div class="dialog-fields">
           <div class="field">
-            <label>Alt-Text für Screenreader</label>
-            <InputText v-model="editCaption" maxlength="150" class="w-full" />
+            <label for="edit-caption">Alt-Text für Screenreader</label>
+            <InputText id="edit-caption" v-model="editCaption" maxlength="150" class="w-full" />
             <p class="field-hint">
               Wird nicht sichtbar auf der Seite angezeigt, nur für Barrierefreiheit (Screenreader)
               und als Fallback bei defekten Bildern.
             </p>
           </div>
           <div class="field">
-            <label>
-              <Checkbox v-model="editIsPublished" :binary="true" />
+            <label for="edit-published">
+              <Checkbox v-model="editIsPublished" input-id="edit-published" :binary="true" />
               Auf der öffentlichen Seite anzeigen
             </label>
           </div>
@@ -412,6 +433,12 @@ onMounted(loadGallery)
   font-weight: 600;
   font-size: 0.85rem;
   margin-bottom: 0.4rem;
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
 }
 
 .heading-row {

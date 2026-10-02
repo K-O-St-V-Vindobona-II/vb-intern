@@ -70,21 +70,25 @@ const memberClass = (node: TreeNode) => {
     @update:visible="emit('update:visible', $event)"
   >
     <div class="family-tree">
-      <!-- Ancestry + Children als zusammenhängender Baum -->
+      <!-- Ancestry and children rendered as one connected tree -->
       <template v-for="(ancestor, idx) in ancestry" :key="'a-' + ancestor.id">
         <div
           v-if="!isAncestryCollapsed(idx)"
           class="tree-row"
           :style="{ paddingLeft: idx * 20 + 'px' }"
         >
-          <span
+          <button
             v-if="ancestor.id !== memberId"
+            type="button"
             class="tree-caret"
+            :aria-expanded="!collapsed[ancestor.id]"
+            :aria-label="`${ancestor.cn}: ${collapsed[ancestor.id] ? 'aufklappen' : 'zuklappen'}`"
             @click="toggleCollapse(ancestor.id)"
           >
             <i :class="collapsed[ancestor.id] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" />
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             class="tree-name"
             :class="[
               memberClass(ancestor),
@@ -95,11 +99,11 @@ const memberClass = (node: TreeNode) => {
             @click="goToMember(ancestor.id)"
           >
             {{ ancestor.cn }}
-          </span>
+          </button>
         </div>
       </template>
 
-      <!-- Children des aktuellen Mitglieds (rekursiv) -->
+      <!-- Children of the current member (recursive) -->
       <template v-if="!isAncestryCollapsed(ancestry.length)">
         <TreeBranch
           v-for="child in children"
@@ -131,6 +135,9 @@ const memberClass = (node: TreeNode) => {
 
 .tree-caret,
 .family-tree :deep(.tree-caret) {
+  padding: 0;
+  border: none;
+  background: none;
   width: 12px;
   flex-shrink: 0;
   cursor: pointer;
@@ -148,6 +155,11 @@ const memberClass = (node: TreeNode) => {
 
 .tree-name,
 .family-tree :deep(.tree-name) {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   color: var(--p-primary-color);
 }

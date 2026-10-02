@@ -31,15 +31,24 @@ const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
   return resp.data.data
 }
 
-const onMemberSelect = async (item: SearchResult) => {
+const loadMember = async (id: string) => {
   loading.value = true
   try {
-    const resp = await p4xService.getFeeMember(String(item.id))
+    const resp = await p4xService.getFeeMember(id)
     member.value = resp.data
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Beitragskonto konnte nicht geladen werden.',
+      life: 5000,
+    })
   } finally {
     loading.value = false
   }
 }
+
+const onMemberSelect = (item: SearchResult) => loadMember(String(item.id))
 
 const goToEdit = () => {
   if (!member.value) return
@@ -83,15 +92,7 @@ const doExport = async () => {
 
 onMounted(async () => {
   const id = route.params['id'] ? String(route.params['id']) : null
-  if (id) {
-    loading.value = true
-    try {
-      const resp = await p4xService.getFeeMember(id)
-      member.value = resp.data
-    } finally {
-      loading.value = false
-    }
-  }
+  if (id) await loadMember(id)
 })
 </script>
 

@@ -31,6 +31,15 @@ const downsyncLoading = ref(false)
 // stage instead of two.
 const isProduction = computed(() => appEnvironment() === 'production')
 
+// The destructive Downsync button is only offered on a stage that is known to
+// be non-production: an unknown or missing value must not expose it (the API
+// refuses it in production as well, but a button that cannot succeed is
+// still a trap).
+const DOWNSYNC_STAGES = ['development', 'test', 'qa']
+const isDownsyncStage = computed(() => DOWNSYNC_STAGES.includes(appEnvironment() ?? ''))
+
+const formatNextRun = (nextRun: string | null) => (nextRun ? formatDateTime(nextRun) : '–')
+
 onMounted(async () => {
   try {
     const resp = await systemService.getScheduledJobs()
@@ -145,29 +154,40 @@ const historyPage = ref(1)
 const historyLoading = ref(false)
 const historyPageSize = 25
 
+// Only the newest history request may fill the table: a slow answer for an
+// earlier page or another job must not replace the rows on screen.
+let latestHistoryRequestId = 0
+
 const fetchHistory = async () => {
+  const requestId = ++latestHistoryRequestId
   historyLoading.value = true
   try {
     const resp = await systemService.getJobRunHistory(historyJobId.value, {
       page: historyPage.value,
       page_size: historyPageSize,
     })
+    if (requestId !== latestHistoryRequestId) return
     historyItems.value = resp.data.items
     historyTotal.value = resp.data.total
   } catch (e) {
+    if (requestId !== latestHistoryRequestId) return
     toast.add({
       severity: 'error',
       summary: formatApiError(e, 'Historie konnte nicht geladen werden.'),
       life: 5000,
     })
   } finally {
-    historyLoading.value = false
+    if (requestId === latestHistoryRequestId) historyLoading.value = false
   }
 }
 
 const showHistory = (jobId: string) => {
   historyJobId.value = jobId
   historyPage.value = 1
+  // The rows of the job that was open before must not show up under the new
+  // job's header while its own request is still running.
+  historyItems.value = []
+  historyTotal.value = 0
   historyVisible.value = true
   fetchHistory()
 }
@@ -200,7 +220,7 @@ const onHistoryPage = (event: { page: number }) => {
       </p>
     </div>
 
-    <div v-else class="backup-action">
+    <div v-else-if="isDownsyncStage" class="backup-action">
       <Button
         label="Downsync jetzt durchführen"
         icon="pi pi-cloud-download"
@@ -233,7 +253,7 @@ const onHistoryPage = (event: { page: number }) => {
           </div>
           <div class="job-detail">
             <span class="job-detail-label">Nächste Ausführung</span>
-            <span class="job-detail-value">{{ job.next_run ?? '–' }}</span>
+            <span class="job-detail-value">{{ formatNextRun(job.next_run) }}</span>
           </div>
           <div class="job-detail">
             <span class="job-detail-label">Letzter Lauf</span>
@@ -301,7 +321,7 @@ const onHistoryPage = (event: { page: number }) => {
         </Column>
         <Column field="output" header="Ausgabe">
           <template #body="{ data }">
-            {{ data.output ?? '–' }}
+            <span class="run-output">{{ data.output ?? '–' }}</span>
           </template>
         </Column>
       </DataTable>
@@ -419,6 +439,11 @@ const onHistoryPage = (event: { page: number }) => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.run-output {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .last-run-tag {

@@ -2,21 +2,22 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
 import p4xService from '@/services/p4xService'
-import type { P4xCategory, PaginatedTransactions } from '@/types/p4x'
+import type { P4xCategory } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import TransactionTable from './components/TransactionTable.vue'
 import Card from 'primevue/card'
 import DatePicker from 'primevue/datepicker'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
 const accountId = String(route.params['accountId'])
-const loading = ref(true)
 const categories = ref<P4xCategory[]>([])
-const result = ref<PaginatedTransactions | null>(null)
 const selectedDate = ref(new Date(Number(route.params['year']), Number(route.params['month']) - 1))
 
 const year = ref(Number(route.params['year']))
@@ -24,21 +25,24 @@ const month = ref(Number(route.params['month']))
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
-const load = async (page = 1) => {
-  loading.value = true
-  try {
-    const [txResp, dashResp] = await Promise.all([
-      p4xService.getTransactionsByMonth(accountId, year.value, month.value, page),
-      categories.value.length ? Promise.resolve(null) : p4xService.getDashboard(),
-    ])
-    result.value = txResp.data
-    if (dashResp) {
-      categories.value = dashResp.data.categories
-    }
-  } finally {
-    loading.value = false
-  }
+const selection = computed(() => ({ year: year.value, month: month.value }))
+
+const loadCategories = async () => {
+  if (categories.value.length > 0) return
+  const dashResp = await p4xService.getDashboard()
+  categories.value = dashResp.data.categories
 }
+
+const { result, loadFailed, load, reload } = usePaginatedTransactions(
+  selection,
+  async (key, page) => {
+    const [txResp] = await Promise.all([
+      p4xService.getTransactionsByMonth(accountId, key.year, key.month, page),
+      loadCategories(),
+    ])
+    return txResp
+  },
+)
 
 const onMonthChange = () => {
   const d = selectedDate.value
@@ -91,7 +95,12 @@ const monthLabel = (): string =>
       />
     </div>
 
-    <Card v-if="result && !loading" class="info-card">
+    <Message v-if="loadFailed" severity="error" :closable="false" class="load-error">
+      Transaktionen konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="reload" />
+    </Message>
+
+    <Card v-if="result" class="info-card">
       <template #content>
         <div class="info-grid">
           <div class="info-row">
@@ -111,7 +120,7 @@ const monthLabel = (): string =>
     </Card>
 
     <TransactionTable
-      v-if="result && !loading"
+      v-if="result"
       :transactions="result.items"
       :categories="categories"
       :total="result.total"
@@ -119,7 +128,7 @@ const monthLabel = (): string =>
       :per-page="result.per_page"
       :admin="isAdmin"
       @page-change="onPageChange"
-      @refresh="load(result?.page ?? 1)"
+      @refresh="reload"
     />
 
     <div class="back-link">
@@ -129,6 +138,13 @@ const monthLabel = (): string =>
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
 .tx-month-view {
   max-width: 1100px;
   margin: 0 auto;

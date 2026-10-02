@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useToast } from 'primevue/usetoast'
+import { formatApiError } from '@/utils/formatters'
 import type { P4xTransaction, PartnerRef, PartnerSearchResult } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
 import PartnerSearch from './PartnerSearch.vue'
@@ -9,6 +11,8 @@ import Checkbox from 'primevue/checkbox'
 
 const props = defineProps<{ transaction: P4xTransaction }>()
 const emit = defineEmits<{ changed: [tx: P4xTransaction] }>()
+
+const toast = useToast()
 
 const visible = ref(false)
 const partner = ref<PartnerSearchResult | null>(null)
@@ -60,8 +64,8 @@ const save = async () => {
     })
     emit('changed', resp.data as P4xTransaction)
     visible.value = false
-  } catch {
-    /* empty */
+  } catch (e: unknown) {
+    toast.add({ severity: 'error', summary: formatApiError(e), life: 4000 })
   }
 }
 

@@ -173,4 +173,77 @@ describe('FuzzyDatePicker', () => {
     expect(yearSelect.props('modelValue')).toBe(2015)
     w.unmount()
   })
+
+  it.each(['Enter', ' '])('opens the popover from the keyboard with the %j key', async (key) => {
+    const w = mountWith({ date: '2020-01-01', accuracy: 3, label: 'Test' })
+
+    await w.find('.fuzzy-trigger').trigger('keydown', { key })
+    await flushPromises()
+
+    expect(document.querySelector('.fuzzy-popover')).not.toBeNull()
+    expect(w.find('.fuzzy-trigger').attributes('aria-haspopup')).toBe('dialog')
+    w.unmount()
+  })
+
+  it('links the label to its input in both modes', () => {
+    for (const readonly of [true, false]) {
+      const w = mountWith({ date: '2020-01-01', accuracy: 3, label: 'Aufnahme', readonly })
+      const label = w.find('label')
+
+      expect(label.attributes('for')).toBeTruthy()
+      expect(w.find('input').attributes('id')).toBe(label.attributes('for'))
+      w.unmount()
+    }
+  })
+
+  it('names the popover checkboxes and selects', async () => {
+    const w = mountWith({ date: '2020-03-10', accuracy: 3, label: 'Test' })
+    await openPopover(w)
+
+    const checkboxNames = w
+      .findAllComponents({ name: 'Checkbox' })
+      .map((c) => c.find('input').attributes('aria-label'))
+    expect(checkboxNames).toEqual(['Jahr bekannt', 'Monat bekannt', 'Tag bekannt'])
+    expect(w.findAllComponents({ name: 'Select' }).map((c) => c.props('ariaLabel'))).toEqual([
+      'Jahr',
+      'Monat',
+      'Tag',
+    ])
+    w.unmount()
+  })
+
+  it('offers the twelve months with their number as value and the name as label', async () => {
+    const w = mountWith({ date: '2020-03-10', accuracy: 3, label: 'Test' })
+    await openPopover(w)
+
+    const monthSelect = w.findAllComponents({ name: 'Select' })[1]!
+    const options = monthSelect.props('options') as Array<{ value: number; label: string }>
+
+    expect(options).toHaveLength(12)
+    expect(options[0]).toEqual({ value: 1, label: 'Jänner' })
+    expect(options[2]).toEqual({ value: 3, label: 'März' })
+    expect(options[11]).toEqual({ value: 12, label: 'Dezember' })
+    w.unmount()
+  })
+
+  it.each([
+    [1, 'Jänner'],
+    [2, 'Februar'],
+    [3, 'März'],
+    [4, 'April'],
+    [5, 'Mai'],
+    [6, 'Juni'],
+    [7, 'Juli'],
+    [8, 'August'],
+    [9, 'September'],
+    [10, 'Oktober'],
+    [11, 'November'],
+    [12, 'Dezember'],
+  ])('spells month %i as %s', (month, name) => {
+    const date = `2020-${String(month).padStart(2, '0')}-15`
+    const w = mountWith({ date, accuracy: 2, label: 'Test', readonly: true })
+
+    expect(inputValue(w)).toBe(`${name} 2020`)
+    w.unmount()
+  })
 })

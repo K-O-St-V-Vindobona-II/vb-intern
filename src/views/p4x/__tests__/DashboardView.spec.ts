@@ -234,4 +234,26 @@ describe('DashboardView (p4x)', () => {
     )
     wrapper.unmount()
   })
+
+  it('shows a retry state instead of a silently empty page when loading fails', async () => {
+    mockGetDashboard
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ data: buildDashboard() })
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Die Konten-Übersicht konnte nicht geladen werden.')
+    expect(wrapper.find('table').exists()).toBe(false)
+    const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retry).toBeDefined()
+
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.text()).toContain('AH-Kassen')
+    wrapper.unmount()
+  })
 })

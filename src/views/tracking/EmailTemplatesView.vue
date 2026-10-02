@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import trackingService from '@/services/trackingService'
+import { useTrackingRetention } from '@/composables/useTrackingRetention'
 import type { EmailTemplateStats } from '@/types/tracking'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -13,8 +14,10 @@ import { useToast } from 'primevue/usetoast'
 const toast = useToast()
 const templates = ref<EmailTemplateStats[]>([])
 const loading = ref(false)
-const retentionMonths = ref(6)
-const totalEmails = ref(0)
+const { retentionMonths, loadRetention } = useTrackingRetention()
+const totalEmailsLabel = computed(() =>
+  templates.value.reduce((sum, t) => sum + t.count, 0).toLocaleString('de-AT'),
+)
 
 const previewVisible = ref(false)
 const previewHtml = ref('')
@@ -25,7 +28,6 @@ const fetchData = async () => {
   loading.value = true
   try {
     templates.value = await trackingService.getEmailTemplates()
-    totalEmails.value = templates.value.reduce((sum, t) => sum + t.count, 0)
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   } finally {
@@ -33,29 +35,31 @@ const fetchData = async () => {
   }
 }
 
+// Answers arrive in any order: the answer for a template opened earlier must
+// neither fill the dialog of the current one nor end its loading state.
+let latestPreviewRequestId = 0
+
 const openPreview = async (templateKey: string, templateName: string) => {
+  const requestId = ++latestPreviewRequestId
   previewLoading.value = true
   previewName.value = templateName
+  previewHtml.value = ''
   previewVisible.value = true
   try {
     const result = await trackingService.getTemplatePreview(templateKey)
+    if (requestId !== latestPreviewRequestId) return
     previewHtml.value = result.html
   } catch (e) {
-    previewHtml.value = ''
+    if (requestId !== latestPreviewRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
     previewVisible.value = false
   } finally {
-    previewLoading.value = false
+    if (requestId === latestPreviewRequestId) previewLoading.value = false
   }
 }
 
 onMounted(async () => {
-  try {
-    const config = await trackingService.getConfig()
-    retentionMonths.value = config.retention_months
-  } catch {
-    /* fallback to default */
-  }
+  await loadRetention()
   fetchData()
 })
 </script>
@@ -74,7 +78,7 @@ onMounted(async () => {
         <span class="stat-label">Vorlagen</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value">{{ totalEmails.toLocaleString('de-AT') }}</span>
+        <span class="stat-value">{{ totalEmailsLabel }}</span>
         <span class="stat-label">Emails gesamt</span>
       </div>
     </div>
@@ -113,6 +117,7 @@ onMounted(async () => {
             icon="pi pi-eye"
             text
             size="small"
+            :aria-label="`Vorschau: ${data.template_name}`"
             @click="openPreview(data.template_key, data.template_name)"
           />
         </template>

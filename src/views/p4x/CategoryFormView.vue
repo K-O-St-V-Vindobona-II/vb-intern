@@ -3,17 +3,21 @@ import { formatApiError } from '@/utils/formatters'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import p4xService from '@/services/p4xService'
 import InputText from 'primevue/inputtext'
 import ColorPicker from 'primevue/colorpicker'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const confirm = useConfirm()
 
 const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 
 const form = ref({
@@ -37,7 +41,9 @@ const textColorHex = computed({
   },
 })
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   if (isEdit.value) {
     try {
       const resp = await p4xService.getCategories()
@@ -49,13 +55,17 @@ onMounted(async () => {
           background_color: cat.background_color,
           text_color: cat.text_color,
         }
+      } else {
+        loadFailed.value = true
       }
     } catch {
-      /* empty */
+      loadFailed.value = true
     }
   }
   loading.value = false
-})
+}
+
+onMounted(load)
 
 const save = async () => {
   saving.value = true
@@ -76,20 +86,33 @@ const save = async () => {
   }
 }
 
-const deleteCategory = async () => {
-  try {
-    await p4xService.deleteCategory(String(route.params['id']))
-    toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
-    router.push({ name: 'p4x-categories' })
-  } catch (e: unknown) {
-    const msg = formatApiError(e)
-    toast.add({ severity: 'error', summary: msg, life: 4000 })
-  }
+const deleteCategory = () => {
+  confirm.require({
+    message: `Kategorie "${form.value.label}" wirklich löschen?`,
+    header: 'Kategorie löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Löschen', severity: 'danger' },
+    accept: async () => {
+      try {
+        await p4xService.deleteCategory(String(route.params['id']))
+        toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
+        router.push({ name: 'p4x-categories' })
+      } catch (e: unknown) {
+        const msg = formatApiError(e)
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
+    },
+  })
 }
 </script>
 
 <template>
-  <div v-if="!loading" class="cat-form">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Das Formular konnte nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="cat-form">
     <h2>Kategorie</h2>
     <p class="subtitle">
       {{ isEdit ? 'Kategorie bearbeiten' : 'Kategorie erstellen' }}
@@ -147,6 +170,12 @@ const deleteCategory = async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
 .cat-form {
   max-width: 600px;
   margin: 0 auto;

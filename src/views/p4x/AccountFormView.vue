@@ -9,6 +9,7 @@ import FormAmount from './components/FormAmount.vue'
 import InputText from 'primevue/inputtext'
 import DatePicker from 'primevue/datepicker'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,7 @@ const toast = useToast()
 
 const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 
 const form = ref({
@@ -26,7 +28,9 @@ const form = ref({
   init_balance: 0,
 })
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   if (isEdit.value) {
     try {
       const resp = await p4xService.getDashboard()
@@ -41,13 +45,17 @@ onMounted(async () => {
           init_date: account.init_date ? new Date(account.init_date) : null,
           init_balance: account.init_balance,
         }
+      } else {
+        loadFailed.value = true
       }
     } catch {
-      /* empty */
+      loadFailed.value = true
     }
   }
   loading.value = false
-})
+}
+
+onMounted(load)
 
 const save = async () => {
   saving.value = true
@@ -78,7 +86,11 @@ const save = async () => {
 </script>
 
 <template>
-  <div v-if="!loading" class="account-form">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Das Formular konnte nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="account-form">
     <h2>Konto</h2>
     <p class="subtitle">
       {{ isEdit ? 'Konto bearbeiten' : 'Konto anlegen' }}
@@ -119,6 +131,12 @@ const save = async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
 .account-form {
   max-width: 600px;
   margin: 0 auto;

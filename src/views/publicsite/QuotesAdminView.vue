@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { formatApiError } from '@/utils/formatters'
 import { quotesService } from '@/services/publicContentService'
@@ -11,45 +11,68 @@ import Dialog from 'primevue/dialog'
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
+const moving = ref(false)
 const quotes = ref<QuoteResponse[]>([])
 
 const newQuote = ref('')
 const newAuthor = ref('')
 const adding = ref(false)
+const canAdd = computed(() => newQuote.value.trim() !== '' && newAuthor.value.trim() !== '')
 
 const editDialogVisible = ref(false)
 const editQuoteId = ref('')
 const editQuoteText = ref('')
 const editAuthor = ref('')
+const canSaveEdit = computed(
+  () => editQuoteText.value.trim() !== '' && editAuthor.value.trim() !== '',
+)
 
 const deleteDialogVisible = ref(false)
 const deleteQuoteId = ref('')
 
+const errorToast = (err: unknown, fallback: string) =>
+  toast.add({
+    severity: 'error',
+    summary: 'Fehler',
+    detail: formatApiError(err, fallback),
+    life: 5000,
+  })
+
+// First load and retry: the page is replaced by the spinner while it runs.
 const loadQuotes = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const resp = await quotesService.list()
     quotes.value = resp.data
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Zitate konnten nicht geladen werden.'),
-      life: 5000,
-    })
+    loadError.value = true
+    errorToast(err, 'Zitate konnten nicht geladen werden.')
   } finally {
     loading.value = false
   }
 }
 
+// After a change only the list is read again, so the page keeps its scroll
+// position and no failed read is mistaken for an empty list.
+const refreshQuotes = async () => {
+  try {
+    const resp = await quotesService.list()
+    quotes.value = resp.data
+  } catch (err: unknown) {
+    errorToast(err, 'Zitate konnten nicht aktualisiert werden.')
+  }
+}
+
 const addQuote = async () => {
-  if (!newQuote.value.trim() || !newAuthor.value.trim()) return
+  if (!canAdd.value) return
   adding.value = true
   try {
-    await quotesService.create({ quote: newQuote.value, author: newAuthor.value })
+    await quotesService.create({ quote: newQuote.value.trim(), author: newAuthor.value.trim() })
     newQuote.value = ''
     newAuthor.value = ''
-    await loadQuotes()
+    await refreshQuotes()
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -57,28 +80,21 @@ const addQuote = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Hinzufügen fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Hinzufügen fehlgeschlagen.')
   } finally {
     adding.value = false
   }
 }
 
 const moveQuote = async (quote: QuoteResponse, direction: 'up' | 'down') => {
+  moving.value = true
   try {
     await quotesService.move(quote.id, direction)
-    await loadQuotes()
+    await refreshQuotes()
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Verschieben fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Verschieben fehlgeschlagen.')
+  } finally {
+    moving.value = false
   }
 }
 
@@ -92,11 +108,11 @@ const openEdit = (quote: QuoteResponse) => {
 const saveEdit = async () => {
   try {
     await quotesService.update(editQuoteId.value, {
-      quote: editQuoteText.value,
-      author: editAuthor.value,
+      quote: editQuoteText.value.trim(),
+      author: editAuthor.value.trim(),
     })
     editDialogVisible.value = false
-    await loadQuotes()
+    await refreshQuotes()
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -104,12 +120,7 @@ const saveEdit = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Speichern fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Speichern fehlgeschlagen.')
   }
 }
 
@@ -130,12 +141,7 @@ const doDelete = async () => {
       life: 3000,
     })
   } catch (err: unknown) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: formatApiError(err, 'Löschen fehlgeschlagen.'),
-      life: 5000,
-    })
+    errorToast(err, 'Löschen fehlgeschlagen.')
   }
 }
 
@@ -144,7 +150,11 @@ onMounted(loadQuotes)
 
 <template>
   <div class="quotes-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Zitate konnten nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadQuotes" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Zitate</h3>
@@ -153,14 +163,26 @@ onMounted(loadQuotes)
       <div class="add-section">
         <label class="section-label">Neues Zitat</label>
         <div class="add-row">
-          <InputText v-model="newQuote" placeholder="Zitat" maxlength="500" class="add-quote" />
-          <InputText v-model="newAuthor" placeholder="Urheber" maxlength="100" class="add-author" />
+          <InputText
+            v-model="newQuote"
+            placeholder="Zitat"
+            aria-label="Neues Zitat"
+            maxlength="500"
+            class="add-quote"
+          />
+          <InputText
+            v-model="newAuthor"
+            placeholder="Urheber"
+            aria-label="Urheber des neuen Zitats"
+            maxlength="100"
+            class="add-author"
+          />
           <Button
             label="Hinzufügen"
             icon="pi pi-plus"
             size="small"
             :loading="adding"
-            :disabled="!newQuote.trim() || !newAuthor.trim()"
+            :disabled="!canAdd"
             @click="addQuote"
           />
         </div>
@@ -179,16 +201,16 @@ onMounted(loadQuotes)
               icon="pi pi-arrow-up"
               text
               size="small"
-              :disabled="index === 0"
-              aria-label="Nach oben verschieben"
+              :disabled="index === 0 || moving"
+              :aria-label="`Nach oben verschieben: ${quote.quote}`"
               @click="moveQuote(quote, 'up')"
             />
             <Button
               icon="pi pi-arrow-down"
               text
               size="small"
-              :disabled="index === quotes.length - 1"
-              aria-label="Nach unten verschieben"
+              :disabled="index === quotes.length - 1 || moving"
+              :aria-label="`Nach unten verschieben: ${quote.quote}`"
               @click="moveQuote(quote, 'down')"
             />
             <Button
@@ -196,6 +218,7 @@ onMounted(loadQuotes)
               icon="pi pi-pencil"
               text
               size="small"
+              :aria-label="`Bearbeiten: ${quote.quote}`"
               @click="openEdit(quote)"
             />
             <Button
@@ -204,6 +227,7 @@ onMounted(loadQuotes)
               text
               size="small"
               severity="danger"
+              :aria-label="`Löschen: ${quote.quote}`"
               @click="confirmDelete(quote)"
             />
           </div>
@@ -234,7 +258,7 @@ onMounted(loadQuotes)
         </div>
         <template #footer>
           <Button label="Abbrechen" severity="secondary" @click="editDialogVisible = false" />
-          <Button label="Speichern" @click="saveEdit" />
+          <Button label="Speichern" :disabled="!canSaveEdit" @click="saveEdit" />
         </template>
       </Dialog>
 
@@ -278,6 +302,12 @@ onMounted(loadQuotes)
   font-size: 1rem;
   font-weight: 600;
   color: var(--p-text-muted-color);
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
 }
 
 .section-label {

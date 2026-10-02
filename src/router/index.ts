@@ -6,6 +6,7 @@ import {
   checkAuthRequirement,
   checkPermissions,
 } from './guards'
+import { registerChunkReload } from './chunkReload'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
@@ -415,7 +416,7 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
-          path: 'tracking/activity/members/:memberId',
+          path: 'tracking/activity/members/:memberId([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
           name: 'tracking-activity-member',
           component: () => import('../views/tracking/ActivityLogMemberDayView.vue'),
           props: true,
@@ -478,6 +479,8 @@ const router = createRouter({
     },
   ],
 })
+
+registerChunkReload(router)
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()

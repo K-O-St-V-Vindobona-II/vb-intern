@@ -146,14 +146,48 @@ describe('MyStammdatenView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'info' }))
   })
 
-  it('shows a generic error toast when live data fails to load', async () => {
+  it('shows a retry state instead of a blank submittable form when live data fails to load', async () => {
     mockGetMySelfServiceData.mockReset()
     mockGetMySelfServiceData.mockRejectedValue(new Error('boom'))
 
-    mount(MyStammdatenView, mountOpts)
+    const wrapper = mount(MyStammdatenView, mountOpts)
     await flushPromises()
 
-    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    expect(wrapper.text()).toContain('Stammdaten konnten nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Antrag einreichen'))).toBe(
+      false,
+    )
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Erneut versuchen'))).toBe(true)
+    expect(mockSubmitMyChangeRequest).not.toHaveBeenCalled()
+  })
+
+  it('shows the same retry state when the pending request cannot be read', async () => {
+    mockGetMyChangeRequest.mockReset()
+    mockGetMyChangeRequest.mockRejectedValue({ response: { status: 500 } })
+
+    const wrapper = mount(MyStammdatenView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Stammdaten konnten nicht geladen werden.')
+    expect(wrapper.find('input').exists()).toBe(false)
+  })
+
+  it('loads the form once the retry succeeds', async () => {
+    mockGetMySelfServiceData.mockReset()
+    mockGetMySelfServiceData
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ data: buildSelfServiceDetail() })
+
+    const wrapper = mount(MyStammdatenView, mountOpts)
+    await flushPromises()
+    await findButtonByText(wrapper, 'Erneut versuchen').trigger('click')
+    await flushPromises()
+
+    expect(mockGetMySelfServiceData).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    const inputs = wrapper.findAll('input[type="text"]')
+    expect(inputs.some((i) => (i.element as HTMLInputElement).value === 'Max')).toBe(true)
   })
 
   it('shows field-level validation errors from a 422 response', async () => {

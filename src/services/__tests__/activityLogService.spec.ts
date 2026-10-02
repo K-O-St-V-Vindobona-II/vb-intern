@@ -35,4 +35,18 @@ describe('activityLogService', () => {
     expect(result).toEqual({ id: 'log-uuid-1' })
     expect(mockGet).toHaveBeenCalledWith('/tracking/activity/log-uuid-1')
   })
+
+  it('getForMemberDay keeps a member id from turning into extra path segments', async () => {
+    mockGet.mockResolvedValueOnce({ data: { member_name: 'Test', entries: [] } })
+    await activityLogService.getForMemberDay('../../auth/sessions', '2026-06-15')
+    expect(mockGet).toHaveBeenCalledWith('/tracking/activity/members/..%2F..%2Fauth%2Fsessions', {
+      params: { day: '2026-06-15' },
+    })
+  })
+
+  it('getEntry keeps an id from turning into extra path segments', async () => {
+    mockGet.mockResolvedValueOnce({ data: {} })
+    await activityLogService.getEntry('../members')
+    expect(mockGet).toHaveBeenCalledWith('/tracking/activity/..%2Fmembers')
+  })
 })

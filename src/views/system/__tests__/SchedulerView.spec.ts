@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import SchedulerView from '../SchedulerView.vue'
 import PrimeVue from 'primevue/config'
+import { formatDateTime } from '@/utils/formatters'
 
 const mockGetScheduledJobs = vi.fn()
 const mockTriggerBackup = vi.fn()
@@ -51,7 +52,7 @@ describe('SchedulerView', () => {
     mockLogout.mockResolvedValue(undefined)
   })
 
-  it('renders a card per scheduled job with its trigger and next run', async () => {
+  it('renders a card per scheduled job with its trigger and the next run formatted like the last run', async () => {
     mockGetScheduledJobs.mockResolvedValue({
       data: [
         {
@@ -70,7 +71,8 @@ describe('SchedulerView', () => {
     expect(wrapper.text()).toContain('cleanup')
     expect(wrapper.text()).toContain('Räumt alte Dateien auf.')
     expect(wrapper.text()).toContain('cron(0 3 * * *)')
-    expect(wrapper.text()).toContain('2026-07-01T03:00:00Z')
+    expect(wrapper.text()).toContain(formatDateTime('2026-07-01T03:00:00Z'))
+    expect(wrapper.text()).not.toContain('2026-07-01T03:00:00Z')
   })
 
   it('shows a dash when a job has no next run or last run', async () => {
@@ -89,7 +91,14 @@ describe('SchedulerView', () => {
     const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('–')
+    const detail = (label: string) =>
+      wrapper
+        .findAll('.job-detail')
+        .find((d) => d.find('.job-detail-label').text() === label)!
+        .find('.job-detail-value')
+        .text()
+    expect(detail('Nächste Ausführung')).toBe('–')
+    expect(detail('Letzter Lauf')).toBe('–')
   })
 
   it('shows the last run status and timestamp when present', async () => {
@@ -388,5 +397,165 @@ describe('SchedulerView', () => {
         page_size: 25,
       })
     })
+
+    function deferredHistory() {
+      let resolvePromise!: (value: unknown) => void
+      const promise = new Promise((resolve) => {
+        resolvePromise = resolve
+      })
+      return { promise, resolve: resolvePromise }
+    }
+
+    const run = (id: string, output: string) => ({
+      id,
+      job_id: 'x',
+      exit_code: 0,
+      output,
+      started_at: '2026-08-04T03:00:00Z',
+      finished_at: '2026-08-04T03:00:01Z',
+      duration_seconds: 1,
+    })
+
+    const page = (items: unknown[], total = items.length) => ({
+      data: { items, total, page: 1, page_size: 25 },
+    })
+
+    it('regression: the rows of the previously opened job are gone while the next job loads', async () => {
+      const other = { ...job, id: 'backup' }
+      mockGetScheduledJobs.mockResolvedValue({ data: [job, other] })
+      const slow = deferredHistory()
+      mockGetJobRunHistory
+        .mockResolvedValueOnce(
+          page([run('11111111-1111-1111-1111-111111111111', 'output of cleanup')]),
+        )
+        .mockReturnValueOnce(slow.promise)
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+      const openButtons = wrapper.findAll('.job-card-footer button')
+
+      await openButtons[0]!.trigger('click')
+      await flushPromises()
+      expect(document.body.textContent).toContain('output of cleanup')
+
+      await openButtons[1]!.trigger('click')
+      await flushPromises()
+
+      expect(document.body.textContent).toContain('Historie: backup')
+      expect(document.body.textContent).not.toContain('output of cleanup')
+      expect(wrapper.findComponent({ name: 'DataTable' }).props('totalRecords')).toBe(0)
+
+      slow.resolve(page([run('22222222-2222-2222-2222-222222222222', 'output of backup')]))
+      await flushPromises()
+      expect(document.body.textContent).toContain('output of backup')
+    })
+
+    it('regression: a slow answer for an earlier request does not replace the rows of the newer one', async () => {
+      mockGetScheduledJobs.mockResolvedValue({ data: [job] })
+      const slow = deferredHistory()
+      mockGetJobRunHistory
+        .mockResolvedValueOnce({ data: { items: [], total: 60, page: 1, page_size: 25 } })
+        .mockReturnValueOnce(slow.promise)
+        .mockResolvedValueOnce(
+          page([run('33333333-3333-3333-3333-333333333333', 'newer page')], 60),
+        )
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+      await wrapper.find('.job-card-footer button').trigger('click')
+      await flushPromises()
+      const table = wrapper.findComponent({ name: 'DataTable' })
+
+      await table.vm.$emit('page', { page: 1 })
+      await table.vm.$emit('page', { page: 2 })
+      await flushPromises()
+      slow.resolve(page([run('44444444-4444-4444-4444-444444444444', 'stale page')], 60))
+      await flushPromises()
+
+      expect(document.body.textContent).toContain('newer page')
+      expect(document.body.textContent).not.toContain('stale page')
+    })
+
+    it('regression: a late failure of an earlier request raises no toast and keeps the loading state', async () => {
+      mockGetScheduledJobs.mockResolvedValue({ data: [job] })
+      let rejectSlow!: (reason: unknown) => void
+      const slow = new Promise((_resolve, reject) => {
+        rejectSlow = reject
+      })
+      const current = deferredHistory()
+      mockGetJobRunHistory
+        .mockResolvedValueOnce({ data: { items: [], total: 60, page: 1, page_size: 25 } })
+        .mockReturnValueOnce(slow)
+        .mockReturnValueOnce(current.promise)
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+      await wrapper.find('.job-card-footer button').trigger('click')
+      await flushPromises()
+      const table = wrapper.findComponent({ name: 'DataTable' })
+
+      await table.vm.$emit('page', { page: 1 })
+      await table.vm.$emit('page', { page: 2 })
+      rejectSlow({ response: { data: { detail: 'Zeitüberschreitung' } } })
+      await flushPromises()
+
+      expect(mockToastAdd).not.toHaveBeenCalled()
+      expect(table.props('loading')).toBe(true)
+
+      current.resolve(page([run('66666666-6666-6666-6666-666666666666', 'newer page')], 60))
+      await flushPromises()
+
+      expect(table.props('loading')).toBe(false)
+    })
+
+    it('shows a dash for a run without output', async () => {
+      mockGetScheduledJobs.mockResolvedValue({ data: [job] })
+      mockGetJobRunHistory.mockResolvedValue(
+        page([run('77777777-7777-7777-7777-777777777777', null as unknown as string)]),
+      )
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+
+      await wrapper.find('.job-card-footer button').trigger('click')
+      await flushPromises()
+
+      expect(document.querySelector('.run-output')?.textContent).toBe('–')
+    })
+
+    it('keeps line breaks of a run output visible', async () => {
+      mockGetScheduledJobs.mockResolvedValue({ data: [job] })
+      mockGetJobRunHistory.mockResolvedValue(
+        page([run('55555555-5555-5555-5555-555555555555', 'line one\nline two')]),
+      )
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+
+      await wrapper.find('.job-card-footer button').trigger('click')
+      await flushPromises()
+
+      expect(document.querySelector('.run-output')?.textContent).toBe('line one\nline two')
+    })
   })
+
+  it.each([undefined, '', 'staging'])(
+    'offers neither backup nor downsync when the stage is unknown (%j)',
+    async (environment) => {
+      mockAppEnvironment.mockReturnValue(environment as string)
+      mockGetScheduledJobs.mockResolvedValue({ data: [] })
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Downsync jetzt durchführen')
+      expect(wrapper.text()).not.toContain('Backup jetzt erstellen')
+    },
+  )
+
+  it.each(['development', 'test', 'qa'])(
+    'offers the downsync on the %s stage',
+    async (environment) => {
+      mockAppEnvironment.mockReturnValue(environment)
+      mockGetScheduledJobs.mockResolvedValue({ data: [] })
+      const wrapper = mount(SchedulerView, { global: { plugins: [PrimeVue] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Downsync jetzt durchführen')
+    },
+  )
 })

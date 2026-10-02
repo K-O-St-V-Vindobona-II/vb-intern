@@ -34,7 +34,7 @@ const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 describe('DirGallery', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLoadPresignedUrl.mockResolvedValue('https://minio.test/img.jpg')
+    mockLoadPresignedUrl.mockResolvedValue('https://s3.test/img.jpg')
   })
 
   it('does not show a gallery button when there are no images', () => {
@@ -138,7 +138,7 @@ describe('DirGallery', () => {
       resolveFirst = resolve
     })
     mockLoadPresignedUrl.mockReturnValueOnce(firstLoad)
-    mockLoadPresignedUrl.mockResolvedValueOnce('https://minio.test/second.jpg')
+    mockLoadPresignedUrl.mockResolvedValueOnce('https://s3.test/second.jpg')
 
     const wrapper = mount(DirGallery, {
       props: {
@@ -153,13 +153,80 @@ describe('DirGallery', () => {
     await flushPromises()
 
     // The first (slow) request resolves after the second (fast) one already won.
-    resolveFirst('https://minio.test/stale.jpg')
+    resolveFirst('https://s3.test/stale.jpg')
     await flushPromises()
 
     expect(document.querySelector('.gallery-img')?.getAttribute('src')).toBe(
-      'https://minio.test/second.jpg',
+      'https://s3.test/second.jpg',
     )
 
+    wrapper.unmount()
+  })
+
+  it('removes the previous picture while the next one loads, so the caption never sits under another image', async () => {
+    let resolveSecond!: (url: string) => void
+    const secondLoad = new Promise<string>((resolve) => {
+      resolveSecond = resolve
+    })
+    mockLoadPresignedUrl.mockResolvedValueOnce('https://minio.test/first.jpg')
+    mockLoadPresignedUrl.mockReturnValueOnce(secondLoad)
+    const wrapper = mount(DirGallery, {
+      props: {
+        files: [buildFile({ id: '1', name: 'A' }), buildFile({ id: '2', name: 'B' })],
+      },
+      ...mountOpts,
+    })
+    await wrapper.find('.gallery-btn').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.gallery-img')?.getAttribute('src')).toBe(
+      'https://minio.test/first.jpg',
+    )
+
+    const nextBtn = document.querySelector('.gallery-nav button:nth-child(2)') as HTMLElement
+    nextBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(document.querySelector('.gallery-img')).toBeFalsy()
+    expect(document.querySelector('.gallery-spinner')).toBeTruthy()
+
+    resolveSecond('https://minio.test/second.jpg')
+    await flushPromises()
+    expect(document.querySelector('.gallery-img')?.getAttribute('src')).toBe(
+      'https://minio.test/second.jpg',
+    )
+    wrapper.unmount()
+  })
+
+  it('shows a message instead of an empty box when the image cannot be loaded', async () => {
+    mockLoadPresignedUrl.mockResolvedValue(null)
+    const wrapper = mount(DirGallery, {
+      props: { files: [buildFile({ id: '1', name: 'A' })] },
+      ...mountOpts,
+    })
+
+    await wrapper.find('.gallery-btn').trigger('click')
+    await flushPromises()
+
+    expect(document.querySelector('.gallery-error')?.textContent).toContain('nicht geladen')
+    expect(document.querySelector('.gallery-error')?.getAttribute('role')).toBe('alert')
+    expect(document.querySelector('.gallery-spinner')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('gives the previous/next buttons accessible names', async () => {
+    const wrapper = mount(DirGallery, {
+      props: { files: [buildFile({ id: '1' }), buildFile({ id: '2' })] },
+      ...mountOpts,
+    })
+    await wrapper.find('.gallery-btn').trigger('click')
+    await flushPromises()
+
+    expect(
+      document.querySelector('.gallery-nav button:nth-child(1)')?.getAttribute('aria-label'),
+    ).toBe('Vorheriges Bild')
+    expect(
+      document.querySelector('.gallery-nav button:nth-child(2)')?.getAttribute('aria-label'),
+    ).toBe('Nächstes Bild')
     wrapper.unmount()
   })
 })

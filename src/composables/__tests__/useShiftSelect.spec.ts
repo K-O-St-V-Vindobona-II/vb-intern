@@ -29,7 +29,7 @@ describe('useShiftSelect', () => {
     const items = buildItems(3)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(0, click())
+    toggle(items.value[0]!, click())
 
     expect(isSelected(items.value[0]!)).toBe(true)
   })
@@ -38,18 +38,18 @@ describe('useShiftSelect', () => {
     const items = buildItems(3)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(0, click())
-    toggle(0, click())
+    toggle(items.value[0]!, click())
+    toggle(items.value[0]!, click())
 
     expect(isSelected(items.value[0]!)).toBe(false)
   })
 
-  it('shift-click selects the full range from the last clicked index', () => {
+  it('shift-click selects the full range from the last clicked item', () => {
     const items = buildItems(5)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(1, click())
-    toggle(3, click(true))
+    toggle(items.value[1]!, click())
+    toggle(items.value[3]!, click(true))
 
     expect(isSelected(items.value[0]!)).toBe(false)
     expect(isSelected(items.value[1]!)).toBe(true)
@@ -62,11 +62,11 @@ describe('useShiftSelect', () => {
     const items = buildItems(5)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(1, click())
-    toggle(2, click())
-    toggle(3, click())
+    toggle(items.value[1]!, click())
+    toggle(items.value[2]!, click())
+    toggle(items.value[3]!, click())
     // Clicking the already-selected item 1 again with shift should deselect 1..3
-    toggle(1, click(true))
+    toggle(items.value[1]!, click(true))
 
     expect(isSelected(items.value[1]!)).toBe(false)
     expect(isSelected(items.value[2]!)).toBe(false)
@@ -77,19 +77,19 @@ describe('useShiftSelect', () => {
     const items = buildItems(3)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(1, click(true))
+    toggle(items.value[1]!, click(true))
 
     expect(isSelected(items.value[0]!)).toBe(false)
     expect(isSelected(items.value[1]!)).toBe(true)
     expect(isSelected(items.value[2]!)).toBe(false)
   })
 
-  it('shift-click on the same index as the last click behaves like a normal toggle', () => {
+  it('shift-click on the same item as the last click behaves like a normal toggle', () => {
     const items = buildItems(3)
     const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(1, click())
-    toggle(1, click(true))
+    toggle(items.value[1]!, click())
+    toggle(items.value[1]!, click(true))
 
     expect(isSelected(items.value[1]!)).toBe(false)
   })
@@ -111,14 +111,14 @@ describe('useShiftSelect', () => {
       (i) => i.id,
     )
 
-    toggle(1, click())
+    toggle(items.value[1]!, click())
     selectAll()
     deselectAll()
 
     expect(selected.value.size).toBe(0)
 
     // After deselectAll, the shift anchor is reset, so a shift-click acts like a plain toggle.
-    toggle(2, click(true))
+    toggle(items.value[2]!, click(true))
     expect(isSelected(items.value[0]!)).toBe(false)
     expect(isSelected(items.value[2]!)).toBe(true)
   })
@@ -127,7 +127,7 @@ describe('useShiftSelect', () => {
     const items = buildItems(3)
     const { toggle, toggleAll, allSelected } = useShiftSelect(items, (i) => i.id)
 
-    toggle(0, click())
+    toggle(items.value[0]!, click())
     toggleAll()
 
     expect(allSelected.value).toBe(true)
@@ -155,9 +155,34 @@ describe('useShiftSelect', () => {
     const items = buildItems(4)
     const { toggle, selectedItems } = useShiftSelect(items, (i) => i.id)
 
-    toggle(0, click())
-    toggle(2, click())
+    toggle(items.value[0]!, click())
+    toggle(items.value[2]!, click())
 
     expect(selectedItems.value).toEqual([items.value[0], items.value[2]])
+  })
+
+  it('toggling an item not present in items.value (stale reference) is a no-op', () => {
+    const items = buildItems(3)
+    const { toggle, selected } = useShiftSelect(items, (i) => i.id)
+
+    toggle({ id: 999 }, click())
+
+    expect(selected.value.size).toBe(0)
+  })
+
+  it('toggles the clicked item, not the item at the same position of the source array, when the displayed order differs', () => {
+    const items = buildItems(3) // ids 1, 2, 3 in this order
+    const { toggle, isSelected } = useShiftSelect(items, (i) => i.id)
+
+    // Simulate a consumer rendering items in a sorted (reversed) order: the
+    // user clicks the row showing id 3, which sits at display position 0 but
+    // at items.value position 2. Passing the item itself (not the display
+    // index) must select id 3, not whatever item happens to sit at
+    // items.value[0] (id 1).
+    const displayOrder = [...items.value].reverse()
+    toggle(displayOrder[0]!, click())
+
+    expect(isSelected(items.value[2]!)).toBe(true) // id 3, correctly toggled
+    expect(isSelected(items.value[0]!)).toBe(false) // id 1, must stay untouched
   })
 })

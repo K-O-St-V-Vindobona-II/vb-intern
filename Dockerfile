@@ -18,7 +18,12 @@ ENV VITE_APP_ENVIRONMENT=$VITE_APP_ENVIRONMENT
 RUN npm run build
 
 
-FROM docker.io/library/nginx:1-alpine
+FROM docker.io/nginxinc/nginx-unprivileged:1-alpine
+
+# The base image already switches to the unprivileged "nginx" user (uid 101)
+# before this stage's own instructions run. Back to root only for the file
+# moves below, which write under /etc.
+USER root
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
@@ -37,7 +42,13 @@ RUN mkdir -p /etc/vb-intern \
 # config.js from the real container environment on every container start.
 COPY --chmod=755 docker/docker-entrypoint.d/40-generate-runtime-config.sh /docker-entrypoint.d/40-generate-runtime-config.sh
 
-EXPOSE 80
+# Back to the base image's unprivileged user for the actual runtime. The
+# master and worker processes run as this uid throughout and nginx listens
+# on 8080, so the container needs no capability at all (no port below 1024
+# to bind, no worker user to switch to).
+USER nginx
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["wget", "-qO-", "http://127.0.0.1/"]
+    CMD ["wget", "-qO-", "http://127.0.0.1:8080/"]

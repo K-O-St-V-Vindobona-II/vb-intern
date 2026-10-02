@@ -97,9 +97,16 @@ export default {
     return api.get<MemberChangeRequestDetail>(`/standesdb/member-change-requests/${id}`)
   },
 
-  decideChangeRequest(id: string, fieldDecisions: Record<string, 'approved' | 'rejected'>) {
+  // expectedUpdatedAt is the updated_at of the request as the reviewer saw it;
+  // the API refuses the decision when the member has changed the request since.
+  decideChangeRequest(
+    id: string,
+    fieldDecisions: Record<string, 'approved' | 'rejected'>,
+    expectedUpdatedAt: string,
+  ) {
     return api.post<{ status: string }>(`/standesdb/member-change-requests/${id}/decide`, {
       field_decisions: fieldDecisions,
+      expected_updated_at: expectedUpdatedAt,
     })
   },
 

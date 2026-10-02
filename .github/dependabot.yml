@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Actions are pinned to commit SHAs (see ci-cd.yml); this keeps the pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # The base image tags of the Dockerfile (builder and nginx-unprivileged stages).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

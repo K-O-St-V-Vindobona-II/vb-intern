@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import type { P4xTransaction, P4xCategory } from '@/types/p4x'
+import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
 import Amount from './Amount.vue'
@@ -30,6 +31,8 @@ const emit = defineEmits<{
   refresh: []
 }>()
 
+const toast = useToast()
+
 const expandedRows = ref({})
 const rawDialogVisible = ref(false)
 const rawData = ref<object | null>(null)
@@ -49,6 +52,12 @@ const showRaw = async (tx: P4xTransaction) => {
     rawDialogVisible.value = true
   } catch {
     rawData.value = null
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Rohdaten konnten nicht geladen werden.',
+      life: 5000,
+    })
   }
 }
 
@@ -64,7 +73,12 @@ const downloadAttachment = async (tx: P4xTransaction) => {
     link.remove()
     window.URL.revokeObjectURL(url)
   } catch {
-    /* empty */
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Anhang konnte nicht heruntergeladen werden.',
+      life: 5000,
+    })
   }
 }
 

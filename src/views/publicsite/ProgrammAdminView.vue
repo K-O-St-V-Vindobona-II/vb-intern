@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { formatApiError } from '@/utils/formatters'
 import { siteSettingsService, programmHintsService } from '@/services/publicContentService'
 import type { ProgrammHintResponse } from '@/services/publicContentService'
+import { saveSiteSettings } from '@/composables/useSiteSettings'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
@@ -11,16 +12,12 @@ import Dialog from 'primevue/dialog'
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
 const savingSettings = ref(false)
+const moving = ref(false)
 
-// about_video_heading/youtube_url/gallery_heading belong to the Video and
-// Galerie admin views, but all live in the same settings resource on the
-// backend - fetched here and resent unchanged on save so we never
-// accidentally clear them.
-const videoHeading = ref('')
-const videoYoutubeUrl = ref('')
 const calendarId = ref('')
-const galleryHeading = ref('')
+const calendarIdValid = computed(() => calendarId.value.trim() !== '')
 
 const hints = ref<ProgrammHintResponse[]>([])
 
@@ -30,23 +27,23 @@ const addingHint = ref(false)
 const editDialogVisible = ref(false)
 const editHintId = ref('')
 const editHintText = ref('')
+const editHintValid = computed(() => editHintText.value.trim() !== '')
 
 const deleteDialogVisible = ref(false)
 const deleteHintId = ref('')
 
 const loadAll = async () => {
   loading.value = true
+  loadError.value = false
   try {
     const [settingsResp, hintsResp] = await Promise.all([
       siteSettingsService.getSettings(),
       programmHintsService.list(),
     ])
-    videoHeading.value = settingsResp.data.about_video_heading
-    videoYoutubeUrl.value = `https://www.youtube.com/watch?v=${settingsResp.data.about_video_youtube_id}`
     calendarId.value = settingsResp.data.programm_calendar_id
-    galleryHeading.value = settingsResp.data.gallery_heading
     hints.value = hintsResp.data
   } catch (err: unknown) {
+    loadError.value = true
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -61,13 +58,8 @@ const loadAll = async () => {
 const saveCalendar = async () => {
   savingSettings.value = true
   try {
-    const resp = await siteSettingsService.updateSettings({
-      about_video_heading: videoHeading.value,
-      youtube_url: videoYoutubeUrl.value,
-      calendar_id: calendarId.value,
-      gallery_heading: galleryHeading.value,
-    })
-    calendarId.value = resp.data.programm_calendar_id
+    const saved = await saveSiteSettings({ calendarId: calendarId.value.trim() })
+    calendarId.value = saved.programm_calendar_id
     toast.add({
       severity: 'success',
       summary: 'Gespeichert',
@@ -87,10 +79,11 @@ const saveCalendar = async () => {
 }
 
 const addHint = async () => {
-  if (!newHintText.value.trim()) return
+  const text = newHintText.value.trim()
+  if (!text) return
   addingHint.value = true
   try {
-    await programmHintsService.create({ text: newHintText.value })
+    await programmHintsService.create({ text })
     newHintText.value = ''
     const resp = await programmHintsService.list()
     hints.value = resp.data
@@ -113,6 +106,7 @@ const addHint = async () => {
 }
 
 const moveHint = async (hint: ProgrammHintResponse, direction: 'up' | 'down') => {
+  moving.value = true
   try {
     await programmHintsService.move(hint.id, direction)
     const resp = await programmHintsService.list()
@@ -124,6 +118,8 @@ const moveHint = async (hint: ProgrammHintResponse, direction: 'up' | 'down') =>
       detail: formatApiError(err, 'Verschieben fehlgeschlagen.'),
       life: 5000,
     })
+  } finally {
+    moving.value = false
   }
 }
 
@@ -135,7 +131,7 @@ const openEdit = (hint: ProgrammHintResponse) => {
 
 const saveEdit = async () => {
   try {
-    await programmHintsService.update(editHintId.value, { text: editHintText.value })
+    await programmHintsService.update(editHintId.value, { text: editHintText.value.trim() })
     editDialogVisible.value = false
     const resp = await programmHintsService.list()
     hints.value = resp.data
@@ -186,7 +182,11 @@ onMounted(loadAll)
 
 <template>
   <div class="programm-admin">
-    <template v-if="!loading">
+    <div v-if="loadError" class="load-error">
+      <p>Programm-Daten konnten nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadAll" />
+    </div>
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">www-Administration</h2>
         <h3 class="page-subtitle">Programm</h3>
@@ -197,6 +197,7 @@ onMounted(loadAll)
         <InputText
           id="calendar-id"
           v-model="calendarId"
+          maxlength="500"
           class="w-full"
           placeholder="Kalender-ID oder Einbetten-Link"
         />
@@ -211,6 +212,7 @@ onMounted(loadAll)
           icon="pi pi-check"
           size="small"
           :loading="savingSettings"
+          :disabled="!calendarIdValid"
           @click="saveCalendar"
         />
       </div>
@@ -222,6 +224,7 @@ onMounted(loadAll)
           <InputText
             v-model="newHintText"
             placeholder="Neuer Hinweis"
+            aria-label="Neuer Hinweis"
             maxlength="300"
             class="add-input"
             @keyup.enter="addHint"
@@ -247,23 +250,23 @@ onMounted(loadAll)
                 icon="pi pi-arrow-up"
                 text
                 size="small"
-                :disabled="index === 0"
-                aria-label="Nach oben verschieben"
+                :disabled="index === 0 || moving"
+                :aria-label="`Nach oben verschieben: ${hint.text}`"
                 @click="moveHint(hint, 'up')"
               />
               <Button
                 icon="pi pi-arrow-down"
                 text
                 size="small"
-                :disabled="index === hints.length - 1"
-                aria-label="Nach unten verschieben"
+                :disabled="index === hints.length - 1 || moving"
+                :aria-label="`Nach unten verschieben: ${hint.text}`"
                 @click="moveHint(hint, 'down')"
               />
               <Button
                 icon="pi pi-pencil"
                 text
                 size="small"
-                aria-label="Bearbeiten"
+                :aria-label="`Bearbeiten: ${hint.text}`"
                 @click="openEdit(hint)"
               />
               <Button
@@ -271,7 +274,7 @@ onMounted(loadAll)
                 text
                 size="small"
                 severity="danger"
-                aria-label="Löschen"
+                :aria-label="`Löschen: ${hint.text}`"
                 @click="confirmDelete(hint)"
               />
             </div>
@@ -292,7 +295,7 @@ onMounted(loadAll)
         </div>
         <template #footer>
           <Button label="Abbrechen" severity="secondary" @click="editDialogVisible = false" />
-          <Button label="Speichern" @click="saveEdit" />
+          <Button label="Speichern" :disabled="!editHintValid" @click="saveEdit" />
         </template>
       </Dialog>
 
@@ -336,6 +339,12 @@ onMounted(loadAll)
   font-size: 1rem;
   font-weight: 600;
   color: var(--p-text-muted-color);
+}
+
+.load-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 3rem 0;
 }
 
 .field {

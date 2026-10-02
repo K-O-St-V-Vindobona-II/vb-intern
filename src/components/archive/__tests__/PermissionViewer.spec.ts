@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
 import PermissionViewer from '../PermissionViewer.vue'
 import PrimeVue from 'primevue/config'
 
@@ -48,5 +49,35 @@ describe('PermissionViewer', () => {
   it('hides the recursive badge by default', () => {
     const wrapper = mountWith({ title: 'Berechtigungen' })
     expect(wrapper.find('.recursive-badge').exists()).toBe(false)
+  })
+
+  it('renders the header as a real button that reports and controls its expanded state', async () => {
+    const wrapper = mountWith({ title: 'Berechtigungen' })
+    const header = wrapper.find('.perm-header')
+
+    expect(header.element.tagName).toBe('BUTTON')
+    expect(header.attributes('type')).toBe('button')
+    expect(header.attributes('aria-expanded')).toBe('false')
+
+    await header.trigger('click')
+
+    expect(header.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find(`#${header.attributes('aria-controls')}`).exists()).toBe(true)
+  })
+
+  it('gives every instance in one app its own body id', () => {
+    const wrapper = mount(
+      {
+        render: () => [
+          h(PermissionViewer, { title: 'A', orgs, states, modelValue: [] }),
+          h(PermissionViewer, { title: 'B', orgs, states, modelValue: [] }),
+        ],
+      },
+      { global: { plugins: [PrimeVue] } },
+    )
+    const [first, second] = wrapper.findAll('.perm-header')
+
+    expect(first!.attributes('aria-controls')).toBeTruthy()
+    expect(first!.attributes('aria-controls')).not.toBe(second!.attributes('aria-controls'))
   })
 })

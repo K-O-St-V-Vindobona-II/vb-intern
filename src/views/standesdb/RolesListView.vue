@@ -8,11 +8,13 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const roles = ref<RolesListEntry[]>([])
 const activeSemester = ref('')
 const activeYear = ref(0)
@@ -58,6 +60,7 @@ const groupLabel = (group: string | null) => {
 
 const loadFromRoute = async () => {
   loading.value = true
+  loadFailed.value = false
   const { year, semester } = route.params
   const params =
     year && semester
@@ -73,6 +76,8 @@ const loadFromRoute = async () => {
     activeYear.value = resp.data.year
     selectedSemester.value = resp.data.semester
     selectedYear.value = resp.data.year
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -135,7 +140,12 @@ watch(
       </template>
     </Card>
 
-    <template v-if="!loading && roles.length > 0">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">Die Liste konnte nicht geladen werden.</Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadFromRoute" />
+    </div>
+
+    <template v-else-if="!loading && roles.length > 0">
       <h3 class="semester-heading">{{ semLabel }} {{ activeYear }}</h3>
 
       <Card>
@@ -228,6 +238,13 @@ watch(
 .roles-list {
   max-width: 900px;
   margin: 0 auto;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .roles-header {

@@ -1,22 +1,30 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import trackingService from '@/services/trackingService'
+import { useTrackingRetention } from '@/composables/useTrackingRetention'
 import type { SentEmailListItem, SentEmailDetail } from '@/types/tracking'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Dialog from 'primevue/dialog'
+import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import { formatApiError, formatDateTime } from '@/utils/formatters'
 import { useToast } from 'primevue/usetoast'
+
+const DEFAULT_PAGE_SIZE = 25
+const SEARCH_DEBOUNCE_MS = 300
+
+type SentEmailQuery = Parameters<typeof trackingService.getSentEmails>[0]
 
 const toast = useToast()
 
 const items = ref<SentEmailListItem[]>([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = 25
+const pageSize = ref(DEFAULT_PAGE_SIZE)
+const first = computed(() => (page.value - 1) * pageSize.value)
 const loading = ref(false)
 
 const search = ref('')
@@ -26,41 +34,10 @@ const selectedMonth = ref<number | null>(null)
 const detailVisible = ref(false)
 const selectedEmail = ref<SentEmailDetail | null>(null)
 
-const retentionMonths = ref(6)
-
-const now = new Date()
-const cutoffDate = computed(
-  () => new Date(now.getFullYear(), now.getMonth() - retentionMonths.value, 1),
-)
-
-const allMonthNames = [
-  '',
-  'Jänner',
-  'Februar',
-  'März',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Dezember',
-]
-
-const validMonths = computed(() => {
-  const result: { year: number; month: number }[] = []
-  const d = new Date(cutoffDate.value)
-  while (d <= now) {
-    result.push({ year: d.getFullYear(), month: d.getMonth() + 1 })
-    d.setMonth(d.getMonth() + 1)
-  }
-  return result
-})
+const { retentionMonths, months, loadRetention } = useTrackingRetention()
 
 const yearOptions = computed(() => {
-  const years = [...new Set(validMonths.value.map((m) => m.year))]
+  const years = [...new Set(months.value.map((m) => m.year))]
   return years.map((y) => ({ label: String(y), value: y }))
 })
 
@@ -69,59 +46,84 @@ const monthOptionsForYear = computed(() => {
   if (!selectedYear.value) return base
   return [
     ...base,
-    ...validMonths.value
+    ...months.value
       .filter((m) => m.year === selectedYear.value)
-      .map((m) => ({ label: allMonthNames[m.month], value: m.month })),
+      .map((m) => ({ label: m.monthName, value: m.month })),
   ]
 })
 
+const buildQuery = (): SentEmailQuery => {
+  const query: SentEmailQuery = { page: page.value, page_size: pageSize.value }
+  if (selectedYear.value) query.year = selectedYear.value
+  if (selectedMonth.value) query.month = selectedMonth.value
+  const term = search.value.trim()
+  if (term) query.search = term
+  return query
+}
+
+// Answers arrive in any order: a slow answer for an earlier filter or page must
+// not replace the rows of the current one.
+let latestListRequestId = 0
+let latestDetailRequestId = 0
+
 const fetchData = async () => {
+  const requestId = ++latestListRequestId
   loading.value = true
   try {
-    const params: Record<string, unknown> = {
-      page: page.value,
-      page_size: pageSize,
-    }
-    if (selectedYear.value) params['year'] = selectedYear.value
-    if (selectedMonth.value) params['month'] = selectedMonth.value
-    if (search.value.trim()) params['search'] = search.value.trim()
-
-    const result = await trackingService.getSentEmails(params)
+    const result = await trackingService.getSentEmails(buildQuery())
+    if (requestId !== latestListRequestId) return
     items.value = result.items
     total.value = result.total
   } catch (e) {
+    if (requestId !== latestListRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   } finally {
-    loading.value = false
+    if (requestId === latestListRequestId) loading.value = false
   }
 }
 
 const showDetail = async (row: SentEmailListItem) => {
+  const requestId = ++latestDetailRequestId
   try {
-    selectedEmail.value = await trackingService.getSentEmailDetail(row.id)
+    const detail = await trackingService.getSentEmailDetail(row.id)
+    if (requestId !== latestDetailRequestId) return
+    selectedEmail.value = detail
     detailVisible.value = true
   } catch (e) {
+    if (requestId !== latestDetailRequestId) return
     toast.add({ severity: 'error', summary: 'Fehler', detail: formatApiError(e), life: 5000 })
   }
 }
 
-const onPage = (event: { page: number }) => {
+const onPage = (event: { page: number; rows: number }) => {
   page.value = event.page + 1
+  pageSize.value = event.rows
   fetchData()
 }
 
-watch([selectedYear, selectedMonth, search], () => {
+const reloadFromFirstPage = () => {
   page.value = 1
   fetchData()
+}
+
+// A month belongs to one year: switching the year must not keep filtering by a
+// month the new selection no longer shows.
+const onYearChange = () => {
+  selectedMonth.value = null
+}
+
+watch([selectedYear, selectedMonth], reloadFromFirstPage)
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(search, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(reloadFromFirstPage, SEARCH_DEBOUNCE_MS)
 })
 
+onBeforeUnmount(() => clearTimeout(searchTimer))
+
 onMounted(async () => {
-  try {
-    const config = await trackingService.getConfig()
-    retentionMonths.value = config.retention_months
-  } catch {
-    /* fallback to default */
-  }
+  await loadRetention()
   fetchData()
 })
 </script>
@@ -141,7 +143,10 @@ onMounted(async () => {
         option-label="label"
         option-value="value"
         placeholder="Jahr"
+        aria-label="Jahr"
+        show-clear
         class="filter-select"
+        @update:model-value="onYearChange"
       />
       <Select
         v-model="selectedMonth"
@@ -149,11 +154,13 @@ onMounted(async () => {
         option-label="label"
         option-value="value"
         placeholder="Monat"
+        aria-label="Monat"
         class="filter-select"
       />
       <InputText
         v-model="search"
         placeholder="Suche (Betreff, Empfänger)..."
+        aria-label="Suche in Betreff und Empfänger"
         class="filter-search"
       />
     </div>
@@ -164,6 +171,7 @@ onMounted(async () => {
       :lazy="true"
       :paginator="true"
       :rows="pageSize"
+      :first="first"
       :total-records="total"
       :rows-per-page-options="[25, 50, 100]"
       data-key="id"
@@ -183,6 +191,17 @@ onMounted(async () => {
       <Column field="mailer" header="Mailer" class="col-mailer">
         <template #body="{ data }">
           <Tag :value="data.mailer" :severity="data.mailer === 'smtp' ? 'success' : 'info'" />
+        </template>
+      </Column>
+      <Column header="" class="col-detail">
+        <template #body="{ data }">
+          <Button
+            icon="pi pi-search"
+            text
+            rounded
+            aria-label="Details anzeigen"
+            @click="showDetail(data)"
+          />
         </template>
       </Column>
     </DataTable>
@@ -266,6 +285,11 @@ onMounted(async () => {
 
 .col-mailer {
   width: 6rem;
+}
+
+.col-detail {
+  width: 4rem;
+  text-align: center;
 }
 
 .email-detail .detail-meta {

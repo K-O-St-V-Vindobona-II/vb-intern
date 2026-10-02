@@ -4,6 +4,7 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useArchiveStore } from '@/stores/archive'
 import archiveService from '@/services/archiveService'
+import { formatApiError } from '@/utils/formatters'
 import Button from 'primevue/button'
 
 const props = defineProps<{
@@ -23,8 +24,15 @@ const files = computed(() => store.clipboard.filter((i) => i.startsWith('file:')
 
 const idsFromItems = (items: string[]) => items.map((i) => i.split(':')[1] ?? '')
 
-const moveItems = (type: string, items: string[]) => {
-  const label = type === 'dir' ? 'Verzeichnisse' : 'Dateien'
+type ClipboardKind = 'dir' | 'file'
+
+const KIND_LABELS: Record<ClipboardKind, string> = {
+  dir: 'Verzeichnisse',
+  file: 'Dateien',
+}
+
+const moveItems = (type: ClipboardKind, items: string[]) => {
+  const label = KIND_LABELS[type]
   confirm.require({
     message: `${items.length} ${label} hierher verschieben?`,
     header: 'Bestätigung',
@@ -53,11 +61,11 @@ const moveItems = (type: string, items: string[]) => {
           summary: 'Verschoben',
           life: 2000,
         })
-      } catch {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: 'Fehler',
-          detail: 'Verschieben fehlgeschlagen.',
+          detail: formatApiError(err, 'Verschieben fehlgeschlagen.'),
           life: 5000,
         })
       }
@@ -71,6 +79,7 @@ const moveItems = (type: string, items: string[]) => {
     <div class="clipboard-header">
       <Button
         v-tooltip="'Zwischenablage leeren'"
+        aria-label="Zwischenablage leeren"
         icon="pi pi-times"
         severity="secondary"
         text
@@ -83,6 +92,7 @@ const moveItems = (type: string, items: string[]) => {
       <span>Verzeichnisse: {{ dirs.length }}</span>
       <Button
         v-tooltip="'Hierher verschieben'"
+        aria-label="Verzeichnisse hierher verschieben"
         icon="pi pi-arrow-right"
         severity="primary"
         text
@@ -94,6 +104,7 @@ const moveItems = (type: string, items: string[]) => {
       <span>Dateien: {{ files.length }}</span>
       <Button
         v-tooltip="'Hierher verschieben'"
+        aria-label="Dateien hierher verschieben"
         icon="pi pi-arrow-right"
         severity="primary"
         text

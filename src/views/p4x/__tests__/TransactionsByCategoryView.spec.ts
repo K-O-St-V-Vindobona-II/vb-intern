@@ -84,6 +84,18 @@ async function selectCategory(wrapper: ReturnType<typeof mount>, id: string) {
   await select.vm.$emit('change')
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+function findRetryButton(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+}
+
 describe('TransactionsByCategoryView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -190,6 +202,84 @@ describe('TransactionsByCategoryView', () => {
     expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-2', 1)
     expect(wrapper.findComponent({ name: 'TransactionTable' }).props('transactions')).toEqual([
       buildTx({ id: '2' }),
+    ])
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a silently empty category dropdown when loading fails, and recovers on retry', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(TransactionsByCategoryView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Kategorien konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'Select' }).exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeDefined()
+
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.findComponent({ name: 'Select' }).props('options')).toEqual(categories)
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a table when the transactions cannot be loaded', async () => {
+    const wrapper = mount(TransactionsByCategoryView, mountOpts)
+    await flushPromises()
+    mockGetTransactionsByCategory.mockRejectedValueOnce(new Error('boom'))
+
+    await selectCategory(wrapper, 'category-uuid-1')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Transaktionen konnten nicht geladen werden.')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    expect(wrapper.find('.info-card').exists()).toBe(false)
+
+    await findRetryButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(mockGetTransactionsByCategory).toHaveBeenLastCalledWith('2', 'category-uuid-1', 1)
+    expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('never shows the rows of the previous category when loading another category fails', async () => {
+    const wrapper = mount(TransactionsByCategoryView, mountOpts)
+    await flushPromises()
+    await selectCategory(wrapper, 'category-uuid-1')
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
+
+    mockGetTransactionsByCategory.mockRejectedValueOnce(new Error('boom'))
+    await selectCategory(wrapper, 'category-uuid-2')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(false)
+    expect(wrapper.find('.info-card').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the rows of the newest category when an older, slower response arrives late', async () => {
+    const slow = deferred<{ data: PaginatedTransactions }>()
+    mockGetTransactionsByCategory.mockReturnValueOnce(slow.promise)
+    mockGetTransactionsByCategory.mockResolvedValueOnce({
+      data: buildResult({ items: [buildTx({ id: 'newest-tx' })] }),
+    })
+    const wrapper = mount(TransactionsByCategoryView, mountOpts)
+    await flushPromises()
+
+    await selectCategory(wrapper, 'category-uuid-1')
+    await selectCategory(wrapper, 'category-uuid-2')
+    await flushPromises()
+    slow.resolve({ data: buildResult({ items: [buildTx({ id: 'older-tx' })] }) })
+    await flushPromises()
+
+    const table = wrapper.findComponent({ name: 'TransactionTable' })
+    expect((table.props('transactions') as P4xTransaction[]).map((t) => t.id)).toEqual([
+      'newest-tx',
     ])
     wrapper.unmount()
   })

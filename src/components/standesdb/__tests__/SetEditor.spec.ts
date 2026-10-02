@@ -169,6 +169,45 @@ describe('SetEditor', () => {
     w.unmount()
   })
 
+  it('regression: sends no date at all for a set without dates', async () => {
+    const w = mountWith({ modelValue: [], availableItems: badges, title: 'Test', withDate: false })
+    await w.find('[aria-label="Hinzufügen"]').trigger('click')
+    await flushPromises()
+
+    clickButton('Ok')
+    await flushPromises()
+
+    const updated = w.emitted('update:modelValue')![0]![0] as Array<{
+      presentationdate: string | null
+    }>
+    expect(updated[0]!.presentationdate).toBeNull()
+    w.unmount()
+  })
+
+  it('links the name label to the select control', async () => {
+    const w = mountWith({ modelValue: [], availableItems: badges, title: 'Test', withDate: false })
+    await w.find('[aria-label="Hinzufügen"]').trigger('click')
+    await flushPromises()
+
+    const label = document.querySelector<HTMLLabelElement>('.dialog-fields label')!
+    expect(label.htmlFor).not.toBe('')
+    expect(document.getElementById(label.htmlFor)).not.toBeNull()
+    w.unmount()
+  })
+
+  it('renders the table title as plain text, not as a label that points at nothing', () => {
+    const w = mountWith({
+      modelValue: [],
+      availableItems: badges,
+      title: 'Abzeichen',
+      withDate: false,
+    })
+
+    expect(w.find('.set-label').element.tagName).toBe('SPAN')
+    expect(w.find('.set-label').text()).toBe('Abzeichen')
+    w.unmount()
+  })
+
   it('saves a new entry with full date accuracy when withDate is true', async () => {
     const w = mountWith({ modelValue: [], availableItems: badges, title: 'Test', withDate: true })
     await w.find('[aria-label="Hinzufügen"]').trigger('click')

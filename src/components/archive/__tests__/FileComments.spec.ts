@@ -166,4 +166,164 @@ describe('FileComments', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
     wrapper.unmount()
   })
+
+  it('counts the trimmed text: whitespace padding does not make a too-short comment valid', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = '  abc   '
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+
+    expect(findButtonByText('Speichern').disabled).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('sends the trimmed comment text', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = '   Ein gültiger Kommentar  \n'
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+
+    findButtonByText('Speichern').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockCreateComment).toHaveBeenCalledWith(9, { content: 'Ein gültiger Kommentar' })
+    wrapper.unmount()
+  })
+
+  it.each([
+    [4, true],
+    [5, false],
+    [1000, false],
+    [1001, true],
+  ])('with %i characters the save button is disabled: %s', async (length, disabled) => {
+    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'x'.repeat(length)
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+
+    expect(findButtonByText('Speichern').disabled).toBe(disabled)
+    wrapper.unmount()
+  })
+
+  it('disables saving above 1000 characters', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'x'.repeat(1001)
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+
+    expect(findButtonByText('Speichern').disabled).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows the API detail when saving or deleting a comment is rejected', async () => {
+    const apiError = (detail: string) =>
+      Object.assign(new Error('Request failed'), { response: { data: { detail } } })
+    mockCreateComment.mockRejectedValueOnce(apiError('Kommentar muss 5-1000 Zeichen lang sein.'))
+    mockDeleteComment.mockRejectedValueOnce(apiError('Keine Berechtigung.'))
+    const wrapper = mount(FileComments, {
+      props: { fileId: 9, comments: [buildComment()], admin: true },
+      ...mountOpts,
+    })
+
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'Ein gültiger Kommentar'
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+    findButtonByText('Speichern').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Kommentar muss 5-1000 Zeichen lang sein.' }),
+    )
+
+    await wrapper.find('.comment-header button').trigger('click')
+    await mockConfirmRequire.mock.calls[0]![0].accept()
+    await flushPromises()
+    expect(mockToastAdd).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: 'Keine Berechtigung.' }),
+    )
+    wrapper.unmount()
+  })
+
+  it('names the icon-only delete button and the textarea for assistive technology', async () => {
+    const wrapper = mount(FileComments, {
+      props: { fileId: 9, comments: [buildComment()], admin: true },
+      ...mountOpts,
+    })
+    expect(wrapper.find('.comment-header button').attributes('aria-label')).toBe(
+      'Kommentar löschen',
+    )
+
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    expect(document.querySelector('textarea')?.getAttribute('aria-label')).toBe('Kommentar')
+    wrapper.unmount()
+  })
+
+  it('renders comment text and author as plain text, never as markup', () => {
+    const payload = '<img src=x onerror="window.__xss = 1"><b>fett</b>'
+    const wrapper = mount(FileComments, {
+      props: {
+        fileId: 9,
+        comments: [buildComment({ content: payload, author: '<script>window.__xss = 1</script>' })],
+      },
+      ...mountOpts,
+    })
+
+    expect(wrapper.find('.comment-content').text()).toBe(payload)
+    expect(wrapper.find('.comment-content img').exists()).toBe(false)
+    expect(wrapper.find('.comment-content b').exists()).toBe(false)
+    expect(wrapper.find('.comment-author').text()).toContain('<script>')
+    expect(wrapper.find('script').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('closes the dialog on cancel without saving', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    findButtonByText('Abbrechen').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockCreateComment).not.toHaveBeenCalled()
+    expect(document.querySelector('textarea')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('starts every dialog with an empty text', async () => {
+    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'Ein Entwurf, der verworfen wird'
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+    findButtonByText('Abbrechen').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    await findButtonByText('Kommentar hinzufügen').click()
+    await flushPromises()
+
+    expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('')
+    wrapper.unmount()
+  })
 })

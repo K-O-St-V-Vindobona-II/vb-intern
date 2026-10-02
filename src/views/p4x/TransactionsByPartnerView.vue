@@ -2,21 +2,28 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
 import p4xService from '@/services/p4xService'
-import type { P4xCategory, PaginatedTransactions, PartnerSearchResult } from '@/types/p4x'
+import type { P4xCategory, PartnerSearchResult } from '@/types/p4x'
 import TransactionTable from './components/TransactionTable.vue'
 import SearchField from '@/components/SearchField.vue'
 import type { SearchResult } from '@/components/SearchField.vue'
 import Card from 'primevue/card'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const accountId = String(route.params['accountId'])
 
-const loading = ref(false)
+const categoriesLoadFailed = ref(false)
 const categories = ref<P4xCategory[]>([])
-const result = ref<PaginatedTransactions | null>(null)
 const selectedPartner = ref<PartnerSearchResult | null>(null)
+
+const { result, loadFailed, load, reload } = usePaginatedTransactions(
+  selectedPartner,
+  (partner, page) => p4xService.getTransactionsByPartner(accountId, partner.type, partner.id, page),
+)
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
@@ -25,28 +32,12 @@ const searchPartners = async (query: string): Promise<SearchResult[]> => {
   return resp.data
 }
 
-const onPartnerSelect = async (item: SearchResult) => {
+const onPartnerSelect = (item: SearchResult) => {
   selectedPartner.value = item as PartnerSearchResult
-  await loadTransactions()
+  return load()
 }
 
-const loadTransactions = async (page = 1) => {
-  if (!selectedPartner.value) return
-  loading.value = true
-  try {
-    const resp = await p4xService.getTransactionsByPartner(
-      accountId,
-      selectedPartner.value.type,
-      selectedPartner.value.id,
-      page,
-    )
-    result.value = resp.data
-  } finally {
-    loading.value = false
-  }
-}
-
-const onPageChange = (page: number) => loadTransactions(page)
+const onPageChange = (page: number) => load(page)
 
 const partnerTypeLabel = (): string => {
   if (!selectedPartner.value) return ''
@@ -58,10 +49,17 @@ const partnerName = (): string => {
   return selectedPartner.value.label.split(':').slice(1).join(':').trim()
 }
 
-onMounted(async () => {
-  const dashResp = await p4xService.getDashboard()
-  categories.value = dashResp.data.categories
-})
+const loadCategories = async () => {
+  categoriesLoadFailed.value = false
+  try {
+    const dashResp = await p4xService.getDashboard()
+    categories.value = dashResp.data.categories
+  } catch {
+    categoriesLoadFailed.value = true
+  }
+}
+
+onMounted(loadCategories)
 </script>
 
 <template>
@@ -70,6 +68,11 @@ onMounted(async () => {
       <h2>AH-Kassen</h2>
       <p class="subtitle">Transaktionen nach Partner</p>
     </div>
+
+    <Message v-if="categoriesLoadFailed" severity="error" :closable="false" class="load-error">
+      Kategorien konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadCategories" />
+    </Message>
 
     <div class="center-block">
       <div class="search-container">
@@ -81,7 +84,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <Card v-if="selectedPartner && result && !loading" class="info-card">
+    <Message v-if="loadFailed" severity="error" :closable="false" class="load-error">
+      Transaktionen konnten nicht geladen werden.
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="reload" />
+    </Message>
+
+    <Card v-if="selectedPartner && result" class="info-card">
       <template #content>
         <div class="info-row">
           <strong>{{ partnerTypeLabel() }}:</strong>
@@ -91,7 +99,7 @@ onMounted(async () => {
     </Card>
 
     <TransactionTable
-      v-if="result && !loading"
+      v-if="result"
       :transactions="result.items"
       :categories="categories"
       :total="result.total"
@@ -99,7 +107,7 @@ onMounted(async () => {
       :per-page="result.per_page"
       :admin="isAdmin"
       @page-change="onPageChange"
-      @refresh="loadTransactions(result?.page ?? 1)"
+      @refresh="reload"
     />
 
     <div class="back-link">
@@ -109,6 +117,13 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
 .tx-partner-view {
   max-width: 1100px;
   margin: 0 auto;

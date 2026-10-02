@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useToast } from 'primevue/usetoast'
+import { formatApiError } from '@/utils/formatters'
 import type { P4xTransaction } from '@/types/p4x'
 import p4xService from '@/services/p4xService'
 import Dialog from 'primevue/dialog'
@@ -9,6 +11,8 @@ import FileUpload from 'primevue/fileupload'
 
 const props = defineProps<{ transaction: P4xTransaction }>()
 const emit = defineEmits<{ changed: [tx: P4xTransaction] }>()
+
+const toast = useToast()
 
 const visible = ref(false)
 const comment = ref('')
@@ -39,6 +43,8 @@ const save = async () => {
     const resp = await p4xService.updateTransaction(props.transaction.id, formData)
     emit('changed', resp.data as P4xTransaction)
     visible.value = false
+  } catch (e: unknown) {
+    toast.add({ severity: 'error', summary: formatApiError(e), life: 4000 })
   } finally {
     loading.value = false
   }

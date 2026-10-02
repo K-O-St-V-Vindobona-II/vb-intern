@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQuery } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import p4xService from '@/services/p4xService'
 import type { P4xAccount, P4xCategory } from '@/types/p4x'
 import FormAmount from './components/FormAmount.vue'
@@ -11,13 +12,16 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const confirm = useConfirm()
 
 const isEdit = computed(() => !!route.params['id'])
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 const accounts = ref<P4xAccount[]>([])
 const categories = ref<P4xCategory[]>([])
@@ -106,7 +110,9 @@ function buildFormFromQuery(
   return result
 }
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const [dashResp] = await Promise.all([p4xService.getDashboard()])
     accounts.value = dashResp.data.accounts
@@ -128,6 +134,8 @@ onMounted(async () => {
         }
         useMin.value = filter.min_amount !== null
         useMax.value = filter.max_amount !== null
+      } else {
+        loadFailed.value = true
       }
     } else {
       const prefill = buildFormFromQuery(route.query, accounts.value, categories.value)
@@ -135,10 +143,14 @@ onMounted(async () => {
       useMin.value = prefill.useMin
       useMax.value = prefill.useMax
     }
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 const save = async () => {
   saving.value = true
@@ -167,20 +179,33 @@ const save = async () => {
   }
 }
 
-const deleteFilter = async () => {
-  try {
-    await p4xService.deleteCategoryFilter(String(route.params['id']))
-    toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
-    router.push({ name: 'p4x-filters' })
-  } catch (e: unknown) {
-    const msg = formatApiError(e)
-    toast.add({ severity: 'error', summary: msg, life: 4000 })
-  }
+const deleteFilter = () => {
+  confirm.require({
+    message: `Filter "${form.value.name}" wirklich löschen?`,
+    header: 'Filter löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Löschen', severity: 'danger' },
+    accept: async () => {
+      try {
+        await p4xService.deleteCategoryFilter(String(route.params['id']))
+        toast.add({ severity: 'success', summary: 'Gelöscht', life: 2000 })
+        router.push({ name: 'p4x-filters' })
+      } catch (e: unknown) {
+        const msg = formatApiError(e)
+        toast.add({ severity: 'error', summary: msg, life: 4000 })
+      }
+    },
+  })
 }
 </script>
 
 <template>
-  <div v-if="!loading" class="filter-form">
+  <div v-if="loadFailed" class="load-error">
+    <Message severity="error" :closable="false">Das Formular konnte nicht geladen werden.</Message>
+    <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+  </div>
+  <div v-else-if="!loading" class="filter-form">
     <h2>Kategorie-Filter</h2>
     <p class="subtitle">
       {{ isEdit ? 'Filter bearbeiten' : 'Filter erstellen' }}
@@ -260,6 +285,13 @@ const deleteFilter = async () => {
 </template>
 
 <style scoped>
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .filter-form {
   max-width: 700px;
   margin: 0 auto;

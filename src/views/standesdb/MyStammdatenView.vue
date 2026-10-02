@@ -19,6 +19,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const pendingSince = ref<string | null>(null)
@@ -78,7 +79,12 @@ const overlayProposedField = <K extends keyof MemberSelfServiceFormData>(
   form.value[key] = value as MemberSelfServiceFormData[K]
 }
 
-onMounted(async () => {
+// The form is rendered only after the live data has loaded: a blank form that
+// can still be submitted would propose blanking every field of the profile.
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
+  pendingSince.value = null
   try {
     const liveResp = await standesdbService.getMySelfServiceData()
     ;(Object.keys(form.value) as (keyof MemberSelfServiceFormData)[]).forEach((key) => {
@@ -98,16 +104,13 @@ onMounted(async () => {
       if (getApiErrorStatus(err) !== 404) throw err
     }
   } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Stammdaten konnten nicht geladen werden.',
-      life: 5000,
-    })
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 const submit = async () => {
   saving.value = true
@@ -155,7 +158,14 @@ const submit = async () => {
 
 <template>
   <div class="my-stammdaten">
-    <template v-if="!loading">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        Stammdaten konnten nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+    </div>
+
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">Meine Stammdaten</h2>
         <p class="page-subtitle">
@@ -340,6 +350,13 @@ const submit = async () => {
   max-width: 1100px;
   margin: 0 auto;
   width: 100%;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-header {

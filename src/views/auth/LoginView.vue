@@ -2,13 +2,13 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getApiErrorStatus, getApiErrorDetail } from '@/utils/formatters'
+import { formatApiError, getApiErrorStatus, getApiErrorDetail } from '@/utils/formatters'
 import { googleClientId } from '@/runtimeConfig'
 import type { GoogleCredentialResponse } from '@/types/auth'
 
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
-import Password from 'primevue/password'
+import Password, { type PasswordPassThroughOptions } from 'primevue/password'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Divider from 'primevue/divider'
@@ -29,9 +29,26 @@ const tempGoogleToken = ref('')
 // hide the button instead of mounting <GoogleLogin>, which throws on an empty client ID.
 const isGoogleLoginEnabled = computed(() => !!googleClientId())
 
-// Prevent Open Redirect via protocol-relative URLs
+// Autofill hints for password managers (WCAG 1.3.5): the sign-in and the
+// linking form both ask for the existing password.
+const currentPasswordPt: PasswordPassThroughOptions = {
+  pcInputText: { root: { autocomplete: 'current-password', name: 'password' } },
+}
+
+const hasControlCharacter = (value: string) =>
+  Array.from(value).some((character) => character.charCodeAt(0) < 0x20)
+
+// Prevent Open Redirect: only an absolute path inside this app is followed.
+// "//host" is protocol-relative and browsers read "/\host" the same way,
+// so neither may follow the leading slash; control characters are refused too.
 function isSafeRedirectPath(path: unknown): path is string {
-  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')
+  return (
+    typeof path === 'string' &&
+    path.startsWith('/') &&
+    !path.startsWith('//') &&
+    !path.startsWith('/\\') &&
+    !hasControlCharacter(path)
+  )
 }
 
 const executeRedirect = () => {
@@ -91,7 +108,7 @@ const handleGoogleCallback = async (response: GoogleCredentialResponse) => {
       tempGoogleToken.value = response.credential
       needsLinking.value = true
     } else if (status === 401) {
-      errorMessage.value = (getApiErrorDetail(error) as string) || 'Google Login fehlgeschlagen.'
+      errorMessage.value = formatApiError(error, 'Google Login fehlgeschlagen.')
     } else {
       errorMessage.value = 'Verbindung zum Backend fehlgeschlagen.'
     }
@@ -118,7 +135,7 @@ const handleLinkAccount = async () => {
     executeRedirect()
   } catch (error: unknown) {
     if (getApiErrorStatus(error) === 401) {
-      errorMessage.value = (getApiErrorDetail(error) as string) || 'Falsche Zugangsdaten.'
+      errorMessage.value = formatApiError(error, 'Falsche Zugangsdaten.')
     } else {
       errorMessage.value = 'Ein unerwarteter Fehler ist aufgetreten.'
     }
@@ -153,14 +170,22 @@ const handleLinkAccount = async () => {
 
             <div class="input-group">
               <label for="linkEmail">E-Mail</label>
-              <InputText id="linkEmail" v-model="email" type="email" placeholder="E-Mail-Adresse" />
+              <InputText
+                id="linkEmail"
+                v-model="email"
+                type="email"
+                name="email"
+                autocomplete="username"
+                placeholder="E-Mail-Adresse"
+              />
             </div>
 
             <div class="input-group">
               <label for="linkPassword">Passwort</label>
               <Password
-                id="linkPassword"
                 v-model="password"
+                input-id="linkPassword"
+                :pt="currentPasswordPt"
                 :feedback="false"
                 toggle-mask
                 fluid
@@ -192,14 +217,22 @@ const handleLinkAccount = async () => {
 
           <div class="input-group">
             <label for="email">E-Mail</label>
-            <InputText id="email" v-model="email" type="email" placeholder="E-Mail-Adresse" />
+            <InputText
+              id="email"
+              v-model="email"
+              type="email"
+              name="email"
+              autocomplete="username"
+              placeholder="E-Mail-Adresse"
+            />
           </div>
 
           <div class="input-group">
             <label for="password">Passwort</label>
             <Password
-              id="password"
               v-model="password"
+              input-id="password"
+              :pt="currentPasswordPt"
               :feedback="false"
               toggle-mask
               fluid

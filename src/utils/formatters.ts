@@ -73,8 +73,9 @@ export function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const FUZZY_MONTHS = [
-  '',
+// German month names (Austrian "Jänner"), January first. Single source for
+// every component that spells a month out.
+export const MONTH_NAMES = [
   'Jänner',
   'Februar',
   'März',
@@ -87,10 +88,15 @@ const FUZZY_MONTHS = [
   'Oktober',
   'November',
   'Dezember',
-]
+] as const
+
+// 1 = January ... 12 = December; anything else yields ''.
+export function monthName(month: number): string {
+  return MONTH_NAMES[month - 1] ?? ''
+}
 
 function fuzzyMonthLabel(monthPart: string): string {
-  return FUZZY_MONTHS[parseInt(monthPart)] ?? ''
+  return monthName(parseInt(monthPart))
 }
 
 // Displays a partial/uncertain date (year-only, year+month, or full date) at

@@ -1,5 +1,11 @@
-import { config } from '@vue/test-utils'
-import { vi } from 'vitest'
+import { config, enableAutoUnmount } from '@vue/test-utils'
+import { afterEach, vi } from 'vitest'
+
+// Unmounts every wrapper after each test, also when an assertion failed before
+// the test reached its own wrapper.unmount(). Components attached to
+// document.body (dialogs teleport there) would otherwise leak into the next
+// test.
+enableAutoUnmount(afterEach)
 
 // jsdom does not implement matchMedia, but several PrimeVue components
 // (e.g. Select) query it unconditionally on mount for orientation handling.
