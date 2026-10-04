@@ -38,9 +38,16 @@ function buildSummary(
 
 const mountOpts = { global: { plugins: [PrimeVue] } }
 
+async function mountList() {
+  const wrapper = mount(ChangeRequestsListView, mountOpts)
+  await flushPromises()
+  return wrapper
+}
+
 describe('ChangeRequestsListView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockListChangeRequests.mockReset()
   })
 
   it('renders exactly what the service returns, without extra client-side filtering', async () => {
@@ -93,5 +100,60 @@ describe('ChangeRequestsListView', () => {
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+  })
+
+  it('regression: opens the review from the keyboard, with Enter and with Space', async () => {
+    const requestId = '44444444-4444-4444-4444-444444444444'
+    mockListChangeRequests.mockResolvedValue({
+      data: { items: [buildSummary({ id: requestId })] },
+    })
+    const wrapper = await mountList()
+    const row = wrapper.find('.p-datatable-tbody tr')
+
+    expect(row.attributes('tabindex')).toBe('0')
+    await row.trigger('keydown', { code: 'Enter', key: 'Enter' })
+    await row.trigger('keydown', { code: 'Space', key: ' ' })
+
+    expect(mockPush).toHaveBeenCalledTimes(2)
+    expect(mockPush).toHaveBeenLastCalledWith({
+      name: 'standesdb-change-request-review',
+      params: { id: requestId },
+    })
+  })
+
+  it('shows the organisation in capitals, and a dash for a member without one', async () => {
+    mockListChangeRequests.mockResolvedValue({
+      data: {
+        items: [
+          buildSummary({ id: '55555555-5555-5555-5555-555555555555', member_org_id: 'vbn' }),
+          buildSummary({ id: '66666666-6666-6666-6666-666666666666', member_org_id: null }),
+        ],
+      },
+    })
+
+    const wrapper = await mountList()
+
+    const tags = wrapper.findAllComponents({ name: 'Tag' })
+    expect(tags.map((t) => t.props('value'))).toEqual(['VBN', '-'])
+  })
+
+  it('shows a dash for a missing submission date', async () => {
+    mockListChangeRequests.mockResolvedValue({
+      data: { items: [buildSummary({ created_at: null })] },
+    })
+
+    const wrapper = await mountList()
+
+    expect(wrapper.find('.p-datatable-tbody tr').text()).toContain('-')
+    expect(wrapper.find('.p-datatable-tbody tr').text()).not.toContain('Invalid')
+  })
+
+  it('regression: does not claim there are no requests when the list could not be loaded', async () => {
+    mockListChangeRequests.mockRejectedValue(new Error('boom'))
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('Änderungsanträge konnten nicht geladen werden.')
+    expect(wrapper.text()).not.toContain('Keine offenen Änderungsanträge.')
   })
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { usePermission } from '@/composables/usePermission'
 import standesdbService from '@/services/standesdbService'
 import type { Stats, SearchResult } from '@/types/standesdb'
 import SearchField from '@/components/SearchField.vue'
@@ -10,45 +10,49 @@ import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const { hasPermission } = usePermission()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const stats = ref<Stats | null>(null)
 
-const hasPermission = (perm: string) => authStore.user?.permissions?.includes(perm) ?? false
+const canCreateMember = computed(
+  () => hasPermission('standesdbVbwAdmin') || hasPermission('standesdbVbnAdmin'),
+)
+const canCreateContact = computed(() => hasPermission('standesdbContactAdmin'))
 
-const canCreateMember = hasPermission('standesdbVbwAdmin') || hasPermission('standesdbVbnAdmin')
-const canCreateContact = hasPermission('standesdbContactAdmin')
-
-onMounted(async () => {
+const loadStats = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await standesdbService.getStats()
     stats.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadStats)
 
 const searchStandesdb = async (query: string): Promise<GenericSearchResult[]> => {
   const resp = await standesdbService.search(query)
   return resp.data.data
 }
 
+const isStandesdbResult = (item: GenericSearchResult): item is SearchResult =>
+  item['type'] === 'member' || item['type'] === 'contact'
+
 const onSelectResult = (item: GenericSearchResult) => {
-  const typed = item as unknown as SearchResult
-  if (typed.type === 'member') {
-    router.push({
-      name: 'standesdb-member-show',
-      params: { id: typed.id },
-    })
-  } else {
-    router.push({
-      name: 'standesdb-contact-show',
-      params: { id: typed.id },
-    })
-  }
+  if (!isStandesdbResult(item)) return
+  router.push({
+    name: item.type === 'member' ? 'standesdb-member-show' : 'standesdb-contact-show',
+    params: { id: item.id },
+  })
 }
 
 const orgIds = computed(() => {
@@ -56,7 +60,7 @@ const orgIds = computed(() => {
   return Object.keys(stats.value.member.present)
 })
 
-const memberRows = () => {
+const memberRows = computed(() => {
   if (!stats.value) return []
   const s = stats.value.member
   const categories: { key: keyof typeof s; label: string }[] = [
@@ -72,7 +76,17 @@ const memberRows = () => {
     }
     return row
   })
-}
+})
+
+const contactRows = computed(() => {
+  if (!stats.value) return []
+  const c = stats.value.contact
+  return [
+    { label: 'Allgemein', count: c.common },
+    { label: 'VBW', count: c.vbw },
+    { label: 'VBN', count: c.vbn },
+  ]
+})
 </script>
 
 <template>
@@ -121,11 +135,18 @@ const memberRows = () => {
       </template>
     </Card>
 
-    <template v-if="!loading && stats">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        Die Statistik konnte nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadStats" />
+    </div>
+
+    <template v-else-if="!loading && stats">
       <Card>
         <template #title> Mitglieder </template>
         <template #content>
-          <DataTable :value="memberRows()" striped-rows size="small">
+          <DataTable :value="memberRows" striped-rows size="small">
             <Column field="label" header="Status" />
             <Column v-for="org in orgIds" :key="org" :field="org" :header="org.toUpperCase()" />
           </DataTable>
@@ -135,24 +156,7 @@ const memberRows = () => {
       <Card style="margin-top: 1rem">
         <template #title> Kontakte </template>
         <template #content>
-          <DataTable
-            :value="[
-              {
-                label: 'Allgemein',
-                count: stats.contact.common,
-              },
-              {
-                label: 'VBW',
-                count: stats.contact.vbw,
-              },
-              {
-                label: 'VBN',
-                count: stats.contact.vbn,
-              },
-            ]"
-            striped-rows
-            size="small"
-          >
+          <DataTable :value="contactRows" striped-rows size="small">
             <Column field="label" header="Kategorie" />
             <Column field="count" header="Anzahl" />
           </DataTable>
@@ -179,6 +183,13 @@ const memberRows = () => {
 
 .search-card {
   margin-bottom: 1rem;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .search-row {

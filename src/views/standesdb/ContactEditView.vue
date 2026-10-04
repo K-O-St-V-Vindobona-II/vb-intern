@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { getApiErrorDetail, getApiErrorStatus } from '@/utils/formatters'
+import { getApiErrorDetail, getApiErrorStatus, trimmedOrNull } from '@/utils/formatters'
 import type {
   ContactDetail,
   ContactFormData,
@@ -18,6 +18,32 @@ import Checkbox from 'primevue/checkbox'
 import Textarea from 'primevue/textarea'
 import Message from 'primevue/message'
 
+// Length limits of the API's ContactSaveRequest; typing past them only ends in a 422.
+const MAX_NAME = 64
+const MAX_SALUTATION = 32
+const MAX_POSTAL_CODE = 8
+const MAX_PLACE = 32
+const MAX_EMAIL = 128
+
+// German labels for the field names the API reports in a validation error.
+const FIELD_LABELS: Record<string, string> = {
+  kontakttyp: 'Kontakttyp',
+  anrede: 'Anrede',
+  name: 'Name',
+  couleurname: 'Couleurname',
+  org_id: 'Verbindung (Referenz)',
+  adresse_anschrift: 'Adresse (Anschrift)',
+  adresse_plz: 'Adresse (PLZ)',
+  adresse_ort: 'Adresse (Ort)',
+  adresse_land: 'Adresse (Land)',
+  zustellungen: 'Zustellungen',
+  email: 'E-Mail',
+  rufnummer: 'Rufnummer',
+  datum: 'Datum',
+  datum_accuracy: 'Datum',
+  anmerkungen: 'Anmerkungen',
+}
+
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -26,6 +52,7 @@ const loading = ref(true)
 const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
+const generalErrors = ref<string[]>([])
 const refs = ref<ReferenceData | null>(null)
 // Numbers each load so that the answer of an earlier one can be recognised and dropped.
 let loadRequestId = 0
@@ -57,6 +84,14 @@ const kontakttypOptions = [
   { label: 'Person', value: 'person' },
   { label: 'Organisation', value: 'organisation' },
 ]
+
+const hasErrors = computed(
+  () => Object.keys(errors.value).length > 0 || generalErrors.value.length > 0,
+)
+const errorLines = computed(() => [
+  ...generalErrors.value,
+  ...Object.entries(errors.value).map(([field, msg]) => `${FIELD_LABELS[field] ?? field}: ${msg}`),
+])
 
 const copyField = <K extends keyof ContactFormData>(key: K, data: ContactDetail) => {
   form.value[key] = data[key]
@@ -93,12 +128,13 @@ const loadForm = async () => {
   loading.value = true
   loadFailed.value = false
   errors.value = {}
+  generalErrors.value = []
   form.value = emptyForm()
   try {
     const [refResp, contactResp] = await fetchFormData(contactId.value)
     if (thisRequest !== loadRequestId) return
     refs.value = refResp.data
-    if (contactResp) fillForm(contactResp.data as ContactDetail)
+    if (contactResp) fillForm(contactResp.data)
   } catch (err: unknown) {
     if (thisRequest !== loadRequestId) return
     failLoad(err)
@@ -109,76 +145,79 @@ const loadForm = async () => {
 
 watch(() => [route.name, route.params['id']], loadForm, { immediate: true })
 
+// A cleared PrimeVue input holds "", which the API rejects for the e-mail
+// address and would otherwise store as an empty string instead of NULL.
+const toPayload = (): ContactFormData => ({
+  ...form.value,
+  anrede: trimmedOrNull(form.value.anrede),
+  name: form.value.name.trim(),
+  couleurname: trimmedOrNull(form.value.couleurname),
+  adresse_anschrift: trimmedOrNull(form.value.adresse_anschrift),
+  adresse_plz: trimmedOrNull(form.value.adresse_plz),
+  adresse_ort: trimmedOrNull(form.value.adresse_ort),
+  adresse_land: trimmedOrNull(form.value.adresse_land),
+  email: trimmedOrNull(form.value.email),
+  rufnummer: trimmedOrNull(form.value.rufnummer),
+  anmerkungen: trimmedOrNull(form.value.anmerkungen),
+})
+
+const showError = (summary: string, detail: string, life = 5000) => {
+  toast.add({ severity: 'error', summary, detail, life })
+}
+
+const applyValidationErrors = (detail: unknown[]) => {
+  const fieldErrors: Record<string, string> = {}
+  const general: string[] = []
+  detail.forEach((item) => {
+    if (typeof item === 'string') {
+      general.push(item)
+      return
+    }
+    const loc = (item as ApiValidationErrorItem | null)?.loc
+    const field = loc?.[loc.length - 1]
+    if (!field) return
+    fieldErrors[field] = ((item as ApiValidationErrorItem).msg ?? '').replace(/^Value error, /, '')
+  })
+  errors.value = fieldErrors
+  generalErrors.value = general
+  if (hasErrors.value) showError('Validierungsfehler', errorLines.value.join('\n'), 8000)
+}
+
+const handleSaveError = (err: unknown) => {
+  const detail = getApiErrorDetail(err)
+  if (Array.isArray(detail)) {
+    applyValidationErrors(detail)
+    return
+  }
+  showError('Fehler', typeof detail === 'string' ? detail : 'Speichern fehlgeschlagen.')
+}
+
+const toastSaved = (detail: string) => {
+  toast.add({ severity: 'success', summary: 'Gespeichert', detail, life: 3000 })
+}
+
+const createContact = async () => {
+  const resp = await standesdbService.createContact(toPayload())
+  toastSaved('Kontakt wurde angelegt.')
+  router.push({ name: 'standesdb-contact-show', params: { id: resp.data.id } })
+}
+
+const updateContact = async (id: string) => {
+  await standesdbService.updateContact(id, toPayload())
+  toastSaved('Änderungen wurden übernommen.')
+  router.push({ name: 'standesdb-contact-show', params: { id } })
+}
+
 const save = async () => {
   saving.value = true
   errors.value = {}
-
+  generalErrors.value = []
   try {
-    if (isNew.value) {
-      const resp = await standesdbService.createContact(form.value)
-      toast.add({
-        severity: 'success',
-        summary: 'Gespeichert',
-        detail: 'Kontakt wurde angelegt.',
-        life: 3000,
-      })
-      router.push({
-        name: 'standesdb-contact-show',
-        params: { id: resp.data.id },
-      })
-    } else {
-      await standesdbService.updateContact(contactId.value!, form.value)
-      toast.add({
-        severity: 'success',
-        summary: 'Gespeichert',
-        detail: 'Änderungen wurden übernommen.',
-        life: 3000,
-      })
-      router.push({
-        name: 'standesdb-contact-show',
-        params: { id: contactId.value! },
-      })
-    }
+    const id = contactId.value
+    if (id) await updateContact(id)
+    else await createContact()
   } catch (err: unknown) {
-    const detail = getApiErrorDetail(err) ?? 'Fehler'
-    if (typeof detail === 'string') {
-      toast.add({
-        severity: 'error',
-        summary: 'Fehler',
-        detail,
-        life: 5000,
-      })
-    } else if (Array.isArray(detail)) {
-      const stringErrors = detail.filter((e): e is string => typeof e === 'string')
-      const fieldErrors = detail.filter(
-        (e): e is ApiValidationErrorItem =>
-          typeof e === 'object' && Boolean((e as ApiValidationErrorItem | null)?.loc),
-      )
-
-      fieldErrors.forEach((e) => {
-        const loc = e.loc ?? []
-        const field = loc[loc.length - 1] ?? ''
-        errors.value[field] = e.msg ?? ''
-      })
-
-      const allMessages = [
-        ...stringErrors,
-        ...Object.entries(errors.value).map(([k, v]) => `${k}: ${v}`),
-      ]
-
-      if (allMessages.length) {
-        toast.add({
-          severity: 'error',
-          summary: 'Validierungsfehler',
-          detail: allMessages.join('\n'),
-          life: 8000,
-        })
-      }
-
-      stringErrors.forEach((msg: string, i: number) => {
-        errors.value[`validation_${i}`] = msg
-      })
-    }
+    handleSaveError(err)
   } finally {
     saving.value = false
   }
@@ -218,12 +257,13 @@ const save = async () => {
       </div>
 
       <div class="two-col">
-        <!-- LINKE SPALTE -->
+        <!-- left column -->
         <div class="col">
           <div class="field">
-            <label>Kontakttyp</label>
+            <label for="contact-kontakttyp">Kontakttyp</label>
             <Select
               v-model="form.kontakttyp"
+              input-id="contact-kontakttyp"
               :options="kontakttypOptions"
               option-label="label"
               option-value="value"
@@ -232,19 +272,37 @@ const save = async () => {
           </div>
 
           <div class="field">
-            <label>Anrede</label>
-            <InputText v-model="form.anrede" class="w-full" />
+            <label for="contact-anrede">Anrede</label>
+            <InputText
+              id="contact-anrede"
+              v-model="form.anrede"
+              :maxlength="MAX_SALUTATION"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Name</label>
-            <InputText v-model="form.name" class="w-full" />
-            <small v-if="errors['name']" class="p-error">{{ errors['name'] }}</small>
+            <label for="contact-name">Name</label>
+            <InputText
+              id="contact-name"
+              v-model="form.name"
+              :maxlength="MAX_NAME"
+              :invalid="Boolean(errors['name'])"
+              class="w-full"
+            />
+            <Message v-if="errors['name']" severity="error" size="small" variant="simple">
+              {{ errors['name'] }}
+            </Message>
           </div>
 
           <div class="field">
-            <label>Couleurname</label>
-            <InputText v-model="form.couleurname" class="w-full" />
+            <label for="contact-couleurname">Couleurname</label>
+            <InputText
+              id="contact-couleurname"
+              v-model="form.couleurname"
+              :maxlength="MAX_NAME"
+              class="w-full"
+            />
           </div>
 
           <div class="field field--check">
@@ -254,35 +312,64 @@ const save = async () => {
             </label>
           </div>
 
-          <label class="section-label">Adresse</label>
+          <span class="section-label">Adresse</span>
           <div class="field">
-            <label>Adresse (Anschrift)</label>
-            <InputText v-model="form.adresse_anschrift" class="w-full" />
+            <label for="contact-adresse-anschrift">Adresse (Anschrift)</label>
+            <InputText
+              id="contact-adresse-anschrift"
+              v-model="form.adresse_anschrift"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Adresse (PLZ)</label>
-            <InputText v-model="form.adresse_plz" class="w-full" />
+            <label for="contact-adresse-plz">Adresse (PLZ)</label>
+            <InputText
+              id="contact-adresse-plz"
+              v-model="form.adresse_plz"
+              :maxlength="MAX_POSTAL_CODE"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Adresse (Ort)</label>
-            <InputText v-model="form.adresse_ort" class="w-full" />
+            <label for="contact-adresse-ort">Adresse (Ort)</label>
+            <InputText
+              id="contact-adresse-ort"
+              v-model="form.adresse_ort"
+              :maxlength="MAX_PLACE"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Adresse (Land)</label>
-            <InputText v-model="form.adresse_land" class="w-full" />
+            <label for="contact-adresse-land">Adresse (Land)</label>
+            <InputText
+              id="contact-adresse-land"
+              v-model="form.adresse_land"
+              :maxlength="MAX_PLACE"
+              class="w-full"
+            />
           </div>
         </div>
 
-        <!-- RECHTE SPALTE -->
+        <!-- right column -->
         <div class="col">
           <div class="field">
-            <label>E-Mail</label>
-            <InputText v-model="form.email" type="email" class="w-full" />
+            <label for="contact-email">E-Mail</label>
+            <InputText
+              id="contact-email"
+              v-model="form.email"
+              type="email"
+              :maxlength="MAX_EMAIL"
+              :invalid="Boolean(errors['email'])"
+              class="w-full"
+            />
+            <Message v-if="errors['email']" severity="error" size="small" variant="simple">
+              {{ errors['email'] }}
+            </Message>
           </div>
 
           <div class="field">
-            <label>Rufnummer</label>
-            <InputText v-model="form.rufnummer" class="w-full" />
+            <label for="contact-rufnummer">Rufnummer</label>
+            <InputText id="contact-rufnummer" v-model="form.rufnummer" class="w-full" />
           </div>
 
           <FuzzyDatePicker
@@ -294,14 +381,15 @@ const save = async () => {
           />
 
           <div class="field">
-            <label>Anmerkungen</label>
-            <Textarea v-model="form.anmerkungen" rows="3" class="w-full" />
+            <label for="contact-anmerkungen">Anmerkungen</label>
+            <Textarea id="contact-anmerkungen" v-model="form.anmerkungen" rows="3" class="w-full" />
           </div>
 
           <div v-if="refs" class="field">
-            <label>Verbindung (Referenz)</label>
+            <label for="contact-org">Verbindung (Referenz)</label>
             <Select
               v-model="form.org_id"
+              input-id="contact-org"
               :options="refs.orgs"
               option-label="label"
               option-value="id"
@@ -312,20 +400,11 @@ const save = async () => {
         </div>
       </div>
 
-      <Message
-        v-if="Object.keys(errors).length"
-        severity="error"
-        :closable="false"
-        style="margin-top: 1rem"
-      >
-        <div>
-          <strong>Validierungsfehler:</strong>
-          <ul style="margin: 0.25rem 0 0; padding-left: 1.25rem">
-            <li v-for="(msg, field) in errors" :key="field">
-              <strong>{{ field }}:</strong> {{ msg }}
-            </li>
-          </ul>
-        </div>
+      <Message v-if="hasErrors" severity="error" :closable="false" class="error-summary">
+        <strong>Validierungsfehler:</strong>
+        <ul class="error-list">
+          <li v-for="line in errorLines" :key="line">{{ line }}</li>
+        </ul>
       </Message>
 
       <div class="footer-actions">
@@ -431,6 +510,15 @@ const save = async () => {
   color: var(--p-text-color);
   margin-bottom: 0.5rem;
   margin-top: 1.25rem;
+}
+
+.error-summary {
+  margin-top: 1rem;
+}
+
+.error-list {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
 }
 
 .w-full {

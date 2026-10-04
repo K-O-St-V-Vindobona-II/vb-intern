@@ -49,6 +49,9 @@ function buildDetail(
   }
 }
 
+// The route mock is shared and reactive: a wrapper left mounted by an earlier case would react to
+// the id changes of a later one.
+
 const mountOpts = { global: { plugins: [PrimeVue] } }
 
 function findButtonByText(wrapper: ReturnType<typeof mount>, text: string) {
@@ -355,6 +358,37 @@ describe('ChangeRequestReviewView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ detail: 'Entscheidung konnte nicht gespeichert werden.' }),
     )
+  })
+
+  it('labels the decision of a resolved request as approved or rejected', async () => {
+    mockGetChangeRequest.mockResolvedValue({
+      data: buildDetail({
+        status: 'resolved',
+        resolved_at: '2026-08-06T12:00:00Z',
+        resolved_by_name: 'Admin User',
+        field_decisions: { nachname: 'approved', email: 'rejected' },
+      }),
+    })
+
+    const wrapper = mount(ChangeRequestReviewView, mountOpts)
+    await flushPromises()
+
+    const tags = wrapper.findAllComponents({ name: 'Tag' })
+    expect(tags.map((t) => t.props('value'))).toEqual(['Genehmigt', 'Abgelehnt'])
+    expect(tags.map((t) => t.props('severity'))).toEqual(['success', 'danger'])
+  })
+
+  it('gives every decision control a name that says which field it decides', async () => {
+    mockGetChangeRequest.mockResolvedValue({ data: buildDetail() })
+
+    const wrapper = mount(ChangeRequestReviewView, mountOpts)
+    await flushPromises()
+
+    const groups = wrapper.findAll('[role="group"]')
+    expect(groups.map((g) => g.attributes('aria-label'))).toEqual([
+      'Entscheidung für nachname',
+      'Entscheidung für email',
+    ])
   })
 
   it('regression: a slow answer for the earlier request does not replace the newer one', async () => {

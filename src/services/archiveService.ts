@@ -21,7 +21,7 @@ export default {
   },
 
   getDirDetail(id: string) {
-    return api.get<DirDetail>(`/archive/dirs/${id}`)
+    return api.get<DirDetail>(`/archive/dirs/${encodeURIComponent(id)}`)
   },
 
   createDir(data: {
@@ -43,19 +43,19 @@ export default {
       recursive_permissions: boolean
     },
   ) {
-    return api.put(`/archive/dirs/${id}`, data)
+    return api.put(`/archive/dirs/${encodeURIComponent(id)}`, data)
   },
 
   deleteDir(id: string) {
-    return api.delete(`/archive/dirs/${id}`)
+    return api.delete(`/archive/dirs/${encodeURIComponent(id)}`)
   },
 
   restoreDir(id: string) {
-    return api.patch(`/archive/dirs/${id}/restore`)
+    return api.patch(`/archive/dirs/${encodeURIComponent(id)}/restore`)
   },
 
   purgeDir(id: string) {
-    return api.delete(`/archive/dirs/${id}/purge`)
+    return api.delete(`/archive/dirs/${encodeURIComponent(id)}/purge`)
   },
 
   receiveItems(
@@ -66,7 +66,7 @@ export default {
       action: string
     },
   ) {
-    return api.post(`/archive/dirs/${dirId}/receive`, data)
+    return api.post(`/archive/dirs/${encodeURIComponent(dirId)}/receive`, data)
   },
 
   receiveItemsRoot(data: { type: string; ids: string[]; action: string }) {
@@ -74,32 +74,37 @@ export default {
   },
 
   getFileDetail(id: string) {
-    return api.get<FileDetail>(`/archive/files/${id}`)
+    return api.get<FileDetail>(`/archive/files/${encodeURIComponent(id)}`)
   },
 
   updateFile(id: string, data: { description?: string | null }) {
-    return api.put(`/archive/files/${id}`, data)
+    return api.put(`/archive/files/${encodeURIComponent(id)}`, data)
   },
 
   deleteFile(id: string) {
-    return api.delete(`/archive/files/${id}`)
+    return api.delete(`/archive/files/${encodeURIComponent(id)}`)
   },
 
   restoreFile(id: string) {
-    return api.patch(`/archive/files/${id}/restore`)
+    return api.patch(`/archive/files/${encodeURIComponent(id)}/restore`)
   },
 
   getFileUrl(id: string, size?: string) {
-    const suffix = size ? `/${size}` : ''
-    return api.get<{ url: string }>(`/archive/files/${id}/url${suffix}`)
+    const suffix = size ? `/${encodeURIComponent(size)}` : ''
+    return api.get<{ url: string }>(`/archive/files/${encodeURIComponent(id)}/url${suffix}`)
   },
 
   createComment(fileId: string, data: { content: string }) {
-    return api.post<{ comment: Comment }>(`/archive/files/${fileId}/comments`, data)
+    return api.post<{ comment: Comment }>(
+      `/archive/files/${encodeURIComponent(fileId)}/comments`,
+      data,
+    )
   },
 
   deleteComment(fileId: string, commentId: string) {
-    return api.delete(`/archive/files/${fileId}/comments/${commentId}`)
+    return api.delete(
+      `/archive/files/${encodeURIComponent(fileId)}/comments/${encodeURIComponent(commentId)}`,
+    )
   },
 
   getUploadConfig() {

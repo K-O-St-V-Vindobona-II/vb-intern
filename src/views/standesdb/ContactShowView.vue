@@ -11,6 +11,7 @@ import ImagePreview from '@/components/standesdb/ImagePreview.vue'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 
 const route = useRoute()
@@ -20,7 +21,9 @@ const confirm = useConfirm()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const contact = ref<ContactDetail | null>(null)
+let loadContactId = 0
 
 const canEdit = computed(() => hasPermission('standesdbContactAdmin'))
 
@@ -39,30 +42,49 @@ const changelogTotal = ref(0)
 const changelogRows = 25
 const changelogLoading = ref(false)
 const changelogLoaded = ref(false)
+const changelogFailed = ref(false)
 const changelogVisible = ref(false)
+let changelogRequestId = 0
+
+// The history belongs to the contact it was loaded for: forget it whenever
+// another contact is loaded into this page.
+const resetChangelog = () => {
+  changelogRequestId++
+  changelog.value = []
+  changelogTotal.value = 0
+  changelogLoading.value = false
+  changelogLoaded.value = false
+  changelogFailed.value = false
+  changelogVisible.value = false
+}
+
+const loadChangelog = async (page: number) => {
+  const target = contact.value
+  if (!target) return
+  const thisRequest = ++changelogRequestId
+  changelogLoading.value = true
+  changelogFailed.value = false
+  try {
+    const resp = await standesdbService.getChangelog('contact', target.id, {
+      page,
+      page_size: changelogRows,
+    })
+    if (thisRequest !== changelogRequestId) return
+    changelog.value = resp.data.items
+    changelogTotal.value = resp.data.total
+    changelogLoaded.value = true
+  } catch {
+    if (thisRequest !== changelogRequestId) return
+    changelogFailed.value = true
+  } finally {
+    if (thisRequest === changelogRequestId) changelogLoading.value = false
+  }
+}
 
 const toggleChangelog = () => {
   changelogVisible.value = !changelogVisible.value
   if (changelogVisible.value && !changelogLoaded.value) {
     loadChangelog(1)
-  }
-}
-
-const loadChangelog = async (page: number) => {
-  if (!contact.value) return
-  changelogLoading.value = true
-  try {
-    const resp = await standesdbService.getChangelog('contact', contact.value.id, {
-      page,
-      page_size: changelogRows,
-    })
-    changelog.value = resp.data.items
-    changelogTotal.value = resp.data.total
-  } catch {
-    /* permission denied or error */
-  } finally {
-    changelogLoading.value = false
-    changelogLoaded.value = true
   }
 }
 
@@ -76,44 +98,60 @@ const actionSeverity = (action: string) => {
   return 'info'
 }
 
+const deleteContact = async (target: ContactDetail) => {
+  try {
+    await standesdbService.deleteContact(target.id)
+    toast.add({ severity: 'success', summary: 'Kontakt gelöscht', life: 3000 })
+    router.push({ name: 'standesdb-dashboard' })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: formatApiError(e, 'Löschen fehlgeschlagen'),
+      life: 5000,
+    })
+  }
+}
+
+// The contact is captured when the dialog opens: the dialog outlives a change of
+// the address, and the confirmed delete must hit the contact the dialog names.
 const confirmDelete = () => {
-  if (!contact.value) return
+  const target = contact.value
+  if (!target) return
   confirm.require({
-    message: `Kontakt "${contact.value.cn}" wirklich löschen?`,
+    message: `Kontakt "${target.cn}" wirklich löschen?`,
     header: 'Kontakt löschen',
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Abbrechen', severity: 'secondary' },
     acceptProps: { label: 'Löschen', severity: 'danger' },
-    accept: async () => {
-      try {
-        await standesdbService.deleteContact(contact.value!.id)
-        toast.add({ severity: 'success', summary: 'Kontakt gelöscht', life: 3000 })
-        router.push({ name: 'standesdb-dashboard' })
-      } catch (e) {
-        toast.add({
-          severity: 'error',
-          summary: formatApiError(e, 'Löschen fehlgeschlagen'),
-          life: 5000,
-        })
-      }
-    },
+    accept: () => deleteContact(target),
   })
 }
 
+const openContactPage = (name: 'standesdb-contact-images' | 'standesdb-contact-edit') => {
+  if (!contact.value) return
+  router.push({ name, params: { id: contact.value.id } })
+}
+
 const loadContact = async (id: string) => {
+  const thisRequest = ++loadContactId
   loading.value = true
+  loadFailed.value = false
   contact.value = null
+  resetChangelog()
   try {
     const resp = await standesdbService.getContact(id)
+    if (thisRequest !== loadContactId) return
     contact.value = resp.data
   } catch (err: unknown) {
+    if (thisRequest !== loadContactId) return
     const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
     }
+    loadFailed.value = true
   } finally {
-    loading.value = false
+    if (thisRequest === loadContactId) loading.value = false
   }
 }
 
@@ -129,7 +167,17 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
 
 <template>
   <div class="contact-show">
-    <template v-if="!loading && contact">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">Der Kontakt konnte nicht geladen werden.</Message>
+      <Button
+        label="Erneut versuchen"
+        icon="pi pi-refresh"
+        size="small"
+        @click="loadContact(String(route.params['id']))"
+      />
+    </div>
+
+    <template v-else-if="!loading && contact">
       <div class="page-header">
         <h2 class="page-title">Standesdatenbank</h2>
         <h3 class="page-subtitle">Kontakt</h3>
@@ -157,7 +205,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
             icon="pi pi-images"
             severity="info"
             size="small"
-            @click="router.push({ name: 'standesdb-contact-images', params: { id: contact!.id } })"
+            @click="openContactPage('standesdb-contact-images')"
           />
           <Button
             v-if="canEdit"
@@ -165,7 +213,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
             icon="pi pi-pencil"
             severity="danger"
             size="small"
-            @click="router.push({ name: 'standesdb-contact-edit', params: { id: contact!.id } })"
+            @click="openContactPage('standesdb-contact-edit')"
           />
           <Button
             v-if="canEdit"
@@ -180,7 +228,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
       </div>
 
       <div class="two-col">
-        <!-- LINKE SPALTE -->
+        <!-- left column -->
         <div class="col">
           <div class="show-field">
             <label>Kontakttyp</label>
@@ -244,7 +292,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           </div>
         </div>
 
-        <!-- RECHTE SPALTE -->
+        <!-- right column -->
         <div class="col">
           <div class="show-field">
             <label>E-Mail</label>
@@ -300,7 +348,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           icon="pi pi-images"
           severity="info"
           size="small"
-          @click="router.push({ name: 'standesdb-contact-images', params: { id: contact!.id } })"
+          @click="openContactPage('standesdb-contact-images')"
         />
         <Button
           v-if="canEdit"
@@ -308,7 +356,7 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
           icon="pi pi-pencil"
           severity="danger"
           size="small"
-          @click="router.push({ name: 'standesdb-contact-edit', params: { id: contact!.id } })"
+          @click="openContactPage('standesdb-contact-edit')"
         />
         <Button
           v-if="canEdit"
@@ -322,12 +370,30 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
       </div>
 
       <div v-if="canEdit" class="changelog-section">
-        <div class="changelog-header" @click="toggleChangelog">
+        <button
+          type="button"
+          class="changelog-header"
+          :aria-expanded="changelogVisible"
+          aria-controls="contact-changelog"
+          @click="toggleChangelog"
+        >
           <span class="changelog-title">Änderungshistorie</span>
           <i :class="['pi', changelogVisible ? 'pi-chevron-up' : 'pi-chevron-down']" />
+        </button>
+        <div v-if="changelogVisible && changelogFailed" class="changelog-error">
+          <Message severity="error" :closable="false">
+            Die Änderungshistorie konnte nicht geladen werden.
+          </Message>
+          <Button
+            label="Erneut versuchen"
+            icon="pi pi-refresh"
+            size="small"
+            @click="loadChangelog(1)"
+          />
         </div>
         <DataTable
-          v-if="changelogVisible"
+          v-else-if="changelogVisible"
+          id="contact-changelog"
           :value="changelog"
           striped-rows
           size="small"
@@ -372,14 +438,29 @@ const orgLabel = (orgId: string | null | undefined, label: string | null | undef
   margin-top: 2rem;
 }
 
+.load-error,
+.changelog-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.changelog-error {
+  margin-top: 1rem;
+}
+
 .changelog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
   padding: 0.75rem 1rem;
   background: var(--app-surface-subtle);
   border: 1px solid var(--app-border-card);
   border-radius: 8px;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.15s;

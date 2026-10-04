@@ -304,6 +304,17 @@ export interface ExportConfig {
   flags: Record<string, string>
 }
 
+// Body of POST /standesdb/export: the matrix keys are "{org_id}_{state_id}" and
+// "{org_id}_contacts".
+export interface ExportRequestPayload {
+  module: string
+  selections: Record<string, boolean>
+  include_disabled_delivery: boolean
+  include_dead: boolean
+  include_common_contacts: boolean
+  only_without_email: boolean
+}
+
 export interface SearchResult {
   type: 'member' | 'contact'
   id: string

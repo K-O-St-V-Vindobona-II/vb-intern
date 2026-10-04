@@ -260,7 +260,7 @@ describe('ArchiveDirView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('archive-file')
-    expect(router.currentRoute.value.params.id).toBe('9')
+    expect(router.currentRoute.value.params['id']).toBe('9')
   })
 
   it('does not show the clipboard bar or admin section for non-admins', async () => {
@@ -322,5 +322,241 @@ describe('ArchiveDirView', () => {
     await flushPromises()
 
     expect(mockGetDirRoot).toHaveBeenCalledOnce()
+  })
+
+  describe('reloading', () => {
+    function deferredDir() {
+      let resolvePromise!: (value: { data: DirDetail }) => void
+      let rejectPromise!: (reason: unknown) => void
+      const promise = new Promise<{ data: DirDetail }>((resolve, reject) => {
+        resolvePromise = resolve
+        rejectPromise = reject
+      })
+      return { promise, resolve: resolvePromise, reject: rejectPromise }
+    }
+
+    it('regression: a slow answer for the directory opened before does not replace the newer one', async () => {
+      const slow = deferredDir()
+      mockGetDirDetail
+        .mockReturnValueOnce(slow.promise)
+        .mockResolvedValueOnce({ data: buildDir({ id: '6', name: 'Neu' }) })
+      const wrapper = await mountAt('/archive/dirs/5')
+      await router.push('/archive/dirs/6')
+      await flushPromises()
+
+      slow.resolve({ data: buildDir({ id: '5', name: 'Alt' }) })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Neu')
+      expect(wrapper.text()).not.toContain('Alt')
+    })
+
+    it('regression: a 404 for a directory that was left does not send the user to not-found', async () => {
+      const slow = deferredDir()
+      mockGetDirDetail
+        .mockReturnValueOnce(slow.promise)
+        .mockResolvedValueOnce({ data: buildDir({ id: '6', name: 'Neu' }) })
+      const wrapper = await mountAt('/archive/dirs/5')
+      await router.push('/archive/dirs/6')
+      await flushPromises()
+
+      slow.reject({ response: { status: 404 } })
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('archive-dir')
+      expect(wrapper.text()).toContain('Neu')
+    })
+
+    it('does not show the previous directory while the next one loads', async () => {
+      const slow = deferredDir()
+      const wrapper = await mountAt('/archive/dirs/5')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Fotos')
+      mockGetDirDetail.mockReturnValueOnce(slow.promise)
+
+      await router.push('/archive/dirs/6')
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Fotos')
+    })
+
+    it('regression: a change in a child keeps the page mounted', async () => {
+      mockAuthStore.user = { permissions: ['archiveAdmin'] }
+      mockGetDirRoot.mockResolvedValue({
+        data: buildDir({
+          id: null,
+          name: 'Archiv',
+          stats: {
+            file_count: 1,
+            unique_object_count: 1,
+            dir_count: 1,
+            total_size: 10,
+            by_extension: [{ extension: 'jpg', count: 1, size: 10 }],
+          },
+        }),
+      })
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+      await wrapper.find('.stats-toggle').trigger('click')
+      await wrapper.find('.admin-toggle-row .admin-toggle').trigger('click')
+      const searchCard = wrapper.find('.search-card').element
+
+      await wrapper.findComponent({ name: 'FileList' }).vm.$emit('changed')
+      await flushPromises()
+
+      expect(mockGetDirRoot).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('.search-card').element).toBe(searchCard)
+      expect(wrapper.find('.stats-by-extension-wrap').exists()).toBe(true)
+      expect(wrapper.find('.admin-panel').exists()).toBe(true)
+    })
+
+    it.each([
+      ['DirList', 'changed', 3],
+      ['FileList', 'changed', 3],
+      ['ClipboardBar', 'moved', 1],
+      ['DirEditor', 'saved', 2],
+    ])(
+      'regression: the %s event "%s" of every instance refreshes in place',
+      async (name, event, instances) => {
+        mockAuthStore.user = { permissions: ['archiveAdmin'] }
+        const wrapper = await mountAt('/archive/dirs/5')
+        await flushPromises()
+        await wrapper.find('.admin-toggle-row .admin-toggle').trigger('click')
+        const searchCard = wrapper.find('.search-card').element
+        expect(wrapper.findAllComponents({ name })).toHaveLength(instances)
+
+        for (let index = 0; index < instances; index++) {
+          mockGetDirDetail.mockClear()
+
+          await wrapper.findAllComponents({ name })[index]!.vm.$emit(event)
+          await flushPromises()
+
+          expect(mockGetDirDetail).toHaveBeenCalledOnce()
+          expect(wrapper.find('.search-card').element).toBe(searchCard)
+        }
+      },
+    )
+
+    it('keeps the page and shows a toast when a reload after a change fails', async () => {
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+      mockGetDirRoot.mockRejectedValueOnce({ response: { status: 500 } })
+
+      await wrapper.findComponent({ name: 'FileList' }).vm.$emit('changed')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+      expect(wrapper.find('.archive-error').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Archiv')
+    })
+
+    it('sends the user to not-found when the directory is gone after a change', async () => {
+      const wrapper = await mountAt('/archive/dirs/5')
+      await flushPromises()
+      mockGetDirDetail.mockRejectedValueOnce({ response: { status: 404 } })
+
+      await wrapper.findComponent({ name: 'FileList' }).vm.$emit('changed')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('not-found')
+    })
+  })
+
+  describe('hover preview', () => {
+    it('regression: an answer that arrives after the mouse left does not leave an image behind', async () => {
+      let resolveUrl!: (value: string) => void
+      mockLoadPresignedUrl.mockReturnValueOnce(new Promise((resolve) => (resolveUrl = resolve)))
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+      const fileList = wrapper.findComponent({ name: 'FileList' })
+
+      await fileList.vm.$emit('preview', 7)
+      await fileList.vm.$emit('preview', null)
+      resolveUrl('https://minio.test/late.jpg')
+      await flushPromises()
+
+      expect(wrapper.find('.hover-preview').exists()).toBe(false)
+    })
+
+    it('regression: the preview of the row the mouse is on wins over a slower earlier one', async () => {
+      let resolveFirst!: (value: string) => void
+      mockLoadPresignedUrl
+        .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
+        .mockResolvedValueOnce('https://minio.test/second.jpg')
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+      const fileList = wrapper.findComponent({ name: 'FileList' })
+
+      await fileList.vm.$emit('preview', 7)
+      await fileList.vm.$emit('preview', 8)
+      await flushPromises()
+      resolveFirst('https://minio.test/first.jpg')
+      await flushPromises()
+
+      expect(wrapper.find('.hover-preview').attributes('src')).toBe('https://minio.test/second.jpg')
+    })
+
+    it('marks the preview image as decorative', async () => {
+      mockLoadPresignedUrl.mockResolvedValue('https://minio.test/preview.jpg')
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+
+      await wrapper.findComponent({ name: 'FileList' }).vm.$emit('preview', 7)
+      await flushPromises()
+
+      expect(wrapper.find('.hover-preview').attributes('alt')).toBe('')
+    })
+  })
+
+  describe('toggles', () => {
+    it('regression: the extension table toggle is a button that reports its state', async () => {
+      mockGetDirRoot.mockResolvedValue({
+        data: buildDir({
+          id: null,
+          name: 'Archiv',
+          stats: {
+            file_count: 1,
+            unique_object_count: 1,
+            dir_count: 1,
+            total_size: 10,
+            by_extension: [{ extension: 'jpg', count: 1, size: 10 }],
+          },
+        }),
+      })
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+      const toggle = wrapper.find('.stats-toggle')
+
+      expect(toggle.element.tagName).toBe('BUTTON')
+      expect(toggle.attributes('aria-expanded')).toBe('false')
+      await toggle.trigger('click')
+      expect(wrapper.find('.stats-toggle').attributes('aria-expanded')).toBe('true')
+    })
+
+    it('regression: the administration toggles are buttons', async () => {
+      mockAuthStore.user = { permissions: ['archiveAdmin'] }
+      const wrapper = await mountAt('/archive')
+      await flushPromises()
+
+      const open = wrapper.find('.admin-toggle-row .admin-toggle')
+      expect(open.element.tagName).toBe('BUTTON')
+      await open.trigger('click')
+      expect(wrapper.find('.admin-panel .admin-toggle').element.tagName).toBe('BUTTON')
+    })
+  })
+
+  it('shows the permission viewers and the editor of a directory to admins only', async () => {
+    const wrapper = await mountAt('/archive/dirs/5')
+    await flushPromises()
+    expect(wrapper.findAllComponents({ name: 'PermissionViewer' })).toHaveLength(0)
+    expect(wrapper.findComponent({ name: 'DirEditor' }).exists()).toBe(false)
+    wrapper.unmount()
+
+    mockAuthStore.user = { permissions: ['archiveAdmin'] }
+    const adminWrapper = await mountAt('/archive/dirs/5')
+    await flushPromises()
+
+    expect(adminWrapper.findAllComponents({ name: 'PermissionViewer' })).toHaveLength(3)
+    expect(adminWrapper.findComponent({ name: 'DirEditor' }).exists()).toBe(true)
   })
 })

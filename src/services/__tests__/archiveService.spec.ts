@@ -142,4 +142,75 @@ describe('archiveService', () => {
     expect(formData.get('file')).toBe(file)
     expect(formData.get('description')).toBe('Beschreibung')
   })
+
+  it.each([
+    [
+      'getDirDetail',
+      () => archiveService.getDirDetail('../../auth/sessions'),
+      mockGet,
+      '/archive/dirs/..%2F..%2Fauth%2Fsessions',
+    ],
+    ['getFileDetail', () => archiveService.getFileDetail('../x'), mockGet, '/archive/files/..%2Fx'],
+    [
+      'restoreFile',
+      () => archiveService.restoreFile('../x'),
+      mockPatch,
+      '/archive/files/..%2Fx/restore',
+    ],
+    ['purgeDir', () => archiveService.purgeDir('a/b'), mockDelete, '/archive/dirs/a%2Fb/purge'],
+    [
+      'receiveItems',
+      () => archiveService.receiveItems('a/b', { type: 'file', ids: [], action: 'move' }),
+      mockPost,
+      '/archive/dirs/a%2Fb/receive',
+    ],
+    [
+      'deleteComment',
+      () => archiveService.deleteComment('a/b', 'c/d'),
+      mockDelete,
+      '/archive/files/a%2Fb/comments/c%2Fd',
+    ],
+    [
+      'updateDir',
+      () =>
+        archiveService.updateDir('a/b', {
+          name: 'x',
+          permissions: [],
+          recursive_permissions: false,
+        }),
+      mockPut,
+      '/archive/dirs/a%2Fb',
+    ],
+    ['deleteDir', () => archiveService.deleteDir('a/b'), mockDelete, '/archive/dirs/a%2Fb'],
+    [
+      'restoreDir',
+      () => archiveService.restoreDir('a/b'),
+      mockPatch,
+      '/archive/dirs/a%2Fb/restore',
+    ],
+    ['updateFile', () => archiveService.updateFile('a/b', {}), mockPut, '/archive/files/a%2Fb'],
+    ['deleteFile', () => archiveService.deleteFile('a/b'), mockDelete, '/archive/files/a%2Fb'],
+    [
+      'getFileUrl (id)',
+      () => archiveService.getFileUrl('a/b'),
+      mockGet,
+      '/archive/files/a%2Fb/url',
+    ],
+    [
+      'getFileUrl (size)',
+      () => archiveService.getFileUrl('1', '../x'),
+      mockGet,
+      '/archive/files/1/url/..%2Fx',
+    ],
+    [
+      'createComment',
+      () => archiveService.createComment('a/b', { content: 'x' }),
+      mockPost,
+      '/archive/files/a%2Fb/comments',
+    ],
+  ])('%s keeps an identifier from turning into extra path segments', (_name, call, mock, url) => {
+    call()
+
+    expect(mock.mock.calls[0]![0]).toBe(url)
+  })
 })

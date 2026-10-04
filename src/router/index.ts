@@ -10,6 +10,11 @@ import { registerChunkReload } from './chunkReload'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
+// A route parameter that ends up in an API path must be a UUID: vue-router decodes "%2F"
+// inside a free parameter, and the browser then resolves the ".." segments of the request
+// path, so a crafted link could send the request to another API route.
+const UUID = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -109,12 +114,12 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/dirs/:id',
+          path: `archive/dirs/:id(${UUID})`,
           name: 'archive-dir',
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/files/:id',
+          path: `archive/files/:id(${UUID})`,
           name: 'archive-file',
           component: () => import('../views/archive/ArchiveFileView.vue'),
         },
@@ -163,7 +168,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/change-requests/:id',
+          path: `standesdb/change-requests/:id(${UUID})`,
           name: 'standesdb-change-request-review',
           component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
           meta: {
@@ -184,12 +189,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/contacts/:id',
+          path: `standesdb/contacts/:id(${UUID})`,
           name: 'standesdb-contact-show',
           component: () => import('../views/standesdb/ContactShowView.vue'),
         },
         {
-          path: 'standesdb/contacts/:id/edit',
+          path: `standesdb/contacts/:id(${UUID})/edit`,
           name: 'standesdb-contact-edit',
           component: () => import('../views/standesdb/ContactEditView.vue'),
           meta: {
@@ -202,12 +207,12 @@ const router = createRouter({
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/members/:id/images',
+          path: `standesdb/members/:id(${UUID})/images`,
           name: 'standesdb-member-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/contacts/:id/images',
+          path: `standesdb/contacts/:id(${UUID})/images`,
           name: 'standesdb-contact-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
@@ -416,7 +421,7 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
-          path: 'tracking/activity/members/:memberId([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+          path: `tracking/activity/members/:memberId(${UUID})`,
           name: 'tracking-activity-member',
           component: () => import('../views/tracking/ActivityLogMemberDayView.vue'),
           props: true,

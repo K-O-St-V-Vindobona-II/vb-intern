@@ -84,7 +84,14 @@ describe('standesdbService', () => {
   })
 
   it('downloadExport posts the config and requests a blob', () => {
-    const data = { modules: ['members'] }
+    const data = {
+      module: 'mailing-liste',
+      selections: { vbw_fu: true },
+      include_disabled_delivery: false,
+      include_dead: false,
+      include_common_contacts: false,
+      only_without_email: false,
+    }
     standesdbService.downloadExport(data)
     expect(mockPost).toHaveBeenCalledWith('/standesdb/export', data, { responseType: 'blob' })
   })
@@ -288,6 +295,130 @@ describe('standesdbService', () => {
     standesdbService.getImageUrl('contact', 2, 'image-uuid-5', true)
     expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5/url', {
       params: { thumb: true },
+    })
+  })
+
+  describe('identifiers in request paths', () => {
+    const TRAVERSAL = '../../auth/sessions'
+    const ENCODED = '..%2F..%2Fauth%2Fsessions'
+
+    it.each([
+      [
+        'getMember',
+        () => standesdbService.getMember(TRAVERSAL),
+        mockGet,
+        `/standesdb/members/${ENCODED}`,
+      ],
+      [
+        'updateMember',
+        () => standesdbService.updateMember(TRAVERSAL, {}),
+        mockPut,
+        `/standesdb/members/${ENCODED}`,
+      ],
+      [
+        'getChangeRequest',
+        () => standesdbService.getChangeRequest(TRAVERSAL),
+        mockGet,
+        `/standesdb/member-change-requests/${ENCODED}`,
+      ],
+      [
+        'decideChangeRequest',
+        () => standesdbService.decideChangeRequest(TRAVERSAL, {}, '2026-08-06T10:00:00Z'),
+        mockPost,
+        `/standesdb/member-change-requests/${ENCODED}/decide`,
+      ],
+      [
+        'getContact',
+        () => standesdbService.getContact(TRAVERSAL),
+        mockGet,
+        `/standesdb/contacts/${ENCODED}`,
+      ],
+      [
+        'updateContact',
+        () => standesdbService.updateContact(TRAVERSAL, {}),
+        mockPut,
+        `/standesdb/contacts/${ENCODED}`,
+      ],
+      [
+        'deleteContact',
+        () => standesdbService.deleteContact(TRAVERSAL),
+        mockDelete,
+        `/standesdb/contacts/${ENCODED}`,
+      ],
+      [
+        'getChangelog',
+        () => standesdbService.getChangelog('contact', TRAVERSAL),
+        mockGet,
+        `/standesdb/contacts/${ENCODED}/changelog`,
+      ],
+      [
+        'getMemberImages',
+        () => standesdbService.getMemberImages(TRAVERSAL),
+        mockGet,
+        `/standesdb/members/${ENCODED}/images`,
+      ],
+      [
+        'getContactImages',
+        () => standesdbService.getContactImages(TRAVERSAL),
+        mockGet,
+        `/standesdb/contacts/${ENCODED}/images`,
+      ],
+      [
+        'updateImage',
+        () =>
+          standesdbService.updateImage('member', TRAVERSAL, '../x', {
+            description: null,
+            default: false,
+          }),
+        mockPut,
+        `/standesdb/members/${ENCODED}/images/..%2Fx`,
+      ],
+      [
+        'deleteImage',
+        () => standesdbService.deleteImage('contact', TRAVERSAL, '../x'),
+        mockDelete,
+        `/standesdb/contacts/${ENCODED}/images/..%2Fx`,
+      ],
+      [
+        'deleteOwnImage',
+        () => standesdbService.deleteOwnImage('../x'),
+        mockDelete,
+        '/standesdb/members/me/images/..%2Fx',
+      ],
+      [
+        'getImageUrl',
+        () => standesdbService.getImageUrl('member', TRAVERSAL, '../x'),
+        mockGet,
+        `/standesdb/members/${ENCODED}/images/..%2Fx/url`,
+      ],
+      [
+        'searchParent',
+        () => standesdbService.searchParent(TRAVERSAL, 'Muster'),
+        mockGet,
+        `/standesdb/members/${ENCODED}/searchparent`,
+      ],
+      [
+        'getMemberAuthActivity',
+        () => standesdbService.getMemberAuthActivity(TRAVERSAL),
+        mockGet,
+        `/standesdb/members/${ENCODED}/auth-activity`,
+      ],
+      [
+        'uploadImage',
+        () => standesdbService.uploadImage('member', TRAVERSAL, new File(['x'], 'a.jpg'), null),
+        mockPost,
+        `/standesdb/members/${ENCODED}/images`,
+      ],
+      [
+        'updateOwnImage',
+        () => standesdbService.updateOwnImage('../x', { description: null, default: false }),
+        mockPut,
+        '/standesdb/members/me/images/..%2Fx',
+      ],
+    ])('%s keeps an identifier from turning into extra path segments', (_name, call, mock, url) => {
+      call()
+
+      expect(mock.mock.calls[0]![0]).toBe(url)
     })
   })
 })

@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import { formatApiError, formatSize, getApiErrorStatus } from '@/utils/formatters'
-import { ref, computed, onMounted } from 'vue'
+import { formatApiError, formatSize, getApiErrorStatus, trimmedOrNull } from '@/utils/formatters'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
+import { useThumbnailLoadQueue } from '@/composables/useThumbnailLoadQueue'
 import standesdbService from '@/services/standesdbService'
-import type { StandesdbImage } from '@/types/standesdb'
+import type { ImageOwnerRef, StandesdbImage } from '@/types/standesdb'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
+
+// Limits of the API (image_service: 5 MB, JPEG and PNG; ImageUpdateRequest: 100
+// characters). The client checks them first so that a refused file costs no upload.
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png']
+const MAX_DESCRIPTION = 100
+
+interface GalleryResponse {
+  owner: ImageOwnerRef
+  images: StandesdbImage[]
+}
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
+const { schedule } = useThumbnailLoadQueue()
 
 // The self-service entry point (AppNavbar.vue's "Meine Profilbilder
 // verwalten") uses its own route, not the admin-style /members/:id/images
@@ -38,11 +52,14 @@ const backRoute = computed(() =>
 )
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const uploading = ref(false)
+const saving = ref(false)
 const ownerCn = ref('')
 const ownerOrgId = ref('')
 const images = ref<StandesdbImage[]>([])
 const imageUrls = ref<Record<string, string>>({})
+let loadGalleryId = 0
 
 const uploadFile = ref<File | null>(null)
 const uploadDescription = ref('')
@@ -55,6 +72,10 @@ const editDefault = ref(false)
 
 const deleteDialogVisible = ref(false)
 const deleteImageId = ref('')
+
+const imageCountLabel = computed(
+  () => `${images.value.length} Profilbild${images.value.length !== 1 ? 'er' : ''}`,
+)
 
 const isAdmin = computed(() => {
   const perms = authStore.user?.permissions ?? []
@@ -71,39 +92,91 @@ const isSelf = computed(() => ownerType.value === 'member' && authStore.user?.id
 
 const canManage = computed(() => isAdmin.value || isSelf.value)
 
+const requestGallery = () => {
+  if (isOwnRoute.value) return standesdbService.getOwnImages()
+  if (ownerType.value === 'member') return standesdbService.getMemberImages(ownerId.value)
+  return standesdbService.getContactImages(ownerId.value)
+}
+
+const applyGallery = (data: GalleryResponse) => {
+  ownerCn.value = data.owner.cn ?? ''
+  ownerOrgId.value = data.owner.org_id ?? ''
+  images.value = data.images
+}
+
+// Thumbnails are fetched through the shared load queue (a few at a time) and shown as
+// they arrive; the page does not wait for them. A missing preview keeps its placeholder.
+const loadPreviews = (generation: number, list: StandesdbImage[]) => {
+  const owner = ownerType.value
+  const id = ownerId.value
+  list.forEach((img) => {
+    schedule(async () => {
+      try {
+        const resp = await standesdbService.getImageUrl(owner, id, img.id, true)
+        if (generation === loadGalleryId) imageUrls.value[img.id] = resp.data.url
+      } catch {
+        // the placeholder stays
+      }
+    })
+  })
+}
+
+// Initial load and load after a change of the address: the old content goes away
+// while the new one loads.
 const loadGallery = async () => {
+  const generation = ++loadGalleryId
   loading.value = true
+  loadFailed.value = false
+  images.value = []
+  imageUrls.value = {}
+  ownerCn.value = ''
+  ownerOrgId.value = ''
+  uploadFile.value = null
+  uploadDescription.value = ''
   try {
-    const resp = isOwnRoute.value
-      ? await standesdbService.getOwnImages()
-      : ownerType.value === 'member'
-        ? await standesdbService.getMemberImages(ownerId.value)
-        : await standesdbService.getContactImages(ownerId.value)
-    ownerCn.value = resp.data.owner.cn ?? ''
-    ownerOrgId.value = resp.data.owner.org_id ?? ''
-    images.value = resp.data.images
-    await loadPreviews()
+    const resp = await requestGallery()
+    if (generation !== loadGalleryId) return
+    applyGallery(resp.data)
+    loadPreviews(generation, resp.data.images)
   } catch (err: unknown) {
+    if (generation !== loadGalleryId) return
     const status = getApiErrorStatus(err)
     if (status === 404 || status === 403) {
       router.replace({ name: 'not-found' })
       return
     }
+    loadFailed.value = true
   } finally {
-    loading.value = false
+    if (generation === loadGalleryId) loading.value = false
   }
 }
 
-const loadPreviews = async () => {
-  imageUrls.value = {}
-  for (const img of images.value) {
-    try {
-      const resp = await standesdbService.getImageUrl(ownerType.value, ownerId.value, img.id, true)
-      imageUrls.value[img.id] = resp.data.url
-    } catch {
-      /* ignore */
-    }
+// Reload after an upload, edit or delete: the page stays where it is and the
+// thumbnails already shown stay until their new address arrives.
+const refreshGallery = async () => {
+  const generation = ++loadGalleryId
+  try {
+    const resp = await requestGallery()
+    if (generation !== loadGalleryId) return
+    applyGallery(resp.data)
+    loadPreviews(generation, resp.data.images)
+  } catch {
+    if (generation !== loadGalleryId) return
+    toast.add({
+      severity: 'warn',
+      summary: 'Aktualisierung fehlgeschlagen',
+      detail: 'Die Bildliste konnte nicht neu geladen werden.',
+      life: 5000,
+    })
   }
+}
+
+watch(() => [route.name, route.params['id']], loadGallery, { immediate: true })
+
+const rejectFile = (input: HTMLInputElement, detail: string) => {
+  toast.add({ severity: 'error', summary: 'Fehler', detail, life: 5000 })
+  input.value = ''
+  uploadFile.value = null
 }
 
 const onFileSelect = (event: Event) => {
@@ -111,44 +184,30 @@ const onFileSelect = (event: Event) => {
   const file = input.files?.[0]
   if (!file) return
 
-  const allowed = ['image/jpeg', 'image/png']
-  if (!allowed.includes(file.type)) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Nur JPEG- und PNG-Dateien erlaubt.',
-      life: 5000,
-    })
-    input.value = ''
-    uploadFile.value = null
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    rejectFile(input, 'Nur JPEG- und PNG-Dateien erlaubt.')
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Datei zu groß (max. 5 MB).',
-      life: 5000,
-    })
-    input.value = ''
-    uploadFile.value = null
+  if (file.size > MAX_IMAGE_BYTES) {
+    rejectFile(input, 'Datei zu groß (max. 5 MB).')
     return
   }
   uploadFile.value = file
 }
 
 const doUpload = async () => {
-  if (!uploadFile.value) return
+  if (!uploadFile.value || uploading.value) return
   uploading.value = true
+  const description = trimmedOrNull(uploadDescription.value)
   try {
     if (isSelf.value) {
-      await standesdbService.uploadOwnImage(uploadFile.value, uploadDescription.value || null)
+      await standesdbService.uploadOwnImage(uploadFile.value, description)
     } else {
       await standesdbService.uploadImage(
         ownerType.value,
         ownerId.value,
         uploadFile.value,
-        uploadDescription.value || null,
+        description,
       )
     }
     toast.add({
@@ -160,7 +219,7 @@ const doUpload = async () => {
     uploadFile.value = null
     uploadDescription.value = ''
     if (fileInputRef.value) fileInputRef.value.value = ''
-    await loadGallery()
+    await refreshGallery()
     await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
@@ -194,17 +253,14 @@ const openEdit = (img: StandesdbImage) => {
 }
 
 const saveEdit = async () => {
+  if (saving.value) return
+  saving.value = true
+  const data = { description: trimmedOrNull(editDescription.value), default: editDefault.value }
   try {
     if (isSelf.value) {
-      await standesdbService.updateOwnImage(editImageId.value, {
-        description: editDescription.value,
-        default: editDefault.value,
-      })
+      await standesdbService.updateOwnImage(editImageId.value, data)
     } else {
-      await standesdbService.updateImage(ownerType.value, ownerId.value, editImageId.value, {
-        description: editDescription.value,
-        default: editDefault.value,
-      })
+      await standesdbService.updateImage(ownerType.value, ownerId.value, editImageId.value, data)
     }
     toast.add({
       severity: 'success',
@@ -213,7 +269,7 @@ const saveEdit = async () => {
       life: 3000,
     })
     editDialogVisible.value = false
-    await loadGallery()
+    await refreshGallery()
     await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
@@ -222,6 +278,8 @@ const saveEdit = async () => {
       detail: formatApiError(err, 'Speichern fehlgeschlagen.'),
       life: 5000,
     })
+  } finally {
+    saving.value = false
   }
 }
 
@@ -244,7 +302,7 @@ const doDelete = async () => {
       detail: 'Profilbild gelöscht.',
       life: 3000,
     })
-    await loadGallery()
+    await refreshGallery()
     await refreshNavbarAvatarIfSelf()
   } catch (err: unknown) {
     toast.add({
@@ -256,24 +314,35 @@ const doDelete = async () => {
   }
 }
 
+// The presigned address forces a download (Content-Disposition: attachment), so
+// the click below saves the file and does not leave the page.
 const doDownload = async (img: StandesdbImage) => {
   try {
     const resp = await standesdbService.getImageUrl(ownerType.value, ownerId.value, img.id)
     const a = document.createElement('a')
     a.href = resp.data.url
-    a.download = `${ownerType.value}_${ownerId.value}_${img.id}.${img.type?.split('/')[1] ?? 'jpg'}`
     a.click()
-  } catch {
-    /* ignore */
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Download fehlgeschlagen.'),
+      life: 5000,
+    })
   }
 }
-
-onMounted(loadGallery)
 </script>
 
 <template>
   <div class="image-gallery">
-    <template v-if="!loading">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false"
+        >Die Profilbilder konnten nicht geladen werden.</Message
+      >
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadGallery" />
+    </div>
+
+    <template v-else-if="!loading">
       <div class="page-header">
         <h2 class="page-title">Standesdatenbank</h2>
         <h3 class="page-subtitle">Profilbilder</h3>
@@ -291,7 +360,7 @@ onMounted(loadGallery)
         </div>
       </div>
 
-      <p class="image-count">{{ images.length }} Profilbild{{ images.length !== 1 ? 'er' : '' }}</p>
+      <p class="image-count">{{ imageCountLabel }}</p>
 
       <!-- Upload -->
       <div v-if="canManage" class="upload-section">
@@ -315,8 +384,9 @@ onMounted(loadGallery)
           <span class="upload-filename">{{ uploadFile?.name ?? 'Keine Datei ausgewählt' }}</span>
           <InputText
             v-model="uploadDescription"
+            aria-label="Beschreibung des neuen Bildes"
             placeholder="Beschreibung (optional, max. 100 Zeichen)"
-            maxlength="100"
+            :maxlength="MAX_DESCRIPTION"
             class="upload-desc"
           />
           <Button
@@ -394,8 +464,13 @@ onMounted(loadGallery)
       >
         <div class="dialog-fields">
           <div class="field">
-            <label>Beschreibung</label>
-            <InputText v-model="editDescription" maxlength="100" class="w-full" />
+            <label for="edit-image-description">Beschreibung</label>
+            <InputText
+              id="edit-image-description"
+              v-model="editDescription"
+              :maxlength="MAX_DESCRIPTION"
+              class="w-full"
+            />
           </div>
           <div class="field">
             <label>
@@ -406,7 +481,7 @@ onMounted(loadGallery)
         </div>
         <template #footer>
           <Button label="Abbrechen" severity="secondary" @click="editDialogVisible = false" />
-          <Button label="Speichern" @click="saveEdit" />
+          <Button label="Speichern" :loading="saving" @click="saveEdit" />
         </template>
       </Dialog>
 
@@ -433,6 +508,13 @@ onMounted(loadGallery)
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-header {
@@ -526,13 +608,12 @@ onMounted(loadGallery)
 .image-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   border: 1px solid var(--app-border-card);
   border-radius: 8px;
   padding: 0.75rem;
   background: var(--app-surface-card);
-  align-items: flex-start;
 }
 
 .image-preview {

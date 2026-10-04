@@ -12,6 +12,7 @@ import {
   toLocalDateStr,
   MONTH_NAMES,
   monthName,
+  trimmedOrNull,
 } from '@/utils/formatters'
 
 describe('toLocalDateStr', () => {
@@ -265,5 +266,19 @@ describe('MONTH_NAMES and monthName', () => {
 
   it.each([0, 13, -1, Number.NaN])('returns an empty string for the invalid month %s', (month) => {
     expect(monthName(month)).toBe('')
+  })
+})
+
+describe('trimmedOrNull', () => {
+  it('drops the blanks around a value', () => {
+    expect(trimmedOrNull('  Max  ')).toBe('Max')
+  })
+
+  it('keeps the blanks inside a value', () => {
+    expect(trimmedOrNull('Max  Mustermann')).toBe('Max  Mustermann')
+  })
+
+  it.each([[''], ['   '], ['\t\n'], [null], [undefined]])('turns %j into null', (value) => {
+    expect(trimmedOrNull(value)).toBeNull()
   })
 })

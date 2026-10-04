@@ -67,6 +67,14 @@ export function getApiErrorDetail(e: unknown): unknown {
   return (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
 }
 
+// Normalises the value of a text input for the API: surrounding blanks are
+// dropped and an empty (or blank) value becomes null. A cleared PrimeVue input
+// holds "", which is not the same as "no value" for the API's validators.
+export function trimmedOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed === '' ? null : trimmed
+}
+
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`

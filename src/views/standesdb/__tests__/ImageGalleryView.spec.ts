@@ -6,6 +6,8 @@ import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import { createRouter, createMemoryHistory } from 'vue-router'
 
+// Mounted wrappers of earlier cases would react to the address changes of later ones.
+
 const mockGetMemberImages = vi.fn()
 const mockGetContactImages = vi.fn()
 const mockGetOwnImages = vi.fn()
@@ -499,7 +501,7 @@ describe('ImageGalleryView', () => {
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: 'error', detail: 'Serverfehler' }),
+      expect.objectContaining({ severity: 'error', summary: 'Fehler', detail: 'Serverfehler' }),
     )
     w.unmount()
   })
@@ -564,6 +566,7 @@ describe('ImageGalleryView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', detail: 'Profilbild gelöscht.' }),
     )
+    expect(mockGetMemberImages).toHaveBeenCalledTimes(2)
     w.unmount()
   })
 
@@ -595,14 +598,474 @@ describe('ImageGalleryView', () => {
     w.unmount()
   })
 
-  it('silently ignores a failed download', async () => {
-    mockGetImageUrl.mockRejectedValue(new Error('boom'))
+  it('regression: names a failed download instead of doing nothing', async () => {
+    mockGetImageUrl.mockRejectedValue({ response: { data: { detail: 'Bild nicht gefunden.' } } })
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     const w = await mountMemberGallery(document.body)
 
-    await expect(async () => {
-      clickButton('Download')
-      await flushPromises()
-    }).not.toThrow()
+    clickButton('Download')
+    await flushPromises()
+
+    expect(clickSpy).not.toHaveBeenCalled()
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', detail: 'Bild nicht gefunden.' }),
+    )
+    clickSpy.mockRestore()
     w.unmount()
+  })
+
+  describe('thumbnails', () => {
+    const manyImages = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `image-uuid-${i + 1}`,
+        type: 'image/jpeg',
+        height: 100,
+        width: 100,
+        size: 1000,
+        description: null,
+        default: i === 0,
+      }))
+
+    // One controllable answer per thumbnail request; every open one is released at the end of the
+    // case, because the load queue is shared by the whole test file.
+    function deferThumbnails() {
+      const pending: Array<(url: string) => void> = []
+      mockGetImageUrl.mockImplementation(
+        () => new Promise((resolve) => pending.push((url) => resolve({ data: { url } }))),
+      )
+      return {
+        pending,
+        releaseAll: () => pending.splice(0).forEach((release) => release('https://cdn.test/x.jpg')),
+      }
+    }
+
+    it('regression: shows the page before any thumbnail address has arrived', async () => {
+      mockGetMemberImages.mockResolvedValue({
+        data: { owner: { cn: 'Max Muster', org_id: 'vbw' }, images: manyImages(3) },
+      })
+      const thumbnails = deferThumbnails()
+
+      const w = await mountMemberGallery()
+
+      expect(w.findAll('.image-card')).toHaveLength(3)
+      expect(w.findAll('.image-placeholder')).toHaveLength(3)
+      thumbnails.releaseAll()
+      await flushPromises()
+    })
+
+    it('regression: requests several thumbnail addresses at once, not one after the other', async () => {
+      mockGetMemberImages.mockResolvedValue({
+        data: { owner: { cn: 'Max Muster', org_id: 'vbw' }, images: manyImages(6) },
+      })
+      const thumbnails = deferThumbnails()
+
+      await mountMemberGallery()
+
+      // The shared load queue admits four at a time.
+      expect(mockGetImageUrl).toHaveBeenCalledTimes(4)
+      thumbnails.releaseAll()
+      await flushPromises()
+      expect(mockGetImageUrl).toHaveBeenCalledTimes(6)
+      thumbnails.releaseAll()
+      await flushPromises()
+    })
+
+    it('shows each thumbnail as soon as its address arrives', async () => {
+      mockGetMemberImages.mockResolvedValue({
+        data: { owner: { cn: 'Max Muster', org_id: 'vbw' }, images: manyImages(2) },
+      })
+      const thumbnails = deferThumbnails()
+      const w = await mountMemberGallery()
+
+      thumbnails.pending[1]!('https://cdn.test/second.jpg')
+      await flushPromises()
+
+      const shown = w.findAll('img.image-preview')
+      expect(shown).toHaveLength(1)
+      expect(shown[0]!.attributes('src')).toBe('https://cdn.test/second.jpg')
+      thumbnails.releaseAll()
+      await flushPromises()
+    })
+
+    it('keeps the placeholder of an image whose thumbnail cannot be created', async () => {
+      mockGetMemberImages.mockResolvedValue({
+        data: { owner: { cn: 'Max Muster', org_id: 'vbw' }, images: manyImages(2) },
+      })
+      mockGetImageUrl
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({ data: { url: 'https://cdn.test/ok.jpg' } })
+
+      const w = await mountMemberGallery()
+
+      expect(w.findAll('img.image-preview')).toHaveLength(1)
+      expect(w.findAll('.image-placeholder')).toHaveLength(1)
+    })
+  })
+
+  describe('a change of the gallery', () => {
+    it('regression: keeps the page and the thumbnails in place while the list reloads', async () => {
+      mockGetImageUrl.mockResolvedValue({ data: { url: 'https://cdn.test/a.jpg' } })
+      const w = await mountMemberGallery(document.body)
+      const header = w.find('.page-header').element
+      expect(w.findAll('img.image-preview')).toHaveLength(2)
+      let releaseReload: (value: unknown) => void = () => {}
+      mockGetMemberImages.mockReturnValueOnce(new Promise((resolve) => (releaseReload = resolve)))
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickButton('Speichern')
+      await flushPromises()
+
+      expect(w.find('.page-header').element).toBe(header)
+      expect(w.findAll('img.image-preview')).toHaveLength(2)
+      releaseReload({
+        data: { owner: { cn: 'Max Muster', org_id: 'vbw' }, images: buildImages().slice(0, 1) },
+      })
+      await flushPromises()
+      expect(w.findAll('.image-card')).toHaveLength(1)
+      w.unmount()
+    })
+
+    it('warns when the list cannot be reloaded after a change, and keeps the page', async () => {
+      const w = await mountMemberGallery(document.body)
+      mockGetMemberImages.mockRejectedValueOnce({ response: { status: 500 } })
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickButton('Speichern')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          severity: 'warn',
+          summary: 'Aktualisierung fehlgeschlagen',
+          detail: 'Die Bildliste konnte nicht neu geladen werden.',
+        }),
+      )
+      expect(mockToastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+      expect(w.findAll('.image-card')).toHaveLength(2)
+      w.unmount()
+    })
+
+    const ownerResponse = (cn: string, images = buildImages()) => ({
+      data: { owner: { cn, org_id: 'vbw' }, images },
+    })
+
+    it('regression: an answer for the earlier reload does not replace the gallery opened afterwards', async () => {
+      const w = await mountMemberGallery(document.body)
+      let releaseReload: (value: unknown) => void = () => {}
+      mockGetMemberImages
+        .mockReturnValueOnce(new Promise((resolve) => (releaseReload = resolve)))
+        .mockResolvedValueOnce(ownerResponse('Zweite Person', buildImages().slice(0, 1)))
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickButton('Speichern')
+      await flushPromises()
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+      releaseReload(ownerResponse('Erste Person'))
+      await flushPromises()
+
+      expect(w.text()).toContain('Zweite Person')
+      expect(w.text()).not.toContain('Erste Person')
+      expect(w.findAll('.image-card')).toHaveLength(1)
+      w.unmount()
+    })
+
+    it('regression: a late failure of the reload for a gallery that was left does not warn', async () => {
+      const w = await mountMemberGallery(document.body)
+      let failReload: (reason: unknown) => void = () => {}
+      mockGetMemberImages
+        .mockReturnValueOnce(new Promise((_resolve, reject) => (failReload = reject)))
+        .mockResolvedValueOnce(ownerResponse('Zweite Person'))
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickButton('Speichern')
+      await flushPromises()
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+      failReload({ response: { status: 500 } })
+      await flushPromises()
+
+      expect(mockToastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ severity: 'warn' }))
+      expect(w.text()).toContain('Zweite Person')
+      w.unmount()
+    })
+
+    it('fetches the thumbnail of an image that arrives with the reload', async () => {
+      mockGetImageUrl.mockImplementation((_type: string, _id: string, imageId: string) =>
+        Promise.resolve({ data: { url: `https://cdn.test/${imageId}.jpg` } }),
+      )
+      const w = await mountMemberGallery(document.body)
+      const added = { ...buildImages()[1]!, id: 'image-uuid-3' }
+      mockGetMemberImages.mockResolvedValueOnce(
+        ownerResponse('Max Muster', [...buildImages(), added]),
+      )
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickButton('Speichern')
+      await flushPromises()
+
+      expect(mockGetImageUrl).toHaveBeenCalledWith('member', '1', 'image-uuid-3', true)
+      expect(w.findAll('img.image-preview').map((img) => img.attributes('src'))).toContain(
+        'https://cdn.test/image-uuid-3.jpg',
+      )
+      w.unmount()
+    })
+
+    it('can save again after a successful save', async () => {
+      const w = await mountMemberGallery(document.body)
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickDialogButton('Speichern')
+      await flushPromises()
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickDialogButton('Speichern')
+      await flushPromises()
+
+      expect(mockUpdateImage).toHaveBeenCalledTimes(2)
+      w.unmount()
+    })
+
+    it('can save again after a failed save', async () => {
+      const w = await mountMemberGallery(document.body)
+      mockUpdateImage.mockRejectedValueOnce({ response: { data: { detail: 'Serverfehler' } } })
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickDialogButton('Speichern')
+      await flushPromises()
+      clickDialogButton('Speichern')
+      await flushPromises()
+
+      expect(mockUpdateImage).toHaveBeenCalledTimes(2)
+      w.unmount()
+    })
+
+    it('sends one upload for a double click on "Hochladen"', async () => {
+      const w = await mountMemberGallery(document.body)
+      const input = w.find('.upload-file-input').element as HTMLInputElement
+      setInputFiles(input, [makeFile('pic.jpg', 1000)])
+      input.dispatchEvent(new Event('change'))
+      await flushPromises()
+      let releaseUpload: (value: unknown) => void = () => {}
+      mockUploadImage.mockReturnValueOnce(new Promise((resolve) => (releaseUpload = resolve)))
+
+      clickButton('Hochladen')
+      clickButton('Hochladen')
+      releaseUpload({ data: { id: 'image-uuid-3' } })
+      await flushPromises()
+
+      expect(mockUploadImage).toHaveBeenCalledTimes(1)
+      w.unmount()
+    })
+
+    it('sends nothing for "Hochladen" without a chosen file', async () => {
+      const w = await mountMemberGallery(document.body)
+
+      await w.findComponent({ name: 'Button', props: { label: 'Hochladen' } }).vm.$emit('click')
+      await flushPromises()
+
+      expect(mockUploadImage).not.toHaveBeenCalled()
+      w.unmount()
+    })
+
+    it('sends one update for a double click on "Speichern"', async () => {
+      const w = await mountMemberGallery(document.body)
+      let releaseUpdate: (value: unknown) => void = () => {}
+      mockUpdateImage.mockReturnValueOnce(new Promise((resolve) => (releaseUpdate = resolve)))
+
+      clickButton('Bearbeiten')
+      await flushPromises()
+      clickDialogButton('Speichern')
+      clickDialogButton('Speichern')
+      releaseUpdate({ data: {} })
+      await flushPromises()
+
+      expect(mockUpdateImage).toHaveBeenCalledTimes(1)
+      w.unmount()
+    })
+  })
+
+  describe('descriptions', () => {
+    it('regression: uploads a blank description as none and a padded one trimmed', async () => {
+      const w = await mountMemberGallery(document.body)
+      const input = w.find('.upload-file-input').element as HTMLInputElement
+      setInputFiles(input, [makeFile('pic.jpg', 1000)])
+      input.dispatchEvent(new Event('change'))
+      await flushPromises()
+
+      await w.find('.upload-desc').setValue('   ')
+      clickButton('Hochladen')
+      await flushPromises()
+      expect(mockUploadImage.mock.calls[0]![3]).toBeNull()
+
+      setInputFiles(input, [makeFile('pic2.jpg', 1000)])
+      input.dispatchEvent(new Event('change'))
+      await flushPromises()
+      await w.find('.upload-desc').setValue('  Couleurfoto  ')
+      clickButton('Hochladen')
+      await flushPromises()
+      expect(mockUploadImage.mock.calls[1]![3]).toBe('Couleurfoto')
+      w.unmount()
+    })
+
+    it('regression: saves a cleared description as none, not as an empty string', async () => {
+      const w = await mountMemberGallery(document.body)
+      clickButton('Bearbeiten')
+      await flushPromises()
+
+      const field = document.querySelector<HTMLInputElement>('#edit-image-description')!
+      field.value = ''
+      field.dispatchEvent(new Event('input'))
+      await flushPromises()
+      clickDialogButton('Speichern')
+      await flushPromises()
+
+      expect(mockUpdateImage).toHaveBeenCalledWith('member', '1', 'image-uuid-1', {
+        description: null,
+        default: true,
+      })
+      w.unmount()
+    })
+
+    it('connects the label of the edit dialog to its field and names the upload field', async () => {
+      const w = await mountMemberGallery(document.body)
+      clickButton('Bearbeiten')
+      await flushPromises()
+
+      expect(document.querySelector('label[for="edit-image-description"]')).not.toBeNull()
+      expect(document.querySelector('#edit-image-description')).not.toBeNull()
+      expect(w.find('.upload-desc').attributes('aria-label')).toBe('Beschreibung des neuen Bildes')
+      w.unmount()
+    })
+
+    it('limits both description fields to the length the API accepts', async () => {
+      const w = await mountMemberGallery(document.body)
+      clickButton('Bearbeiten')
+      await flushPromises()
+
+      expect(w.find('.upload-desc').attributes('maxlength')).toBe('100')
+      expect(document.querySelector('#edit-image-description')!.getAttribute('maxlength')).toBe(
+        '100',
+      )
+      w.unmount()
+    })
+  })
+
+  describe('a load that fails for another reason than 403 or 404', () => {
+    it('regression: says so instead of showing an empty gallery', async () => {
+      mockGetMemberImages.mockRejectedValue({ response: { status: 500 } })
+
+      const w = await mountMemberGallery()
+
+      expect(w.text()).toContain('Die Profilbilder konnten nicht geladen werden.')
+      expect(w.text()).not.toContain('Keine Profilbilder vorhanden.')
+      expect(w.text()).not.toContain('0 Profilbilder')
+    })
+
+    it('loads the gallery after "Erneut versuchen"', async () => {
+      mockGetMemberImages.mockRejectedValueOnce({ response: { status: 500 } })
+      const w = await mountMemberGallery()
+
+      await w
+        .findAll('button')
+        .find((b) => b.text() === 'Erneut versuchen')!
+        .trigger('click')
+      await flushPromises()
+
+      expect(w.text()).toContain('2 Profilbilder')
+      expect(w.text()).not.toContain('konnten nicht geladen werden')
+    })
+  })
+
+  describe('a change of the address while the page is open', () => {
+    it('regression: loads the gallery of the other member and forgets the chosen file', async () => {
+      const w = await mountMemberGallery(document.body)
+      const input = w.find('.upload-file-input').element as HTMLInputElement
+      setInputFiles(input, [makeFile('pic.jpg', 1000)])
+      input.dispatchEvent(new Event('change'))
+      await flushPromises()
+      expect(w.text()).toContain('pic.jpg')
+      await w.find('.upload-desc').setValue('Für Max')
+      mockGetMemberImages.mockResolvedValue({
+        data: { owner: { cn: 'Erika Muster', org_id: 'vbw' }, images: [] },
+      })
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+
+      expect(mockGetMemberImages).toHaveBeenLastCalledWith('2')
+      expect(w.text()).toContain('Erika Muster')
+      expect(w.text()).not.toContain('Max Muster')
+      expect(w.text()).not.toContain('pic.jpg')
+      expect((w.find('.upload-desc').element as HTMLInputElement).value).toBe('')
+      w.unmount()
+    })
+
+    it('regression: shows nothing of the gallery that was left while the new one still loads', async () => {
+      let releaseFirst: (value: unknown) => void = () => {}
+      mockGetMemberImages
+        .mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)))
+        .mockReturnValueOnce(new Promise(() => {}))
+      const w = await mountMemberGallery()
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+      releaseFirst({
+        data: { owner: { cn: 'Erste Person', org_id: 'vbw' }, images: buildImages() },
+      })
+      await flushPromises()
+
+      expect(w.text()).not.toContain('Erste Person')
+      expect(w.text()).not.toContain('Keine Profilbilder vorhanden')
+      expect(w.findAll('.image-card')).toHaveLength(0)
+    })
+
+    it('regression: a slow answer for the gallery that was left does not replace the new one', async () => {
+      let releaseFirst: (value: unknown) => void = () => {}
+      mockGetMemberImages
+        .mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)))
+        .mockResolvedValueOnce({
+          data: { owner: { cn: 'Zweite Person', org_id: 'vbw' }, images: [] },
+        })
+      await currentRouter.push('/standesdb/members/1/images')
+      const w = mount(ImageGalleryView, {
+        global: { plugins: [PrimeVue, ToastService, currentRouter, createPinia()] },
+      })
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+      releaseFirst({ data: { owner: { cn: 'Erste Person', org_id: 'vbw' }, images: [] } })
+      await flushPromises()
+
+      expect(w.text()).toContain('Zweite Person')
+      expect(w.text()).not.toContain('Erste Person')
+    })
+
+    it('regression: a 404 for the gallery that was left does not move the user off the new one', async () => {
+      let rejectFirst: (reason: unknown) => void = () => {}
+      mockGetMemberImages
+        .mockReturnValueOnce(new Promise((_resolve, reject) => (rejectFirst = reject)))
+        .mockResolvedValueOnce({
+          data: { owner: { cn: 'Zweite Person', org_id: 'vbw' }, images: [] },
+        })
+      await currentRouter.push('/standesdb/members/1/images')
+      mount(ImageGalleryView, {
+        global: { plugins: [PrimeVue, ToastService, currentRouter, createPinia()] },
+      })
+
+      await currentRouter.push('/standesdb/members/2/images')
+      await flushPromises()
+      rejectFirst({ response: { status: 404 } })
+      await flushPromises()
+
+      expect(currentRouter.currentRoute.value.name).toBe('standesdb-member-images')
+    })
   })
 })
