@@ -59,9 +59,13 @@ onMounted(load)
       <Column header="" style="width: 5rem">
         <template #body="{ data }">
           <div class="icon-group">
-            <i
+            <Button
               v-tooltip="'Details'"
-              class="pi pi-info-circle clickable"
+              icon="pi pi-info-circle"
+              text
+              rounded
+              size="small"
+              aria-label="Details"
               @click="
                 router.push({
                   name: 'p4x-transactions-filter',
@@ -70,14 +74,22 @@ onMounted(load)
                 })
               "
             />
-            <i
+            <Button
               v-tooltip="'Bearbeiten'"
-              class="pi pi-pencil clickable"
+              icon="pi pi-pencil"
+              text
+              rounded
+              size="small"
+              aria-label="Bearbeiten"
               @click="router.push({ name: 'p4x-filter-edit', params: { id: data.id } })"
             />
-            <i
+            <Button
               v-tooltip="'Filter→Direkt'"
-              class="pi pi-hammer clickable"
+              icon="pi pi-hammer"
+              text
+              rounded
+              size="small"
+              aria-label="Filter zu Direktzuordnung"
               @click="router.push({ name: 'p4x-filter2direct', params: { id: data.id } })"
             />
           </div>
@@ -124,13 +136,6 @@ onMounted(load)
 .icon-group {
   display: flex;
   gap: 0.4rem;
-}
-.clickable {
-  cursor: pointer;
-  color: var(--p-text-muted-color);
-}
-.clickable:hover {
-  color: var(--p-primary-600);
 }
 .cat-stretch {
   display: flex;

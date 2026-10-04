@@ -111,9 +111,12 @@ describe('standesdbService', () => {
     expect(mockGet).toHaveBeenCalledWith('/standesdb/reference-data')
   })
 
+  const MEMBER_ID = '11111111-1111-1111-1111-111111111111'
+  const CONTACT_ID = '22222222-2222-2222-2222-222222222222'
+
   it('getMember fetches a single member', () => {
-    standesdbService.getMember(1)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1')
+    standesdbService.getMember(MEMBER_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}`)
   })
 
   it('createMember posts the new member payload', () => {
@@ -124,20 +127,25 @@ describe('standesdbService', () => {
 
   it('updateMember puts the updated member payload', () => {
     const data = { vorname: 'Max' }
-    standesdbService.updateMember(1, data)
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/members/1', data)
+    standesdbService.updateMember(MEMBER_ID, data)
+    expect(mockPut).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}`, data)
   })
 
   it('searchParent forwards the member id and query', () => {
-    standesdbService.searchParent(1, 'Schmidt')
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/searchparent', {
+    standesdbService.searchParent(MEMBER_ID, 'Schmidt')
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/searchparent`, {
       params: { q: 'Schmidt' },
     })
   })
 
+  it('encodes a member id that is not a plain UUID before it reaches the API path', () => {
+    standesdbService.getMember('../auth/sessions')
+    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/..%2Fauth%2Fsessions')
+  })
+
   it('getContact fetches a single contact', () => {
-    standesdbService.getContact(2)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2')
+    standesdbService.getContact(CONTACT_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}`)
   })
 
   it('getMySelfServiceData fetches the own live Stammdaten', () => {
@@ -191,111 +199,132 @@ describe('standesdbService', () => {
 
   it('updateContact puts the updated contact payload', () => {
     const data = { name: 'Firma GmbH' }
-    standesdbService.updateContact(2, data)
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/contacts/2', data)
+    standesdbService.updateContact(CONTACT_ID, data)
+    expect(mockPut).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}`, data)
   })
 
   it('deleteContact deletes the contact', () => {
-    standesdbService.deleteContact(2)
-    expect(mockDelete).toHaveBeenCalledWith('/standesdb/contacts/2')
+    standesdbService.deleteContact(CONTACT_ID)
+    expect(mockDelete).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}`)
   })
 
   it('getMemberAuthActivity fetches the auth activity timestamps', () => {
-    standesdbService.getMemberAuthActivity(1)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/auth-activity')
+    standesdbService.getMemberAuthActivity(MEMBER_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/auth-activity`)
   })
 
   it('getChangelog builds the members segment', () => {
-    standesdbService.getChangelog('member', 1)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/changelog', { params: {} })
+    standesdbService.getChangelog('member', MEMBER_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/changelog`, {
+      params: {},
+    })
   })
 
   it('getChangelog builds the contacts segment', () => {
-    standesdbService.getChangelog('contact', 2)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/changelog', { params: {} })
+    standesdbService.getChangelog('contact', CONTACT_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}/changelog`, {
+      params: {},
+    })
   })
 
   it('getChangelog forwards pagination params', () => {
-    standesdbService.getChangelog('member', 1, { page: 2, page_size: 10 })
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/changelog', {
+    standesdbService.getChangelog('member', MEMBER_ID, { page: 2, page_size: 10 })
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/changelog`, {
       params: { page: 2, page_size: 10 },
     })
   })
 
   it('getMemberImages fetches the member image gallery', () => {
-    standesdbService.getMemberImages(1)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/images')
+    standesdbService.getMemberImages(MEMBER_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/images`)
   })
 
   it('getContactImages fetches the contact image gallery', () => {
-    standesdbService.getContactImages(2)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/images')
+    standesdbService.getContactImages(CONTACT_ID)
+    expect(mockGet).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}/images`)
   })
 
   it('uploadImage sends a multipart form with file and description for a member', () => {
     const file = new File(['x'], 'pic.jpg')
-    standesdbService.uploadImage('member', 1, file, 'Profilbild')
+    standesdbService.uploadImage('member', MEMBER_ID, file, 'Profilbild')
 
-    expect(mockPost).toHaveBeenCalledWith('/standesdb/members/1/images', expect.any(FormData), {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    const formData = mockPost.mock.calls[0][1] as FormData
+    expect(mockPost).toHaveBeenCalledWith(
+      `/standesdb/members/${MEMBER_ID}/images`,
+      expect.any(FormData),
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    )
+    const formData = mockPost.mock.calls[0]![1] as FormData
     expect(formData.get('file')).toBe(file)
     expect(formData.get('description')).toBe('Profilbild')
   })
 
   it('uploadImage omits the description field when null, for a contact', () => {
     const file = new File(['x'], 'pic.jpg')
-    standesdbService.uploadImage('contact', 2, file, null)
+    standesdbService.uploadImage('contact', CONTACT_ID, file, null)
 
-    expect(mockPost).toHaveBeenCalledWith('/standesdb/contacts/2/images', expect.any(FormData), {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    const formData = mockPost.mock.calls[0][1] as FormData
+    expect(mockPost).toHaveBeenCalledWith(
+      `/standesdb/contacts/${CONTACT_ID}/images`,
+      expect.any(FormData),
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    )
+    const formData = mockPost.mock.calls[0]![1] as FormData
     expect(formData.get('description')).toBeNull()
   })
 
   it('updateImage puts the updated image metadata for a member', () => {
-    standesdbService.updateImage('member', 1, 'image-uuid-5', { description: 'neu', default: true })
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5', {
+    standesdbService.updateImage('member', MEMBER_ID, 'image-uuid-5', {
+      description: 'neu',
+      default: true,
+    })
+    expect(mockPut).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/images/image-uuid-5`, {
       description: 'neu',
       default: true,
     })
   })
 
   it('updateImage puts the updated image metadata for a contact', () => {
-    standesdbService.updateImage('contact', 2, 'image-uuid-5', {
+    standesdbService.updateImage('contact', CONTACT_ID, 'image-uuid-5', {
       description: 'neu',
       default: false,
     })
-    expect(mockPut).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5', {
+    expect(mockPut).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}/images/image-uuid-5`, {
       description: 'neu',
       default: false,
     })
   })
 
   it('deleteImage deletes the image for a member', () => {
-    standesdbService.deleteImage('member', 1, 'image-uuid-5')
-    expect(mockDelete).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5')
+    standesdbService.deleteImage('member', MEMBER_ID, 'image-uuid-5')
+    expect(mockDelete).toHaveBeenCalledWith(`/standesdb/members/${MEMBER_ID}/images/image-uuid-5`)
   })
 
   it('deleteImage deletes the image for a contact', () => {
-    standesdbService.deleteImage('contact', 2, 'image-uuid-5')
-    expect(mockDelete).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5')
+    standesdbService.deleteImage('contact', CONTACT_ID, 'image-uuid-5')
+    expect(mockDelete).toHaveBeenCalledWith(`/standesdb/contacts/${CONTACT_ID}/images/image-uuid-5`)
   })
 
   it('getImageUrl without thumb omits the thumb param', () => {
-    standesdbService.getImageUrl('member', 1, 'image-uuid-5')
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/members/1/images/image-uuid-5/url', {
-      params: undefined,
-    })
+    standesdbService.getImageUrl('member', MEMBER_ID, 'image-uuid-5')
+    expect(mockGet).toHaveBeenCalledWith(
+      `/standesdb/members/${MEMBER_ID}/images/image-uuid-5/url`,
+      {
+        params: undefined,
+      },
+    )
   })
 
   it('getImageUrl with thumb=true forwards the thumb param', () => {
-    standesdbService.getImageUrl('contact', 2, 'image-uuid-5', true)
-    expect(mockGet).toHaveBeenCalledWith('/standesdb/contacts/2/images/image-uuid-5/url', {
-      params: { thumb: true },
-    })
+    standesdbService.getImageUrl('contact', CONTACT_ID, 'image-uuid-5', true)
+    expect(mockGet).toHaveBeenCalledWith(
+      `/standesdb/contacts/${CONTACT_ID}/images/image-uuid-5/url`,
+      {
+        params: { thumb: true },
+      },
+    )
   })
 
   describe('identifiers in request paths', () => {

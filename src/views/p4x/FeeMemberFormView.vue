@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, toLocalDateStr } from '@/utils/formatters'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
@@ -32,7 +32,7 @@ onMounted(async () => {
     const resp = await p4xService.getFeeMember(memberId)
     memberName.value = resp.data.cn
     form.value = {
-      init_date: resp.data.p4x_init_date ? new Date(resp.data.p4x_init_date) : null,
+      init_date: resp.data.p4x_init_date ? new Date(`${resp.data.p4x_init_date}T00:00:00`) : null,
       init_balance: resp.data.p4x_init_balance ?? 0,
       freed: resp.data.p4x_freed ?? false,
       comment: resp.data.p4x_comment ?? '',
@@ -56,7 +56,7 @@ const save = async () => {
   saving.value = true
   try {
     const data = {
-      p4x_init_date: form.value.init_date ? form.value.init_date.toISOString().slice(0, 10) : '',
+      p4x_init_date: form.value.init_date ? toLocalDateStr(form.value.init_date) : '',
       p4x_init_balance: form.value.init_balance,
       p4x_freed: form.value.freed,
       p4x_comment: form.value.comment.trim() || null,

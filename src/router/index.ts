@@ -142,12 +142,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/members/:id',
+          path: `standesdb/members/:id(${UUID})`,
           name: 'standesdb-member-show',
           component: () => import('../views/standesdb/MemberShowView.vue'),
         },
         {
-          path: 'standesdb/members/:id/edit',
+          path: `standesdb/members/:id(${UUID})/edit`,
           name: 'standesdb-member-edit',
           component: () => import('../views/standesdb/MemberEditView.vue'),
           meta: {
@@ -227,7 +227,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-month/:year(\\d+)/:month(\\d+)',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-month/:year(20\\d{2}|2100)/:month(0?[1-9]|1[0-2])`,
           name: 'p4x-transactions-month',
           component: () => import('../views/p4x/TransactionsByMonthView.vue'),
           meta: {
@@ -235,7 +235,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-partner',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-partner`,
           name: 'p4x-transactions-partner',
           component: () => import('../views/p4x/TransactionsByPartnerView.vue'),
           meta: {
@@ -243,7 +243,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-category',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-category`,
           name: 'p4x-transactions-category',
           component: () => import('../views/p4x/TransactionsByCategoryView.vue'),
           meta: {
@@ -251,7 +251,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id?',
+          path: `p4x/fee-members/:id(${UUID})?`,
           name: 'p4x-fee-member',
           component: () => import('../views/p4x/FeeMemberView.vue'),
           meta: {
@@ -259,7 +259,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id/edit',
+          path: `p4x/fee-members/:id(${UUID})/edit`,
           name: 'p4x-fee-member-edit',
           component: () => import('../views/p4x/FeeMemberFormView.vue'),
           meta: {
@@ -293,7 +293,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:id/edit',
+          path: `p4x/admin/accounts/:id(${UUID})/edit`,
           name: 'p4x-account-edit',
           component: () => import('../views/p4x/AccountFormView.vue'),
           meta: {
@@ -301,7 +301,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId/import',
+          path: `p4x/admin/accounts/:accountId(${UUID})/import`,
           name: 'p4x-account-import',
           component: () => import('../views/p4x/ImportView.vue'),
           meta: {
@@ -309,7 +309,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId/transactions/by-filter',
+          path: `p4x/admin/accounts/:accountId(${UUID})/transactions/by-filter`,
           name: 'p4x-transactions-filter',
           component: () => import('../views/p4x/TransactionsByFilterView.vue'),
           meta: {
@@ -333,7 +333,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/categories/:id/edit',
+          path: `p4x/admin/categories/:id(${UUID})/edit`,
           name: 'p4x-category-edit',
           component: () => import('../views/p4x/CategoryFormView.vue'),
           meta: {
@@ -357,7 +357,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id/edit',
+          path: `p4x/admin/category-filters/:id(${UUID})/edit`,
           name: 'p4x-filter-edit',
           component: () => import('../views/p4x/CategoryFilterFormView.vue'),
           meta: {
@@ -365,7 +365,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id/filter2direct',
+          path: `p4x/admin/category-filters/:id(${UUID})/filter2direct`,
           name: 'p4x-filter2direct',
           component: () => import('../views/p4x/Filter2DirectView.vue'),
           meta: {

@@ -15,6 +15,11 @@ vi.mock('@/services/p4xService', () => ({
   default: { getDashboard: (...args: unknown[]) => mockGetDashboard(...args) },
 }))
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 const mockAuthStore: { user: { permissions: string[] } | null } = { user: { permissions: [] } }
 vi.mock('@/stores/auth', () => ({
   useAuthStore: vi.fn(() => mockAuthStore),
@@ -75,6 +80,22 @@ describe('DashboardView (p4x)', () => {
   it('renders the active accounts list with their balances once loaded', async () => {
     mockGetDashboard.mockResolvedValue({ data: buildDashboard() })
     const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Kasse Wien')
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank page when the initial load fails', async () => {
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeTruthy()
+
+    mockGetDashboard.mockResolvedValueOnce({ data: buildDashboard() })
+    await retryBtn!.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('Kasse Wien')
@@ -184,6 +205,27 @@ describe('DashboardView (p4x)', () => {
     expect(mockGetDashboard).toHaveBeenCalledTimes(2)
     const table = wrapper.findComponent({ name: 'TransactionTable' })
     expect(table.props('title')).toContain('ohne Partner (3)')
+    wrapper.unmount()
+  })
+
+  it('shows an error toast instead of silently doing nothing when reloading the warnings fails', async () => {
+    mockGetDashboard.mockResolvedValueOnce({
+      data: buildDashboard({ warnings_partner: { count: 1, preview: [] } }),
+    })
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    await wrapper.find('.warnings-section .pi-refresh').trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Warnungen konnten nicht neu geladen werden.',
+      }),
+    )
     wrapper.unmount()
   })
 

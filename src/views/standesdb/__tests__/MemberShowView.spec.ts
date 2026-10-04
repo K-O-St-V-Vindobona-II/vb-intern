@@ -126,12 +126,14 @@ const router = createRouter({
       component: { template: '<div />' },
     },
     { path: '/standesdb', name: 'standesdb-dashboard', component: { template: '<div />' } },
+    { path: '/not-found', name: 'not-found', component: { template: '<div />' } },
   ],
 })
 
 describe('MemberShowView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    mockGetMember.mockReset()
     mockGetMember.mockResolvedValue({ data: fullMemberData })
     mockGetMemberAuthActivity.mockClear()
   })
@@ -328,5 +330,33 @@ describe('MemberShowView', () => {
     } finally {
       mockAuthStore.user.permissions = original
     }
+  })
+
+  it('redirects to not-found on a 404', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 404 } })
+    await mountView()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('redirects to not-found on a 403', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 403 } })
+    await mountView()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('shows a retry state instead of a blank page on an unrelated load error', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
+    const w = await mountView()
+
+    expect(router.currentRoute.value.name).toBe('standesdb-member-show')
+    expect(w.text()).not.toContain('Max Muster')
+    const retryBtn = w.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeTruthy()
+
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('Max Muster v/o Testikus')
+    expect(mockGetMember).toHaveBeenCalledTimes(2)
   })
 })

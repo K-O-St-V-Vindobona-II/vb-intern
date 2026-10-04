@@ -240,6 +240,23 @@ describe('TransactionsByPartnerView', () => {
     wrapper.unmount()
   })
 
+  it('keeps colons of the partner name in the info card', async () => {
+    const wrapper = mount(TransactionsByPartnerView, mountOpts)
+    await flushPromises()
+
+    await selectPartner(wrapper, {
+      type: 'contact',
+      id: 'contact-uuid-1',
+      label: 'Kontakt: Firma: Zweigstelle',
+    })
+    await flushPromises()
+
+    const infoRow = wrapper.find('.info-row')
+    expect(infoRow.text()).toContain('Kontakt:')
+    expect(infoRow.text()).toContain('Firma: Zweigstelle')
+    wrapper.unmount()
+  })
+
   it('never shows the rows or the name of the previous partner when loading another partner fails', async () => {
     const wrapper = mount(TransactionsByPartnerView, mountOpts)
     await flushPromises()

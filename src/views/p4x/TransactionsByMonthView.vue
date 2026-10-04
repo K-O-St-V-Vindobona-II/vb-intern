@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
@@ -16,16 +16,28 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const accountId = String(route.params['accountId'])
-const categories = ref<P4xCategory[]>([])
-const selectedDate = ref(new Date(Number(route.params['year']), Number(route.params['month']) - 1))
+const accountId = computed(() => String(route.params['accountId']))
+const year = computed(() => Number(route.params['year']))
+const month = computed(() => Number(route.params['month']))
 
-const year = ref(Number(route.params['year']))
-const month = ref(Number(route.params['month']))
+const maxDate = new Date()
+const selectedDate = ref(new Date(year.value, month.value - 1))
+const categories = ref<P4xCategory[]>([])
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
-const selection = computed(() => ({ year: year.value, month: month.value }))
+const monthLabel = computed(() =>
+  new Date(year.value, month.value - 1).toLocaleDateString('de-AT', {
+    month: 'long',
+    year: 'numeric',
+  }),
+)
+
+const selection = computed(() => ({
+  accountId: accountId.value,
+  year: year.value,
+  month: month.value,
+}))
 
 const loadCategories = async () => {
   if (categories.value.length > 0) return
@@ -37,7 +49,7 @@ const { result, loadFailed, load, reload } = usePaginatedTransactions(
   selection,
   async (key, page) => {
     const [txResp] = await Promise.all([
-      p4xService.getTransactionsByMonth(accountId, key.year, key.month, page),
+      p4xService.getTransactionsByMonth(key.accountId, key.year, key.month, page),
       loadCategories(),
     ])
     return txResp
@@ -45,34 +57,27 @@ const { result, loadFailed, load, reload } = usePaginatedTransactions(
 )
 
 const onMonthChange = () => {
-  const d = selectedDate.value
-  year.value = d.getFullYear()
-  month.value = d.getMonth() + 1
   router.replace({
     name: 'p4x-transactions-month',
-    params: { accountId, year: year.value, month: month.value },
+    params: {
+      accountId: accountId.value,
+      year: selectedDate.value.getFullYear(),
+      month: selectedDate.value.getMonth() + 1,
+    },
   })
-  load()
 }
 
 const onPageChange = (page: number) => load(page)
 
-onMounted(() => load())
-
 watch(
-  () => route.params,
-  () => {
-    if (route.params['year'] && route.params['month']) {
-      year.value = Number(route.params['year'])
-      month.value = Number(route.params['month'])
-      selectedDate.value = new Date(year.value, month.value - 1)
-      load()
-    }
+  [accountId, year, month],
+  ([, newYear, newMonth]) => {
+    if (Number.isNaN(newYear) || Number.isNaN(newMonth)) return
+    selectedDate.value = new Date(newYear, newMonth - 1)
+    load()
   },
+  { immediate: true },
 )
-
-const monthLabel = (): string =>
-  selectedDate.value.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' })
 </script>
 
 <template>
@@ -89,8 +94,9 @@ const monthLabel = (): string =>
         v-model="selectedDate"
         view="month"
         date-format="MM yy"
+        aria-label="Monat wählen"
         :manual-input="false"
-        :max-date="new Date()"
+        :max-date="maxDate"
         @date-select="onMonthChange"
       />
     </div>
@@ -105,7 +111,7 @@ const monthLabel = (): string =>
         <div class="info-grid">
           <div class="info-row">
             <span>Monat:</span>
-            <span>{{ monthLabel() }}</span>
+            <span>{{ monthLabel }}</span>
           </div>
           <div class="info-row">
             <span>Kontostand zum Monatsersten:</span>
@@ -138,13 +144,6 @@ const monthLabel = (): string =>
 </template>
 
 <style scoped>
-.load-error {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
 .tx-month-view {
   max-width: 1100px;
   margin: 0 auto;
@@ -160,6 +159,13 @@ const monthLabel = (): string =>
 .center-block {
   display: flex;
   justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 .info-card {

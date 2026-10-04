@@ -114,7 +114,7 @@ const load = async () => {
   loading.value = true
   loadFailed.value = false
   try {
-    const [dashResp] = await Promise.all([p4xService.getDashboard()])
+    const dashResp = await p4xService.getDashboard()
     accounts.value = dashResp.data.accounts
     categories.value = dashResp.data.categories
 

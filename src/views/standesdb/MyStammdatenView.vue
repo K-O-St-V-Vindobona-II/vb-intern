@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { getApiErrorDetail, getApiErrorStatus, formatFullDate } from '@/utils/formatters'
+import {
+  getApiErrorDetail,
+  getApiErrorStatus,
+  formatFullDate,
+  trimmedOrNull,
+} from '@/utils/formatters'
 import type {
   MemberSelfServiceFormData,
   MemberSelfServiceDetail,
@@ -23,6 +28,42 @@ const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const pendingSince = ref<string | null>(null)
+
+// German labels for the field names the API reports in a validation error -
+// a self-service member should never see a raw column name like
+// "adresse_beruf_plz" in an error message.
+const FIELD_LABELS: Record<string, string> = {
+  vortitel: 'Vortitel',
+  vorname: 'Vorname',
+  nachname: 'Nachname',
+  nachname_geburt: 'Geburtsname',
+  nachtitel: 'Nachtitel',
+  couleurname: 'Couleurname',
+  email: 'E-Mail',
+  url: 'URI',
+  mkv_ogv_url: 'MKV/OGV-Link',
+  rufnummer_mobil: 'Rufnummer (mobil)',
+  rufnummer_privat: 'Rufnummer (privat)',
+  rufnummer_beruf: 'Rufnummer (beruflich)',
+  zustellungen: 'Zustellung',
+  adresse_privat_anschrift: 'Privatadresse (Anschrift)',
+  adresse_privat_plz: 'Privatadresse (PLZ)',
+  adresse_privat_ort: 'Privatadresse (Ort)',
+  adresse_privat_land: 'Privatadresse (Land)',
+  adresse_beruf_anschrift: 'Berufsadresse (Anschrift)',
+  adresse_beruf_plz: 'Berufsadresse (PLZ)',
+  adresse_beruf_ort: 'Berufsadresse (Ort)',
+  adresse_beruf_land: 'Berufsadresse (Land)',
+  arbeitgeber: 'Arbeitgeber',
+  taetigkeit: 'Tätigkeit',
+  mitgliedschaften: 'Weitere Mitgliedschaften',
+  verbandchargen: 'Verbandschargen',
+}
+
+const hasErrors = computed(() => Object.keys(errors.value).length > 0)
+const errorLines = computed(() =>
+  Object.entries(errors.value).map(([field, msg]) => `${FIELD_LABELS[field] ?? field}: ${msg}`),
+)
 
 const form = ref<MemberSelfServiceFormData>({
   vortitel: null,
@@ -112,12 +153,28 @@ const load = async () => {
 
 onMounted(load)
 
+// Every field but zustellungen (an enum, never blank) is optional free
+// text: a cleared input must reach the API as null, not "" (the API's
+// EmailStr rejects "" outright, and every other field would otherwise
+// store an empty string instead of "no value").
+const TEXT_FIELDS = (Object.keys(form.value) as (keyof MemberSelfServiceFormData)[]).filter(
+  (key) => key !== 'zustellungen',
+)
+
+const buildPayload = (): MemberSelfServiceFormData => {
+  const payload = { ...form.value }
+  TEXT_FIELDS.forEach((key) => {
+    ;(payload[key] as string | null) = trimmedOrNull(payload[key] as string | null)
+  })
+  return payload
+}
+
 const submit = async () => {
   saving.value = true
   errors.value = {}
 
   try {
-    const resp = await standesdbService.submitMyChangeRequest(form.value)
+    const resp = await standesdbService.submitMyChangeRequest(buildPayload())
     if (resp.data.status === 'no_changes') {
       toast.add({
         severity: 'info',
@@ -181,42 +238,49 @@ const submit = async () => {
         <div class="col">
           <div class="field-pair">
             <div class="field">
-              <label>Vortitel</label>
-              <InputText v-model="form.vortitel" class="w-full" />
+              <label for="stammdaten-vortitel">Vortitel</label>
+              <InputText id="stammdaten-vortitel" v-model="form.vortitel" class="w-full" />
             </div>
             <div class="field">
-              <label>Vorname</label>
-              <InputText v-model="form.vorname" class="w-full" />
-            </div>
-          </div>
-
-          <div class="field-pair">
-            <div class="field">
-              <label>Nachname</label>
-              <InputText v-model="form.nachname" class="w-full" />
-              <small v-if="errors['nachname']" class="p-error">{{ errors['nachname'] }}</small>
-            </div>
-            <div class="field">
-              <label>Nachtitel</label>
-              <InputText v-model="form.nachtitel" class="w-full" />
+              <label for="stammdaten-vorname">Vorname</label>
+              <InputText id="stammdaten-vorname" v-model="form.vorname" class="w-full" />
             </div>
           </div>
 
           <div class="field-pair">
             <div class="field">
-              <label>Couleurname</label>
-              <InputText v-model="form.couleurname" class="w-full" />
+              <label for="stammdaten-nachname">Nachname</label>
+              <InputText id="stammdaten-nachname" v-model="form.nachname" class="w-full" />
+              <Message v-if="errors['nachname']" severity="error" size="small" variant="simple">
+                {{ errors['nachname'] }}
+              </Message>
             </div>
             <div class="field">
-              <label>Geburtsname</label>
-              <InputText v-model="form.nachname_geburt" class="w-full" />
+              <label for="stammdaten-nachtitel">Nachtitel</label>
+              <InputText id="stammdaten-nachtitel" v-model="form.nachtitel" class="w-full" />
+            </div>
+          </div>
+
+          <div class="field-pair">
+            <div class="field">
+              <label for="stammdaten-couleurname">Couleurname</label>
+              <InputText id="stammdaten-couleurname" v-model="form.couleurname" class="w-full" />
+            </div>
+            <div class="field">
+              <label for="stammdaten-nachname-geburt">Geburtsname</label>
+              <InputText
+                id="stammdaten-nachname-geburt"
+                v-model="form.nachname_geburt"
+                class="w-full"
+              />
             </div>
           </div>
 
           <div class="field">
-            <label>Zustellung</label>
+            <label for="stammdaten-zustellungen">Zustellung</label>
             <Select
               v-model="form.zustellungen"
+              input-id="stammdaten-zustellungen"
               :options="zustellungOptions"
               option-label="label"
               option-value="value"
@@ -226,107 +290,156 @@ const submit = async () => {
 
           <label class="section-label">Privatadresse</label>
           <div class="field">
-            <label>Anschrift</label>
-            <InputText v-model="form.adresse_privat_anschrift" class="w-full" />
+            <label for="stammdaten-adresse-privat-anschrift">Anschrift</label>
+            <InputText
+              id="stammdaten-adresse-privat-anschrift"
+              v-model="form.adresse_privat_anschrift"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>PLZ</label>
-            <InputText v-model="form.adresse_privat_plz" class="w-full" />
+            <label for="stammdaten-adresse-privat-plz">PLZ</label>
+            <InputText
+              id="stammdaten-adresse-privat-plz"
+              v-model="form.adresse_privat_plz"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Ort</label>
-            <InputText v-model="form.adresse_privat_ort" class="w-full" />
+            <label for="stammdaten-adresse-privat-ort">Ort</label>
+            <InputText
+              id="stammdaten-adresse-privat-ort"
+              v-model="form.adresse_privat_ort"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Land</label>
-            <InputText v-model="form.adresse_privat_land" class="w-full" />
+            <label for="stammdaten-adresse-privat-land">Land</label>
+            <InputText
+              id="stammdaten-adresse-privat-land"
+              v-model="form.adresse_privat_land"
+              class="w-full"
+            />
           </div>
 
           <label class="section-label">Berufsadresse</label>
           <div class="field">
-            <label>Anschrift</label>
-            <InputText v-model="form.adresse_beruf_anschrift" class="w-full" />
+            <label for="stammdaten-adresse-beruf-anschrift">Anschrift</label>
+            <InputText
+              id="stammdaten-adresse-beruf-anschrift"
+              v-model="form.adresse_beruf_anschrift"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>PLZ</label>
-            <InputText v-model="form.adresse_beruf_plz" class="w-full" />
+            <label for="stammdaten-adresse-beruf-plz">PLZ</label>
+            <InputText
+              id="stammdaten-adresse-beruf-plz"
+              v-model="form.adresse_beruf_plz"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Ort</label>
-            <InputText v-model="form.adresse_beruf_ort" class="w-full" />
+            <label for="stammdaten-adresse-beruf-ort">Ort</label>
+            <InputText
+              id="stammdaten-adresse-beruf-ort"
+              v-model="form.adresse_beruf_ort"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Land</label>
-            <InputText v-model="form.adresse_beruf_land" class="w-full" />
+            <label for="stammdaten-adresse-beruf-land">Land</label>
+            <InputText
+              id="stammdaten-adresse-beruf-land"
+              v-model="form.adresse_beruf_land"
+              class="w-full"
+            />
           </div>
         </div>
 
         <div class="col">
           <div class="field">
-            <label>E-Mail</label>
-            <InputText v-model="form.email" type="email" class="w-full" />
-            <small v-if="errors['email']" class="p-error">{{ errors['email'] }}</small>
+            <label for="stammdaten-email">E-Mail</label>
+            <InputText id="stammdaten-email" v-model="form.email" type="email" class="w-full" />
+            <Message v-if="errors['email']" severity="error" size="small" variant="simple">
+              {{ errors['email'] }}
+            </Message>
           </div>
 
           <div class="field">
-            <label>URI</label>
-            <InputText v-model="form.url" class="w-full" />
+            <label for="stammdaten-url">URI</label>
+            <InputText id="stammdaten-url" v-model="form.url" class="w-full" />
           </div>
 
           <div v-if="authStore.user?.org_id === 'vbw'" class="field">
-            <label>MKV/OGV-Link</label>
-            <InputText v-model="form.mkv_ogv_url" class="w-full" />
+            <label for="stammdaten-mkv-ogv-url">MKV/OGV-Link</label>
+            <InputText id="stammdaten-mkv-ogv-url" v-model="form.mkv_ogv_url" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Rufnummer (mobil)</label>
-            <InputText v-model="form.rufnummer_mobil" class="w-full" />
+            <label for="stammdaten-rufnummer-mobil">Rufnummer (mobil)</label>
+            <InputText
+              id="stammdaten-rufnummer-mobil"
+              v-model="form.rufnummer_mobil"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Rufnummer (privat)</label>
-            <InputText v-model="form.rufnummer_privat" class="w-full" />
+            <label for="stammdaten-rufnummer-privat">Rufnummer (privat)</label>
+            <InputText
+              id="stammdaten-rufnummer-privat"
+              v-model="form.rufnummer_privat"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Rufnummer (beruflich)</label>
-            <InputText v-model="form.rufnummer_beruf" class="w-full" />
+            <label for="stammdaten-rufnummer-beruf">Rufnummer (beruflich)</label>
+            <InputText
+              id="stammdaten-rufnummer-beruf"
+              v-model="form.rufnummer_beruf"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Arbeitgeber</label>
-            <InputText v-model="form.arbeitgeber" class="w-full" />
+            <label for="stammdaten-arbeitgeber">Arbeitgeber</label>
+            <InputText id="stammdaten-arbeitgeber" v-model="form.arbeitgeber" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Tätigkeit</label>
-            <InputText v-model="form.taetigkeit" class="w-full" />
+            <label for="stammdaten-taetigkeit">Tätigkeit</label>
+            <InputText id="stammdaten-taetigkeit" v-model="form.taetigkeit" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Weitere Mitgliedschaften</label>
-            <Textarea v-model="form.mitgliedschaften" rows="2" class="w-full" />
+            <label for="stammdaten-mitgliedschaften">Weitere Mitgliedschaften</label>
+            <Textarea
+              id="stammdaten-mitgliedschaften"
+              v-model="form.mitgliedschaften"
+              rows="2"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Verbandschargen</label>
-            <Textarea v-model="form.verbandchargen" rows="2" class="w-full" />
+            <label for="stammdaten-verbandchargen">Verbandschargen</label>
+            <Textarea
+              id="stammdaten-verbandchargen"
+              v-model="form.verbandchargen"
+              rows="2"
+              class="w-full"
+            />
           </div>
         </div>
       </div>
 
-      <Message
-        v-if="Object.keys(errors).length"
-        severity="error"
-        :closable="false"
-        style="margin-top: 1rem"
-      >
+      <Message v-if="hasErrors" severity="error" :closable="false" style="margin-top: 1rem">
         <div>
           <strong>Validierungsfehler:</strong>
           <ul style="margin: 0.25rem 0 0; padding-left: 1.25rem">
-            <li v-for="(msg, field) in errors" :key="field">
-              <strong>{{ field }}:</strong> {{ msg }}
-            </li>
+            <li v-for="line in errorLines" :key="line">{{ line }}</li>
           </ul>
         </div>
       </Message>
@@ -335,7 +448,7 @@ const submit = async () => {
         <Button
           label="Antrag einreichen"
           icon="pi pi-check"
-          severity="danger"
+          severity="primary"
           size="small"
           :loading="saving"
           @click="submit"

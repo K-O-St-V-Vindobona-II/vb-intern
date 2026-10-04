@@ -248,4 +248,32 @@ describe('CategoryFormView', () => {
     expect(mockCreateCategory).not.toHaveBeenCalled()
     wrapper.unmount()
   })
+
+  it('shows a retry state instead of a blank editable form when loading fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetCategories.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(CategoryFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('input').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')!
+
+    mockGetCategories.mockResolvedValueOnce({ data: [buildCategory()] })
+    await retryBtn.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Kategorie bearbeiten')
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when the category is not found', async () => {
+    mockRoute.params = { id: 'missing' }
+    mockGetCategories.mockResolvedValue({ data: [] })
+    const wrapper = mount(CategoryFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Kategorie bearbeiten')
+    expect(wrapper.find('input').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

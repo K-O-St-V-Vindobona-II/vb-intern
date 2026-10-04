@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import type { FeeBalanceEntry } from '@/types/p4x'
@@ -11,15 +10,10 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 
-const router = useRouter()
 const toast = useToast()
 
 const loading = ref(true)
 const balances = ref<FeeBalanceEntry[]>([])
-
-const goToMember = (id: string) => {
-  router.push({ name: 'p4x-fee-member', params: { id } })
-}
 
 onMounted(async () => {
   try {
@@ -58,7 +52,12 @@ onMounted(async () => {
     >
       <Column field="cn" header="Name" sortable>
         <template #body="{ data }">
-          <a class="member-link" @click.prevent="goToMember(data.id)">{{ data.cn }}</a>
+          <router-link
+            :to="{ name: 'p4x-fee-member', params: { id: data.id } }"
+            class="member-link"
+          >
+            {{ data.cn }}
+          </router-link>
           <Tag v-if="data.p4x_freed" value="Befreit" severity="info" class="freed-tag" />
         </template>
       </Column>

@@ -129,10 +129,10 @@ onMounted(async () => {
       </div>
 
       <div v-if="showOverview && account.balance?.progress?.length" class="progress-section">
-        <div class="progress-toggle" @click="showProgress = !showProgress">
+        <button type="button" class="progress-toggle" @click="showProgress = !showProgress">
           <i :class="showProgress ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
           Verlauf
-        </div>
+        </button>
         <div v-if="showProgress" class="progress-list">
           <table class="progress-table">
             <thead>
@@ -206,6 +206,12 @@ onMounted(async () => {
   text-align: left;
 }
 .progress-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   cursor: pointer;
   font-weight: 500;
   display: flex;

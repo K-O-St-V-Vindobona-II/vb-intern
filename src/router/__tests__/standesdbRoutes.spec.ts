@@ -10,6 +10,8 @@ describe('standesdb routes with an id in the API path', () => {
     ['standesdb-contact-edit', `/standesdb/contacts/${ID}/edit`],
     ['standesdb-contact-images', `/standesdb/contacts/${ID}/images`],
     ['standesdb-member-images', `/standesdb/members/${ID}/images`],
+    ['standesdb-member-show', `/standesdb/members/${ID}`],
+    ['standesdb-member-edit', `/standesdb/members/${ID}/edit`],
   ])('resolves %s for a UUID', (name, path) => {
     const resolved = router.resolve(path)
 
@@ -30,6 +32,9 @@ describe('standesdb routes with an id in the API path', () => {
     ['/standesdb/contacts/..%2F..%2Fauth%2Fsessions/edit', 'an encoded path traversal'],
     ['/standesdb/contacts/%2e%2e/images', 'an encoded dot segment'],
     ['/standesdb/members/..%2F..%2Fauth%2Fsessions/images', 'an encoded path traversal'],
+    ['/standesdb/members/..%2F..%2Fauth%2Fsessions', 'an encoded path traversal'],
+    ['/standesdb/members/..%2F..%2Fauth%2Fsessions/edit', 'an encoded path traversal'],
+    ['/standesdb/members/1', 'a number'],
     ['/standesdb/contacts/42', 'a number'],
     [`/standesdb/change-requests/${ID}%2Fdecide`, 'a UUID with a suffix'],
   ])('does not resolve %s (%s)', (path) => {

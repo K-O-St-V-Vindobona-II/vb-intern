@@ -125,6 +125,17 @@ describe('FeeMemberView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast instead of silently doing nothing when loading from the route id fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    expect(wrapper.find('.member-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('shows balance counts and sums when a balance is present', async () => {
     mockRoute.params = { id: '1' }
     mockGetFeeMember.mockResolvedValue({ data: buildMember() })
@@ -183,6 +194,19 @@ describe('FeeMemberView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast instead of silently doing nothing when loading a selected member fails', async () => {
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    mockGetFeeMember.mockRejectedValue(new Error('boom'))
+
+    const search = wrapper.findComponent({ name: 'SearchField' })
+    await search.vm.$emit('select', { id: '5', label: 'Erika Beispiel', type: 'member' })
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    wrapper.unmount()
+  })
+
   it('forwards the query to searchFeeMembers via the search-fn prop', async () => {
     mockSearchFeeMembers.mockResolvedValue({
       data: { data: [{ id: 1, label: 'Max', type: 'member' }] },
@@ -212,6 +236,16 @@ describe('FeeMemberView', () => {
 
     await wrapper.find('.progress-toggle').trigger('click')
     expect(wrapper.find('.progress-list').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('offers the progress toggle as a button', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.progress-toggle').element.tagName).toBe('BUTTON')
     wrapper.unmount()
   })
 

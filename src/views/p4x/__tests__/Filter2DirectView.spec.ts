@@ -100,6 +100,7 @@ describe('Filter2DirectView', () => {
     await flushPromises()
 
     expect(wrapper.find('.warning-box').exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'Message' }).props('severity')).toBe('warn')
     expect(wrapper.text()).toContain('2 offene Warnungen')
     expect(
       Array.from(document.querySelectorAll('button')).some((b) =>

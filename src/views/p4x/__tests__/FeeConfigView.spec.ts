@@ -51,7 +51,7 @@ describe('FeeConfigView', () => {
     wrapper.unmount()
   })
 
-  it('shows a disabled trash icon for protected entries and a clickable one otherwise', async () => {
+  it('shows a disabled trash icon for protected entries and a delete button otherwise', async () => {
     mockGetFeeConfig.mockResolvedValue({
       data: [buildFee({ protected: true }), buildFee({ start: '2026-02-01' })],
     })
@@ -59,7 +59,7 @@ describe('FeeConfigView', () => {
     await flushPromises()
 
     expect(wrapper.find('.disabled-icon').exists()).toBe(true)
-    expect(wrapper.find('.clickable').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="löschen"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -68,7 +68,19 @@ describe('FeeConfigView', () => {
     const wrapper = mount(FeeConfigView, mountOpts)
     await flushPromises()
 
-    await wrapper.find('.clickable').trigger('click')
+    await wrapper.find('[aria-label="löschen"]').trigger('click')
+
+    expect(mockConfirmRequire).toHaveBeenCalledOnce()
+    expect(mockDeleteFee).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('asks for confirmation before deleting, and does not delete without accepting it', async () => {
+    mockGetFeeConfig.mockResolvedValue({ data: [buildFee()] })
+    const wrapper = mount(FeeConfigView, mountOpts)
+    await flushPromises()
+
+    await wrapper.find('[aria-label="löschen"]').trigger('click')
 
     expect(mockConfirmRequire).toHaveBeenCalledOnce()
     expect(mockConfirmRequire.mock.calls[0]![0].message).toContain('Jänner 2026')
@@ -83,7 +95,7 @@ describe('FeeConfigView', () => {
     const wrapper = mount(FeeConfigView, mountOpts)
     await flushPromises()
 
-    await wrapper.find('.clickable').trigger('click')
+    await wrapper.find('[aria-label="löschen"]').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
@@ -101,7 +113,7 @@ describe('FeeConfigView', () => {
     const wrapper = mount(FeeConfigView, mountOpts)
     await flushPromises()
 
-    await wrapper.find('.clickable').trigger('click')
+    await wrapper.find('[aria-label="löschen"]').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
