@@ -242,4 +242,43 @@ describe('PartnerEditor', () => {
     expect(document.querySelector('.p-dialog')).not.toBeNull()
     wrapper.unmount()
   })
+
+  it('closes the dialog after a successful save', async () => {
+    const wrapper = await openWith(
+      buildTransaction({ partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' } }),
+    )
+
+    await clickSave()
+
+    expect(document.querySelector('.p-dialog')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('closes the dialog on "Schließen" without saving', async () => {
+    const wrapper = await openWith(
+      buildTransaction({ partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' } }),
+    )
+
+    Array.from(document.querySelectorAll('button'))
+      .find((b) => b.textContent === 'Schließen')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(document.querySelector('.p-dialog')).toBeNull()
+    expect(mockSetTransactionPartner).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('sends no partner and no delegating partner for a booking without any', async () => {
+    const wrapper = await openWith(buildTransaction())
+
+    await clickSave()
+
+    expect(mockSetTransactionPartner).toHaveBeenCalledWith('transaction-uuid-1', {
+      partner: null,
+      hasDelegatingPartner: false,
+      delegatingPartner: null,
+    })
+    wrapper.unmount()
+  })
 })

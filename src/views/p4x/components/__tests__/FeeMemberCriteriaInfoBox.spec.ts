@@ -41,4 +41,19 @@ describe('FeeMemberCriteriaInfoBox', () => {
 
     expect(toggle.attributes('aria-expanded')).toBe('true')
   })
+
+  it('states the full criterion for a fee-liable member and what the balance list adds', async () => {
+    const wrapper = mount(FeeMemberCriteriaInfoBox)
+    await wrapper.find('.criteria-info-toggle').trigger('click')
+
+    const paragraphs = wrapper.findAll('.criteria-info-content p').map((p) => p.text())
+    expect(paragraphs).toHaveLength(2)
+    expect(paragraphs[0]).toBe(
+      'Als beitragspflichtig gilt, wer bei der K.Ö.St.V. Vindobona II als Urphilister geführt wird, nicht entlassen und nicht verstorben ist.',
+    )
+    expect(paragraphs[1]).toContain(
+      'Die Saldenliste zeigt zusätzlich nur jene beitragspflichtigen Mitglieder',
+    )
+    expect(paragraphs[1]).toContain('(Initialdatum)')
+  })
 })

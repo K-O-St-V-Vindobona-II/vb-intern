@@ -49,4 +49,13 @@ describe('FormAmount', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([0])
     wrapper.unmount()
   })
+
+  it('shows the amount with two decimals and the Austrian separators', () => {
+    const wrapper = mount(FormAmount, {
+      props: { modelValue: 1234.5 },
+      global: { plugins: [PrimeVue] },
+    })
+
+    expect(wrapper.find('input').element.value.replace(/\s/g, ' ')).toBe('€ 1.234,50')
+  })
 })

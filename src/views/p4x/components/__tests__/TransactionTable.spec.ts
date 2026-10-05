@@ -93,6 +93,7 @@ const stubs = {
   },
   TransactionEditor: {
     name: 'TransactionEditor',
+    props: ['transaction'],
     emits: ['changed'],
     template: '<div />',
     methods: { open: vi.fn() },
@@ -559,5 +560,104 @@ describe('TransactionTable', () => {
       ]),
     )
     wrapper.unmount()
+  })
+
+  describe('what a row shows', () => {
+    const fullTransaction = () =>
+      buildTransaction({
+        id: 'transaction-uuid-8',
+        booking: '2026-06-01',
+        valuation: '2026-06-02',
+        iban: 'AT611904300234573201',
+        amount: 42.5,
+        subject: 'Mitgliedsbeitrag Juni',
+        p4x_account_cn: 'Kasse Wien',
+        p4x_account_iban: 'AT483200000012345864',
+        partner: { type: 'member', id: 'member-uuid-5', cn: 'Max Mustermann' },
+        delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma GmbH' },
+      })
+
+    it('shows booking date, partner with delegating partner and amount in the row', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      const cells = wrapper
+        .findAll('tbody tr:first-child td')
+        .map((c) => c.text().replace(/\s+/g, ' '))
+      expect(cells.join(' | ')).toContain('1. Juni 2026')
+      expect(wrapper.find('.delegating').text()).toContain('Firma GmbH')
+      expect(cells.at(-1)).toContain('42,50')
+      wrapper.unmount()
+    })
+
+    it('shows account, IBAN, subject and value date in the expanded row, each in its own field', async () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+      await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+
+      const items = Object.fromEntries(
+        wrapper.findAll('.detail-item').map((item) => {
+          const [label, ...value] = item.text().split(':')
+          return [label, value.join(':').trim()]
+        }),
+      )
+      expect(items['Konto']).toBe('Kasse Wien (AT483200000012345864)')
+      expect(items['IBAN']).toBe('AT611904300234573201')
+      expect(items['Betreff']).toBe('Mitgliedsbeitrag Juni')
+      expect(items['Wertstellung']).toBe('2. Juni 2026')
+      wrapper.unmount()
+    })
+
+    it('makes the booking date sortable', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      const header = wrapper.findAll('th').find((th) => th.text().includes('Buchungsdatum'))
+      expect(header?.classes()).toContain('p-datatable-sortable-column')
+      wrapper.unmount()
+    })
+
+    it('shows the total number of transactions, not the page size', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories, total: 25, perPage: 10, page: 1 },
+        ...mountOpts,
+      })
+
+      expect(wrapper.find('.tx-count').text()).toBe('25 Transaktionen gefunden')
+      wrapper.unmount()
+    })
+
+    it('hands the row to the editors it opens', async () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories, admin: true },
+        ...mountOpts,
+      })
+      await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+      await wrapper.find('.admin-action').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'TransactionEditor' }).props('transaction')).toEqual(
+        fullTransaction(),
+      )
+      wrapper.unmount()
+    })
+
+    it('shows the booking date as that day in a browser west of UTC (regression)', () => {
+      vi.stubEnv('TZ', 'America/Los_Angeles')
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      expect(wrapper.find('tbody tr').text()).toContain('1. Juni 2026')
+      vi.unstubAllEnvs()
+      wrapper.unmount()
+    })
   })
 })

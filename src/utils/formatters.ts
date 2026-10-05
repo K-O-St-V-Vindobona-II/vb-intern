@@ -22,14 +22,23 @@ export function formatEuro(amount: number): string {
   return euroFormatter.format(amount)
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+// A bare "YYYY-MM-DD" names a calendar day, not an instant: new Date() reads it as UTC midnight,
+// which the browser then shows as the day before in every timezone west of UTC. It is read as
+// local midnight instead; strings with a time and an offset stay instants.
+function parseDateValue(dt: string): Date {
+  return new Date(DATE_ONLY.test(dt) ? `${dt}T00:00:00` : dt)
+}
+
 export function formatDate(dt: string | null): string {
   if (!dt) return ''
-  return new Date(dt).toLocaleDateString('de-AT')
+  return parseDateValue(dt).toLocaleDateString('de-AT')
 }
 
 export function formatDateTime(dt: string | null): string {
   if (!dt) return ''
-  return new Date(dt).toLocaleDateString('de-AT', {
+  return parseDateValue(dt).toLocaleDateString('de-AT', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -43,7 +52,7 @@ export function formatDateTime(dt: string | null): string {
 // pads). Used by the p4x views for account/transaction/import dates.
 export function formatDateLong(dt: string | null, fallback = '-'): string {
   if (!dt) return fallback
-  return new Date(dt).toLocaleDateString('de-AT', {
+  return parseDateValue(dt).toLocaleDateString('de-AT', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import api from '@/services/api'
+import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 interface PaymentInfo {
   title: string
@@ -13,35 +15,59 @@ interface PaymentInfo {
 
 const toast = useToast()
 const loading = ref(true)
+const loadFailed = ref(false)
 const entries = ref<PaymentInfo[]>([])
 
 const copyToClipboard = async (text: string) => {
-  await navigator.clipboard.writeText(text)
-  toast.add({
-    severity: 'success',
-    summary: 'Kopiert',
-    detail: text,
-    life: 2000,
-  })
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.add({
+      severity: 'success',
+      summary: 'Kopiert',
+      detail: text,
+      life: 2000,
+    })
+  } catch {
+    toast.add({
+      severity: 'error',
+      summary: 'Kopieren nicht möglich',
+      detail: 'Bitte den Wert markieren und von Hand kopieren.',
+      life: 4000,
+    })
+  }
 }
 
-onMounted(async () => {
+const load = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await api.get<PaymentInfo[]>('/information/payment')
     entries.value = resp.data
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <div v-if="!loading" class="payment-page">
+  <div v-if="loadFailed" class="payment-page">
+    <h2>Information</h2>
+    <Message severity="error" :closable="false"
+      >Die Zahlungsinformation konnte nicht geladen werden.</Message
+    >
+    <Button label="Erneut versuchen" icon="pi pi-refresh" @click="load" />
+  </div>
+
+  <div v-else-if="!loading" class="payment-page">
     <h2>Information</h2>
     <p class="payment-subtitle">Zahlungsinformation</p>
 
     <div class="cards-grid">
-      <div v-for="(info, i) in entries" :key="i" class="payment-card">
+      <div v-for="info in entries" :key="info.iban" class="payment-card">
         <div class="card-accent" />
         <h3 class="card-title">
           {{ info.title }}
@@ -55,9 +81,14 @@ onMounted(async () => {
             <span class="detail-label">IBAN</span>
             <span class="detail-value detail-mono">
               {{ info.iban }}
-              <i
+              <Button
                 v-tooltip="'Kopieren'"
-                class="pi pi-copy copy-btn"
+                class="copy-btn"
+                icon="pi pi-copy"
+                text
+                rounded
+                size="small"
+                aria-label="IBAN kopieren"
                 @click="copyToClipboard(info.iban)"
               />
             </span>
@@ -66,9 +97,14 @@ onMounted(async () => {
             <span class="detail-label">BIC</span>
             <span class="detail-value detail-mono">
               {{ info.bic }}
-              <i
+              <Button
                 v-tooltip="'Kopieren'"
-                class="pi pi-copy copy-btn"
+                class="copy-btn"
+                icon="pi pi-copy"
+                text
+                rounded
+                size="small"
+                aria-label="BIC kopieren"
                 @click="copyToClipboard(info.bic)"
               />
             </span>
@@ -168,15 +204,12 @@ onMounted(async () => {
   gap: 0.4rem;
 }
 .copy-btn {
-  font-size: 0.8rem;
-  color: var(--p-text-muted-color);
-  cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.7;
   transition: opacity 0.15s;
 }
-.copy-btn:hover {
+.copy-btn:hover,
+.copy-btn:focus-visible {
   opacity: 1;
-  color: var(--p-primary-600);
 }
 .card-fee {
   display: flex;

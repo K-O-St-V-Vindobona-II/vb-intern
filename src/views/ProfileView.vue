@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -17,6 +17,7 @@ const toast = useToast()
 const unlinkLoading = ref(false)
 const chronicleLoading = ref(false)
 const backendEnvironment = ref<string | null>(null)
+const frontendEnvironment = computed(() => appEnvironment())
 
 onMounted(async () => {
   try {
@@ -76,7 +77,6 @@ const toggleChronicle = async () => {
   <div v-if="authStore.user" class="profile-wrapper">
     <h1 class="page-title">Mein Profil</h1>
 
-    <!-- Stammdaten -->
     <Card class="profile-card">
       <template #title>
         <i class="pi pi-user card-icon" />
@@ -108,7 +108,6 @@ const toggleChronicle = async () => {
       </template>
     </Card>
 
-    <!-- Chronik-Emails -->
     <Card class="profile-card">
       <template #title>
         <i class="pi pi-envelope card-icon" />
@@ -138,7 +137,6 @@ const toggleChronicle = async () => {
       </template>
     </Card>
 
-    <!-- Google Login -->
     <Card class="profile-card">
       <template #title>
         <i class="pi pi-google card-icon" />
@@ -170,7 +168,6 @@ const toggleChronicle = async () => {
       </template>
     </Card>
 
-    <!-- Berechtigungen -->
     <Card class="profile-card">
       <template #title>
         <i class="pi pi-shield card-icon" />
@@ -188,7 +185,7 @@ const toggleChronicle = async () => {
     </Card>
 
     <p v-if="backendEnvironment" class="env-footer">Backend: {{ backendEnvironment }}</p>
-    <p v-if="appEnvironment()" class="env-footer">Frontend: {{ appEnvironment() }}</p>
+    <p v-if="frontendEnvironment" class="env-footer">Frontend: {{ frontendEnvironment }}</p>
   </div>
 </template>
 

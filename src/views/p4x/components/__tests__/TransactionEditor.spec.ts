@@ -278,4 +278,22 @@ describe('TransactionEditor', () => {
     expect(buttonByText('Löschen rückgängig')).toBeUndefined()
     wrapper.unmount()
   })
+
+  it('sends no file field when no file was chosen', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: false }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    Array.from(document.querySelectorAll('button'))
+      .find((b) => b.textContent === 'Speichern')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    const [, formData] = mockUpdateTransaction.mock.calls[0]!
+    expect((formData as FormData).has('file')).toBe(false)
+    wrapper.unmount()
+  })
 })

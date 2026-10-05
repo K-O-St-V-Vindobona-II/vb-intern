@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   formatEuro,
   formatDate,
@@ -44,7 +44,7 @@ describe('formatDate', () => {
   })
 
   it('formats a date string in de-AT locale', () => {
-    expect(formatDate('2026-06-30')).toBe(new Date('2026-06-30').toLocaleDateString('de-AT'))
+    expect(formatDate('2026-06-30')).toBe('30.6.2026')
   })
 })
 
@@ -77,13 +77,7 @@ describe('formatDateLong', () => {
   })
 
   it('spells the month out with a non-padded day', () => {
-    expect(formatDateLong('2026-03-05')).toBe(
-      new Date('2026-03-05').toLocaleDateString('de-AT', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }),
-    )
+    expect(formatDateLong('2026-03-05')).toBe('5. März 2026')
   })
 })
 
@@ -299,5 +293,28 @@ describe('formatEuro', () => {
 
   it('puts the minus sign of a negative amount in front', () => {
     expect(formatEuro(-3.2).startsWith('-')).toBe(true)
+  })
+})
+
+describe('a calendar day is shown as that day in every timezone', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it.each(['UTC', 'Europe/Vienna', 'America/Los_Angeles', 'Pacific/Kiritimati'])(
+    'formatDate, formatDateTime and formatDateLong show 1 June 2026 for "2026-06-01" in %s',
+    (timezone) => {
+      vi.stubEnv('TZ', timezone)
+
+      expect(formatDate('2026-06-01')).toBe('1.6.2026')
+      expect(formatDateLong('2026-06-01')).toBe('1. Juni 2026')
+      expect(formatDateTime('2026-06-01')).toBe('01.06.2026, 00:00')
+    },
+  )
+
+  it('keeps a string with a time and an offset an instant', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+
+    expect(formatDateTime('2026-06-01T00:30:00Z')).toBe('31.05.2026, 17:30')
   })
 })

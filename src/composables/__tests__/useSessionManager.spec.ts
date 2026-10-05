@@ -65,13 +65,15 @@ describe('useSessionManager', () => {
     vi.useRealTimers()
   })
 
-  it('parses login time from JWT iat claim', () => {
+  it('parses login time from JWT iat claim and shows it in the browser timezone', () => {
+    vi.stubEnv('TZ', 'Europe/Vienna')
     const iat = Math.floor(new Date('2026-06-25T10:00:00Z').getTime() / 1000)
     mockAuthStore.token = makeJwt({ iat, exp: iat + 3600, sub: 'test' })
 
     const { result } = mountComposable()
 
-    expect(result.loginTime.value).toContain('25.06.2026')
+    expect(result.loginTime.value).toBe('25.06.2026, 12:00')
+    vi.unstubAllEnvs()
   })
 
   it('attempts refresh when token expires instead of logging out', async () => {

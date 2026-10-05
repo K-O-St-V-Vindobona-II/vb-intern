@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const tiles = [
@@ -45,12 +43,7 @@ const tiles = [
     </p>
 
     <div class="tiles-grid">
-      <div
-        v-for="tile in tiles"
-        :key="tile.route"
-        class="tile"
-        @click="router.push({ name: tile.route })"
-      >
+      <router-link v-for="tile in tiles" :key="tile.route" :to="{ name: tile.route }" class="tile">
         <div class="tile-icon-area" :style="{ background: tile.gradient }">
           <i :class="tile.icon" />
         </div>
@@ -62,7 +55,7 @@ const tiles = [
             {{ tile.description }}
           </p>
         </div>
-      </div>
+      </router-link>
     </div>
   </div>
 </template>
@@ -108,7 +101,8 @@ const tiles = [
   background: var(--app-surface-card);
   border: 1px solid var(--app-border-card);
   border-radius: 12px;
-  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
