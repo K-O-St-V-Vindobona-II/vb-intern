@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import type { InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 
 const { mockPush, mockCurrentRoute } = vi.hoisted(() => ({
   mockPush: vi.fn().mockResolvedValue(undefined),
@@ -240,5 +240,58 @@ describe('api (axios interceptors)', () => {
     expect(resA.data).toEqual({ url: '/protected/a' })
     expect(resB.data).toEqual({ url: '/protected/b' })
     expect(authStore.token).toBe('new-token')
+  })
+
+  it('does not try a second refresh when the retried request is rejected with a 401 again', async () => {
+    const authStore = useAuthStore()
+    authStore.setToken('expired-token')
+    let refreshCalls = 0
+
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/refresh') {
+        refreshCalls++
+        // Cap the refreshes so a missing retry guard fails the assertion below
+        // instead of looping until the worker runs out of memory.
+        if (refreshCalls > 3) throw makeError(config, 500, { detail: 'refresh loop' })
+        return makeResponse(config, { access_token: 'new-token' })
+      }
+      throw makeError(config, 401, { detail: 'still not allowed' })
+    })
+
+    await expect(api.get('/protected')).rejects.toMatchObject({ response: { status: 401 } })
+
+    expect(refreshCalls).toBe(1)
+  })
+
+  it('rejects a 401 for a request that was already retried without refreshing again', async () => {
+    const authStore = useAuthStore()
+    authStore.setToken('expired-token')
+    const adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      throw makeError(config, 401, { detail: 'expired' })
+    })
+    api.defaults.adapter = adapter
+
+    await expect(
+      api.get('/protected', { _retry: true } as AxiosRequestConfig),
+    ).rejects.toMatchObject({ response: { status: 401 } })
+
+    expect(adapter).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a 401 that carries no request configuration with the original error', async () => {
+    const authStore = useAuthStore()
+    authStore.setToken('expired-token')
+    const error = Object.assign(new Error('Request failed with status 401'), {
+      response: { status: 401, data: {} },
+      isAxiosError: true,
+    })
+    const adapter = vi.fn(async () => {
+      throw error
+    })
+    api.defaults.adapter = adapter
+
+    await expect(api.get('/protected')).rejects.toBe(error)
+
+    expect(adapter).toHaveBeenCalledTimes(1)
   })
 })

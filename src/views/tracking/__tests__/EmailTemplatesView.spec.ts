@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import EmailTemplatesView from '../EmailTemplatesView.vue'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
@@ -37,6 +37,10 @@ function deferredPreview() {
 }
 
 describe('EmailTemplatesView.vue', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetConfig.mockResolvedValue({ retention_months: 6 })
@@ -118,11 +122,12 @@ describe('EmailTemplatesView.vue', () => {
   })
 
   it('shows the date of the last send for a template that was sent', async () => {
+    vi.stubEnv('TZ', 'Europe/Vienna')
     const wrapper = mount(EmailTemplatesView, mountOpts)
     await flushPromises()
 
     const row = wrapper.findAll('tbody tr').find((r) => r.text().includes('Passwort zurücksetzen'))
-    expect(row?.findAll('td')[2]?.text()).toMatch(/^25\.06\.2026/)
+    expect(row?.findAll('td')[2]?.text()).toBe('25.06.2026, 16:00')
   })
 
   it('lists the template with the most sends first', async () => {

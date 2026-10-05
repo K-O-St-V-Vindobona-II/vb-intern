@@ -2,16 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
 import { useSessionManager } from '../useSessionManager'
+import type { User } from '@/types/member'
 
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({ push: mockPush })),
 }))
 
+// The composable under test only ever reads `user.session_idle_timeout`, so
+// the mock is narrowed to that one field instead of the full `User` shape -
+// still fully typed, without pretending to model fields this suite never uses.
+type MockUser = Pick<User, 'session_idle_timeout'> | null
+
 const mockLogout = vi.fn().mockResolvedValue(undefined)
 const mockAuthStore = {
   token: null as string | null,
-  user: { session_idle_timeout: 30 } as any,
+  user: { session_idle_timeout: 30 } as MockUser,
   logout: mockLogout,
   setToken: vi.fn((newToken: string) => {
     mockAuthStore.token = newToken

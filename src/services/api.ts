@@ -1,8 +1,14 @@
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import router from '@/router'
 import { apiBaseUrl } from '@/runtimeConfig'
+
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    _retry?: boolean
+  }
+}
 
 const api = axios.create({
   baseURL: apiBaseUrl(),
@@ -39,8 +45,7 @@ async function handleRefreshEndpointUnauthorized(error: unknown) {
   return Promise.reject(error)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors axios's own untyped interceptor config shape, plus the ad-hoc _retry flag this interceptor stores on it
-async function refreshTokenAndRetry(originalRequest: any, error: unknown) {
+async function refreshTokenAndRetry(originalRequest: InternalAxiosRequestConfig, error: unknown) {
   isRefreshing = true
   try {
     const { data } = await api.post('/auth/refresh')
@@ -60,14 +65,35 @@ async function refreshTokenAndRetry(originalRequest: any, error: unknown) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see refreshTokenAndRetry
-function queueForRefresh(originalRequest: any) {
+function queueForRefresh(originalRequest: InternalAxiosRequestConfig) {
   return new Promise((resolve) => {
     refreshSubscribers.push((newToken: string) => {
       originalRequest.headers.Authorization = `Bearer ${newToken}`
       resolve(api(originalRequest))
     })
   })
+}
+
+// Centralizes the 401 branch so the response interceptor below stays a flat
+// dispatch table instead of nesting this logic's own conditions inline.
+async function handleUnauthorized(
+  originalRequest: InternalAxiosRequestConfig | undefined,
+  error: AxiosError,
+) {
+  if (!originalRequest || originalRequest._retry) {
+    return Promise.reject(error)
+  }
+
+  if (originalRequest.url?.includes('/auth/refresh')) {
+    return handleRefreshEndpointUnauthorized(error)
+  }
+
+  originalRequest._retry = true
+
+  if (!isRefreshing) {
+    return refreshTokenAndRetry(originalRequest, error)
+  }
+  return queueForRefresh(originalRequest)
 }
 
 // Refreshes the cached permission set in case it was revoked server-side,
@@ -81,8 +107,7 @@ async function handleForbidden(error: unknown) {
   return Promise.reject(error)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see refreshTokenAndRetry
-function handleNetworkErrorIfAuthenticated(error: any) {
+function handleNetworkErrorIfAuthenticated(error: AxiosError) {
   const isNetworkError = !error.response && error.request
   if (!isNetworkError) return
 
@@ -107,23 +132,13 @@ api.interceptors.response.use(
     useLoadingStore().stopLoading()
     return response
   },
-  async (error) => {
+  async (error: AxiosError) => {
     useLoadingStore().stopLoading()
 
-    const originalRequest = error.config
     const status = error.response?.status
 
-    if (status === 401 && !originalRequest._retry) {
-      if (originalRequest.url?.includes('/auth/refresh')) {
-        return handleRefreshEndpointUnauthorized(error)
-      }
-
-      originalRequest._retry = true
-
-      if (!isRefreshing) {
-        return refreshTokenAndRetry(originalRequest, error)
-      }
-      return queueForRefresh(originalRequest)
+    if (status === 401) {
+      return handleUnauthorized(error.config, error)
     }
 
     if (status === 403) {

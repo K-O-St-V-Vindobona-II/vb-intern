@@ -22,7 +22,7 @@ function deferredUrl() {
   return { promise, resolve: (url: string) => resolvePromise({ data: { url } }) }
 }
 
-const mountWith = (props: Record<string, any>) =>
+const mountWith = (props: InstanceType<typeof ImagePreview>['$props']) =>
   mount(ImagePreview, {
     props,
     global: { plugins: [PrimeVue] },
@@ -35,23 +35,20 @@ describe('ImagePreview', () => {
   })
 
   it('shows placeholder avatar when no imageId', () => {
-    const w = mountWith({ imageId: null, ownerType: 'member', ownerId: 1 })
+    const w = mountWith({ imageId: null, ownerType: 'member', ownerId: '1' })
     expect(w.find('.placeholder-avatar').exists()).toBe(true)
   })
 
   it('does not render img when no imageId', () => {
-    const w = mountWith({ imageId: null, ownerType: 'member', ownerId: 1 })
+    const w = mountWith({ imageId: null, ownerType: 'member', ownerId: '1' })
     expect(w.find('.profile-image').exists()).toBe(false)
   })
 
-  it('accepts member ownerType', () => {
-    const w = mountWith({ imageId: 'image-uuid-5', ownerType: 'member', ownerId: 1 })
-    expect(w.exists()).toBe(true)
-  })
+  it('asks for the thumbnail of a member with the member owner type', async () => {
+    mountWith({ imageId: 'image-uuid-5', ownerType: 'member', ownerId: 'owner-1' })
+    await flushPromises()
 
-  it('accepts contact ownerType', () => {
-    const w = mountWith({ imageId: 'image-uuid-5', ownerType: 'contact', ownerId: 1 })
-    expect(w.exists()).toBe(true)
+    expect(mockGetImageUrl).toHaveBeenCalledWith('member', 'owner-1', 'image-uuid-5', true)
   })
 
   it('requests the thumbnail of the given owner and shows it', async () => {

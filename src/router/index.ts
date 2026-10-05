@@ -389,19 +389,6 @@ const router = createRouter({
           },
         },
 
-        // --- Placeholder routes ---
-        {
-          path: 'archive',
-          name: 'archive',
-          component: () => import('../views/PlaceholderView.vue'),
-          meta: { moduleName: 'Archiv' },
-        },
-        {
-          path: 'information',
-          name: 'information',
-          component: () => import('../views/PlaceholderView.vue'),
-          meta: { moduleName: 'Information' },
-        },
         {
           path: 'tracking/sent-emails',
           name: 'tracking-sent-emails',

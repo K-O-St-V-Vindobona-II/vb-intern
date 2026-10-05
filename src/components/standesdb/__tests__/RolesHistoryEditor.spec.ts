@@ -9,7 +9,7 @@ const roles = [
   { id: 'phil-senior', group: 'philchc', label: 'Phil-Senior', order: 3 },
 ]
 
-const mountWith = (props: Record<string, any>) =>
+const mountWith = (props: InstanceType<typeof RolesHistoryEditor>['$props']) =>
   mount(RolesHistoryEditor, {
     props,
     global: { plugins: [PrimeVue] },

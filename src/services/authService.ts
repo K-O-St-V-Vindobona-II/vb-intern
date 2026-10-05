@@ -2,7 +2,7 @@ import api from './api'
 
 export default {
   async login(formData: URLSearchParams): Promise<string> {
-    const response = await api.post('/auth/login', formData, {
+    const response = await api.post<{ access_token: string }>('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
     return response.data.access_token
@@ -34,7 +34,7 @@ export default {
    * @returns JWT access token from our backend
    */
   async loginWithGoogle(credential: string): Promise<string> {
-    const response = await api.post('/auth/google', { credential })
+    const response = await api.post<{ access_token: string }>('/auth/google', { credential })
     return response.data.access_token
   },
 
@@ -46,7 +46,7 @@ export default {
     email: string
     password: string
   }): Promise<string> {
-    const response = await api.post('/auth/google/link', payload)
+    const response = await api.post<{ access_token: string }>('/auth/google/link', payload)
     return response.data.access_token
   },
 

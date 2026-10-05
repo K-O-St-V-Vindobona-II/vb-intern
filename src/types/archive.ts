@@ -44,12 +44,12 @@ export interface DirShort {
 export interface FileShort {
   type: 'file'
   id: string
-  name: string | null
-  extension: string | null
+  name: string
+  extension: string
   description: string | null
   size: number
   is_image: boolean
-  mime_type: string | null
+  mime_type: string
   created_at: string | null
   deleted_at: string | null
 }

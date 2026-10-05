@@ -11,7 +11,7 @@ const badges = [
   { id: BADGE_ID_2, name: 'dankesband', group: 'ehrenzeichen', order: 2 },
 ]
 
-const mountWith = (props: Record<string, any>) =>
+const mountWith = (props: InstanceType<typeof SetEditor>['$props']) =>
   mount(SetEditor, {
     props,
     global: { plugins: [PrimeVue] },
@@ -300,15 +300,9 @@ describe('SetEditor', () => {
   })
 
   describe('new-entry date default — timezone regression', () => {
-    const originalTz = process.env['TZ']
-
     afterEach(() => {
       vi.useRealTimers()
-      if (originalTz === undefined) {
-        delete process.env['TZ']
-      } else {
-        process.env['TZ'] = originalTz
-      }
+      vi.unstubAllEnvs()
     })
 
     it('defaults to the local calendar day, not the UTC day', async () => {
@@ -318,7 +312,7 @@ describe('SetEditor', () => {
       // prefilled *yesterday's* date during the first 1-2h after local
       // midnight. 2026-01-15T23:30:00Z is already 2026-01-16 00:30 in
       // Vienna (CET, UTC+1).
-      process.env['TZ'] = 'Europe/Vienna'
+      vi.stubEnv('TZ', 'Europe/Vienna')
       vi.useFakeTimers()
       vi.setSystemTime(new Date(Date.UTC(2026, 0, 15, 23, 30, 0)))
 
