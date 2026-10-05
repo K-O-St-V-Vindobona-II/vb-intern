@@ -56,6 +56,19 @@ const onFileChange = (e: Event) => {
   selectedFile.value = input.files?.[0] ?? null
 }
 
+const refreshAccount = async () => {
+  try {
+    await loadAccount()
+  } catch {
+    toast.add({
+      severity: 'warn',
+      summary: 'Konto nicht aktualisiert',
+      detail: 'Der Import war erfolgreich, die Kontodaten konnten aber nicht neu geladen werden.',
+      life: 6000,
+    })
+  }
+}
+
 const doImport = async () => {
   if (!selectedFile.value) return
   importing.value = true
@@ -64,8 +77,8 @@ const doImport = async () => {
     const resp = await p4xService.importTransactions(accountId, selectedFile.value)
     result.value = resp.data
     if (resp.data.given.parsed) {
-      await loadAccount()
       toast.add({ severity: 'success', summary: 'Import abgeschlossen', life: 3000 })
+      await refreshAccount()
     } else {
       toast.add({
         severity: 'error',

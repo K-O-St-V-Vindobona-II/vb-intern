@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FeeConfigView from '../FeeConfigView.vue'
 import PrimeVue from 'primevue/config'
@@ -193,6 +193,60 @@ describe('FeeConfigView', () => {
     expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
     expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
     expect(wrapper.text()).toContain('Mitgliedsbeiträge')
+    wrapper.unmount()
+  })
+
+  describe('in a browser timezone west of UTC (regression)', () => {
+    beforeEach(() => {
+      vi.stubEnv('TZ', 'America/Los_Angeles')
+    })
+
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('labels an entry with the month of its start date, not the month before', async () => {
+      mockGetFeeConfig.mockResolvedValue({ data: [buildFee({ start: '2026-01-01' })] })
+      const wrapper = mount(FeeConfigView, mountOpts)
+      await flushPromises()
+
+      expect(wrapper.find('.fee-row').text()).toContain('Jänner 2026')
+      wrapper.unmount()
+    })
+  })
+
+  it('creates the entry for the month picked in the dialog and closes the dialog', async () => {
+    mockGetFeeConfig.mockResolvedValue({ data: [] })
+    mockCreateFee.mockResolvedValue({ data: [buildFee({ start: '2027-03-01', fee: 9 })] })
+    const wrapper = mount(FeeConfigView, mountOpts)
+    await flushPromises()
+
+    clickButton('hinzufügen')
+    await flushPromises()
+    const picker = wrapper.findComponent({ name: 'DatePicker' })
+    await picker.vm.$emit('update:modelValue', new Date(2027, 2, 1))
+    await picker.vm.$emit('date-select')
+    await wrapper.findComponent({ name: 'FormAmount' }).vm.$emit('update:modelValue', 9)
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockCreateFee).toHaveBeenCalledWith({ year: 2027, month: 3, fee: 9 })
+    expect(document.querySelector('.dialog-field')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps the dialog open when creating the entry fails', async () => {
+    mockGetFeeConfig.mockResolvedValue({ data: [] })
+    mockCreateFee.mockRejectedValue({ response: { data: { detail: 'Ungültiger Betrag' } } })
+    const wrapper = mount(FeeConfigView, mountOpts)
+    await flushPromises()
+
+    clickButton('hinzufügen')
+    await flushPromises()
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(document.querySelector('.dialog-field')).toBeTruthy()
     wrapper.unmount()
   })
 })

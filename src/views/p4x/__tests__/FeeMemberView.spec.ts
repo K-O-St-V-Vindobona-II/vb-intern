@@ -484,4 +484,41 @@ describe('FeeMemberView', () => {
     expect(rowTexts.find((t) => t.startsWith('Endstand'))).toContain('20,00')
     wrapper.unmount()
   })
+
+  it('shows the member picked last when an earlier, slower load finishes afterwards', async () => {
+    let resolveSlow: (value: unknown) => void = () => {}
+    mockGetFeeMember.mockReturnValueOnce(new Promise((resolve) => (resolveSlow = resolve)))
+    mockGetFeeMember.mockResolvedValueOnce({ data: buildMember({ id: '6', cn: 'Berta Zweite' }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    const search = wrapper.findComponent({ name: 'SearchField' })
+
+    await search.vm.$emit('select', { id: '5', label: 'Anna Erste', type: 'member' })
+    await search.vm.$emit('select', { id: '6', label: 'Berta Zweite', type: 'member' })
+    await flushPromises()
+    resolveSlow({ data: buildMember({ id: '5', cn: 'Anna Erste' }) })
+    await flushPromises()
+
+    expect(wrapper.find('.member-name').text()).toBe('Berta Zweite')
+    wrapper.unmount()
+  })
+
+  it('keeps the loading state until the member picked last has arrived', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValueOnce({ data: buildMember() })
+    let resolveEarlier: (value: unknown) => void = () => {}
+    mockGetFeeMember.mockReturnValueOnce(new Promise((resolve) => (resolveEarlier = resolve)))
+    mockGetFeeMember.mockReturnValueOnce(new Promise(() => {}))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    const search = wrapper.findComponent({ name: 'SearchField' })
+
+    await search.vm.$emit('select', { id: '5', label: 'Anna Erste', type: 'member' })
+    await search.vm.$emit('select', { id: '6', label: 'Berta Zweite', type: 'member' })
+    resolveEarlier({ data: buildMember({ id: '5', cn: 'Anna Erste' }) })
+    await flushPromises()
+
+    expect(wrapper.find('.member-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

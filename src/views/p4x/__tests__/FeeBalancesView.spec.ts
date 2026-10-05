@@ -162,4 +162,29 @@ describe('FeeBalancesView', () => {
     )
     wrapper.unmount()
   })
+
+  it('lists the largest debts first and colours each balance by its severity band', async () => {
+    mockGetFeeBalances.mockResolvedValue({
+      data: [
+        buildEntry({ id: '11111111-1111-1111-1111-111111111111', cn: 'Plus', balance: 200 }),
+        buildEntry({ id: '22222222-2222-2222-2222-222222222222', cn: 'Hoch', balance: -1500 }),
+        buildEntry({ id: '33333333-3333-3333-3333-333333333333', cn: 'Leicht', balance: -50 }),
+        buildEntry({ id: '44444444-4444-4444-4444-444444444444', cn: 'Mittel', balance: -500 }),
+      ],
+    })
+    const wrapper = mount(FeeBalancesView, mountOpts)
+    await flushPromises()
+
+    const rows = wrapper.findAll('tbody tr').map((row) => ({
+      name: row.find('.member-link').text(),
+      amountClass: row.find('td:last-child span').classes()[0],
+    }))
+    expect(rows).toEqual([
+      { name: 'Hoch', amountClass: 'amount-negative-high' },
+      { name: 'Mittel', amountClass: 'amount-negative-mid' },
+      { name: 'Leicht', amountClass: 'amount-negative-low' },
+      { name: 'Plus', amountClass: 'amount-positive' },
+    ])
+    wrapper.unmount()
+  })
 })

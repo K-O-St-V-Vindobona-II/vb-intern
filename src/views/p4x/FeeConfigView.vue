@@ -28,7 +28,7 @@ const newFee = ref({
 const selectedDate = ref(new Date(now.getFullYear(), now.getMonth()))
 
 const formatMonth = (start: string): string => {
-  const d = new Date(start)
+  const d = new Date(`${start}T00:00:00`)
   return `ab: ${d.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' })}`
 }
 

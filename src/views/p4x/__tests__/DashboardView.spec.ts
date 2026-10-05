@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import DashboardView from '../DashboardView.vue'
@@ -296,6 +296,67 @@ describe('DashboardView (p4x)', () => {
     expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
     expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
     expect(wrapper.text()).toContain('AH-Kassen')
+    wrapper.unmount()
+  })
+
+  describe('activity threshold of an account (730 days after its last transaction)', () => {
+    const NOW = new Date('2026-06-15T12:00:00Z')
+    const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString()
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NOW)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it.each([
+      [1, true],
+      [729, true],
+      [730, true],
+      [731, false],
+      [3650, false],
+    ])('an account with its last transaction %i days ago is active: %s', async (days, active) => {
+      mockGetDashboard.mockResolvedValue({
+        data: buildDashboard({
+          accounts: [buildAccount({ label: 'Testkonto', transactions_latest: daysAgo(days) })],
+        }),
+      })
+      const wrapper = mount(DashboardView, buildMountOpts())
+      await flushPromises()
+
+      expect(wrapper.text().includes('Testkonto')).toBe(active)
+      wrapper.unmount()
+    })
+  })
+
+  it('replaces both warning lists when the warnings are reloaded', async () => {
+    mockGetDashboard.mockResolvedValueOnce({
+      data: buildDashboard({
+        warnings_partner: { count: 1, preview: [] },
+        warnings_category: { count: 1, preview: [] },
+      }),
+    })
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    mockGetDashboard.mockResolvedValueOnce({
+      data: buildDashboard({
+        warnings_partner: { count: 4, preview: [] },
+        warnings_category: { count: 5, preview: [] },
+      }),
+    })
+    await wrapper.find('.warnings-section .pi-refresh').trigger('click')
+    await flushPromises()
+
+    const titles = wrapper
+      .findAllComponents({ name: 'TransactionTable' })
+      .map((t) => t.props('title') as string)
+    expect(titles).toHaveLength(2)
+    expect(titles[0]).toContain('(4)')
+    expect(titles[1]).toContain('(5)')
     wrapper.unmount()
   })
 })

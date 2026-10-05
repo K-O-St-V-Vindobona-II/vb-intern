@@ -31,20 +31,25 @@ const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
   return resp.data.data
 }
 
+let latestLoad = 0
+
 const loadMember = async (id: string) => {
+  const load = ++latestLoad
   loading.value = true
   try {
     const resp = await p4xService.getFeeMember(id)
-    member.value = resp.data
+    if (load === latestLoad) member.value = resp.data
   } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Beitragskonto konnte nicht geladen werden.',
-      life: 5000,
-    })
+    if (load === latestLoad) {
+      toast.add({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Beitragskonto konnte nicht geladen werden.',
+        life: 5000,
+      })
+    }
   } finally {
-    loading.value = false
+    if (load === latestLoad) loading.value = false
   }
 }
 
