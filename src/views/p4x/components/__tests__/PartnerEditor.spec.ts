@@ -19,7 +19,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: 'transaction-uuid-1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
@@ -108,9 +108,9 @@ describe('PartnerEditor', () => {
   })
 
   it('saves the partner and delegating partner and emits changed', async () => {
-    const transaction = buildTransaction({ id: 9 })
+    const transaction = buildTransaction({ id: 'transaction-uuid-9' })
     const updated = buildTransaction({
-      id: 9,
+      id: 'transaction-uuid-9',
       partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
     })
     mockSetTransactionPartner.mockResolvedValue({ data: updated })
@@ -139,7 +139,7 @@ describe('PartnerEditor', () => {
     saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockSetTransactionPartner).toHaveBeenCalledWith(9, {
+    expect(mockSetTransactionPartner).toHaveBeenCalledWith('transaction-uuid-9', {
       partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
       hasDelegatingPartner: true,
       delegatingPartner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
@@ -165,22 +165,75 @@ describe('PartnerEditor', () => {
     wrapper.unmount()
   })
 
-  it('shows the API error and keeps the dialog open when saving fails', async () => {
-    mockSetTransactionPartner.mockRejectedValue({
-      response: { data: { detail: 'Nicht gefunden' } },
-    })
-    const transaction = buildTransaction({
-      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
-    })
+  const openWith = async (transaction: P4xTransaction) => {
     const wrapper = mount(PartnerEditor, { props: { transaction }, ...mountOpts })
     ;(wrapper.vm as unknown as { open: () => void }).open()
     await flushPromises()
+    return wrapper
+  }
 
+  const clickSave = async () => {
     const saveBtn = Array.from(document.querySelectorAll('button')).find(
       (b) => b.textContent === 'Speichern',
     )!
     saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
+  }
+
+  it('starts a newly picked partner without the delegating partner of the cleared one', async () => {
+    const wrapper = await openWith(
+      buildTransaction({
+        partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+        delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
+      }),
+    )
+
+    await wrapper.findComponent({ name: 'PartnerSearch' }).vm.$emit('update:modelValue', null)
+    await wrapper.findComponent({ name: 'PartnerSearch' }).vm.$emit('update:modelValue', {
+      type: 'member',
+      id: 'member-uuid-6',
+      label: 'Erika',
+    })
+
+    expect(wrapper.findComponent({ name: 'Checkbox' }).props('modelValue')).toBe(false)
+    expect(wrapper.findAllComponents({ name: 'PartnerSearch' })).toHaveLength(1)
+    await clickSave()
+    expect(mockSetTransactionPartner).toHaveBeenCalledWith('transaction-uuid-1', {
+      partner: { type: 'member', id: 'member-uuid-6', cn: 'Erika' },
+      hasDelegatingPartner: false,
+      delegatingPartner: null,
+    })
+    wrapper.unmount()
+  })
+
+  it('drops the delegating partner when its checkbox is switched off before saving', async () => {
+    const wrapper = await openWith(
+      buildTransaction({
+        partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+        delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma' },
+      }),
+    )
+
+    await wrapper.findComponent({ name: 'Checkbox' }).vm.$emit('update:modelValue', false)
+    await clickSave()
+
+    expect(mockSetTransactionPartner).toHaveBeenCalledWith('transaction-uuid-1', {
+      partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' },
+      hasDelegatingPartner: false,
+      delegatingPartner: null,
+    })
+    wrapper.unmount()
+  })
+
+  it('shows the API error and keeps the dialog open when saving fails', async () => {
+    mockSetTransactionPartner.mockRejectedValue({
+      response: { data: { detail: 'Nicht gefunden' } },
+    })
+    const wrapper = await openWith(
+      buildTransaction({ partner: { type: 'member', id: 'member-uuid-5', cn: 'Max' } }),
+    )
+
+    await clickSave()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'error', summary: 'Nicht gefunden' }),

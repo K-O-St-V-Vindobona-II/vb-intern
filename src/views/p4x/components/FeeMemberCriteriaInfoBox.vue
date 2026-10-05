@@ -6,11 +6,16 @@ const expanded = ref(false)
 
 <template>
   <div class="criteria-info-box">
-    <div class="criteria-info-toggle" @click="expanded = !expanded">
-      <i class="pi pi-info-circle criteria-info-icon" />
+    <button
+      type="button"
+      class="criteria-info-toggle"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      <i class="pi pi-info-circle criteria-info-icon" aria-hidden="true" />
       <span class="criteria-info-label">Wer ist beitragspflichtig?</span>
-      <i :class="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
-    </div>
+      <i :class="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" aria-hidden="true" />
+    </button>
     <div v-if="expanded" class="criteria-info-content">
       <p>
         Als beitragspflichtig gilt, wer bei der K.Ö.St.V. Vindobona II als Urphilister geführt wird,
@@ -37,6 +42,11 @@ const expanded = ref(false)
   text-align: left;
 }
 .criteria-info-toggle {
+  width: 100%;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
   display: flex;
   align-items: center;

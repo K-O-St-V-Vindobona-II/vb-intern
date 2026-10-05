@@ -27,4 +27,18 @@ describe('FeeMemberCriteriaInfoBox', () => {
 
     expect(wrapper.find('.criteria-info-content').exists()).toBe(false)
   })
+
+  it('is a real button that reports whether it is expanded', async () => {
+    const wrapper = mount(FeeMemberCriteriaInfoBox)
+    const toggle = wrapper.find('button.criteria-info-toggle')
+
+    expect(toggle.exists()).toBe(true)
+    expect(toggle.attributes('type')).toBe('button')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.criteria-info-icon').attributes('aria-hidden')).toBe('true')
+
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+  })
 })

@@ -14,6 +14,14 @@ export function toLocalDateStr(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// One shared formatter: constructing an Intl.NumberFormat costs about 60 microseconds, and the
+// p4x tables format one or two amounts per row on every render.
+const euroFormatter = new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' })
+
+export function formatEuro(amount: number): string {
+  return euroFormatter.format(amount)
+}
+
 export function formatDate(dt: string | null): string {
   if (!dt) return ''
   return new Date(dt).toLocaleDateString('de-AT')

@@ -19,10 +19,10 @@ const partner = ref<PartnerSearchResult | null>(null)
 const hasDelegating = ref(false)
 const delegatingPartner = ref<PartnerSearchResult | null>(null)
 
-const toSearchResult = (ref: PartnerRef): PartnerSearchResult => ({
-  type: ref.type,
-  id: ref.id,
-  label: ref.cn,
+const toSearchResult = (partnerRef: PartnerRef): PartnerSearchResult => ({
+  type: partnerRef.type,
+  id: partnerRef.id,
+  label: partnerRef.cn,
 })
 
 const toPartnerRef = (r: PartnerSearchResult): PartnerRef => ({
@@ -73,7 +73,12 @@ defineExpose({ open })
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" header="Partner bearbeiten" :modal="true" style="width: 40rem">
+  <Dialog
+    v-model:visible="visible"
+    header="Partner bearbeiten"
+    :modal="true"
+    :style="{ width: '40rem', maxWidth: '95vw' }"
+  >
     <div class="section">
       <div class="section-title">Unmittelbarer Partner</div>
       <p class="hint">

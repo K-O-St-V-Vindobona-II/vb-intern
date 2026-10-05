@@ -341,4 +341,29 @@ describe('TransactionsByMonthView', () => {
     expect(wrapper.findComponent({ name: 'TransactionTable' }).exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('shows the balance at the start and at the end of the month in that order', async () => {
+    const { wrapper } = await mountAt(JUNE)
+
+    const rows = wrapper.findAll('.info-row').map((row) => row.text().replace(/\s+/g, ' '))
+    expect(rows.find((t) => t.startsWith('Kontostand zum Monatsersten'))).toMatch(/(?<!\d)5,00/)
+    expect(rows.find((t) => t.startsWith('Kontostand zum Monatsletzten'))).toContain('15,00')
+    wrapper.unmount()
+  })
+
+  it('names the account "Konto" while the month has no transactions', async () => {
+    mockGetTransactionsByMonth.mockResolvedValue({ data: buildResult({ items: [], total: 0 }) })
+    const { wrapper } = await mountAt(JUNE)
+
+    expect(wrapper.find('.subtitle').text()).toBe('Konto')
+    wrapper.unmount()
+  })
+
+  it('does not let the picker go beyond the current month', async () => {
+    const { wrapper } = await mountAt(JUNE)
+
+    const maxDate = wrapper.findComponent({ name: 'DatePicker' }).props('maxDate') as Date
+    expect(maxDate.toDateString()).toBe(new Date().toDateString())
+    wrapper.unmount()
+  })
 })

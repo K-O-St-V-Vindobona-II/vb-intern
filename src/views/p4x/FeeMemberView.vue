@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
 import type { FeeMember } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import FeeMemberCriteriaInfoBox from './components/FeeMemberCriteriaInfoBox.vue'
@@ -65,17 +66,7 @@ const doExport = async () => {
   exporting.value = true
   try {
     const resp = await p4xService.exportFeeMember(member.value.id)
-
-    const disposition = resp.headers['content-disposition'] ?? ''
-    const match = disposition.match(/filename="?([^"]+)"?/)
-    const filename = match ? match[1] : `Beitragskonto_${member.value.id}.xlsx`
-
-    const url = URL.createObjectURL(resp.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = downloadBlobResponse(resp, `Beitragskonto_${member.value.id}.xlsx`)
 
     toast.add({
       severity: 'success',

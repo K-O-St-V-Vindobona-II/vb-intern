@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import type { P4xTransaction, P4xCategory } from '@/types/p4x'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
 import Amount from './Amount.vue'
 import CategoryLabel from './CategoryLabel.vue'
 import PartnerLabel from './PartnerLabel.vue'
@@ -64,14 +65,7 @@ const showRaw = async (tx: P4xTransaction) => {
 const downloadAttachment = async (tx: P4xTransaction) => {
   try {
     const resp = await p4xService.getTransactionAttachment(tx.p4x_account_id, tx.id)
-    const url = window.URL.createObjectURL(new Blob([resp.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `Beilage_${tx.id}.pdf`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(url)
+    downloadBlobResponse(resp, `Beilage_${tx.id}.pdf`)
   } catch {
     toast.add({
       severity: 'error',
@@ -89,7 +83,9 @@ const directionLabel = (amount: number): { text: string; cls: string } => {
     : { text: 'Empfänger', cls: 'dir-negative' }
 }
 
-const totalPages = props.total && props.perPage ? Math.ceil(props.total / props.perPage) : 1
+const totalPages = computed(() =>
+  props.total && props.perPage ? Math.ceil(props.total / props.perPage) : 1,
+)
 
 const openTxEditor = async (tx: P4xTransaction) => {
   editingTx.value = tx
@@ -174,10 +170,14 @@ const onTxChanged = () => {
 
         <Column header="" style="width: 2rem">
           <template #body="{ data }">
-            <i
+            <Button
               v-if="data.has_attachment"
               v-tooltip="'Anhang herunterladen'"
-              class="pi pi-paperclip clickable"
+              icon="pi pi-paperclip"
+              text
+              rounded
+              size="small"
+              aria-label="Anhang herunterladen"
               @click="downloadAttachment(data)"
             />
           </template>
@@ -192,10 +192,15 @@ const onTxChanged = () => {
         <Column header="Partner">
           <template #body="{ data }">
             <div class="partner-cell">
-              <i
+              <Button
                 v-if="admin"
                 v-tooltip="'Partner bearbeiten'"
-                class="pi pi-pencil clickable partner-edit-icon"
+                class="partner-edit-icon"
+                icon="pi pi-pencil"
+                text
+                rounded
+                size="small"
+                aria-label="Partner bearbeiten"
                 @click="openPartnerEditor(data)"
               />
               <div class="partner-content">
@@ -217,10 +222,15 @@ const onTxChanged = () => {
         <Column header="Kategorie" style="min-width: 14rem">
           <template #body="{ data }">
             <div class="category-cell">
-              <i
+              <Button
                 v-if="admin"
                 v-tooltip="'Kategorisierung bearbeiten'"
-                class="pi pi-pencil clickable category-edit-icon"
+                class="category-edit-icon"
+                icon="pi pi-pencil"
+                text
+                rounded
+                size="small"
+                aria-label="Kategorisierung bearbeiten"
                 @click="openCatEditor(data)"
               />
               <div class="category-badges">
@@ -284,14 +294,25 @@ const onTxChanged = () => {
               <div class="detail-item">
                 <span class="detail-label">Rohdaten</span>
                 <span>
-                  <i class="pi pi-search clickable" @click="showRaw(tx)" />
+                  <Button
+                    icon="pi pi-search"
+                    text
+                    rounded
+                    size="small"
+                    aria-label="Rohdaten anzeigen"
+                    @click="showRaw(tx)"
+                  />
                 </span>
               </div>
             </div>
             <div v-if="admin" class="detail-admin-link">
-              <span class="clickable admin-action" @click="openTxEditor(tx)">
-                [ Kommentar und Anhang bearbeiten ]
-              </span>
+              <Button
+                class="admin-action"
+                label="Kommentar und Anhang bearbeiten"
+                link
+                size="small"
+                @click="openTxEditor(tx)"
+              />
             </div>
           </div>
         </template>
@@ -376,12 +397,6 @@ const onTxChanged = () => {
   color: var(--p-text-muted-color);
   font-size: 0.8rem;
 }
-.clickable {
-  cursor: pointer;
-}
-.clickable:hover {
-  color: var(--p-primary-600);
-}
 .dir-positive {
   color: var(--p-green-600, #16a34a);
 }
@@ -456,10 +471,6 @@ const onTxChanged = () => {
 }
 .admin-action {
   font-size: 0.85rem;
-  color: var(--p-text-muted-color);
-}
-.admin-action:hover {
-  color: var(--p-primary-600);
 }
 .raw-json {
   font-size: 0.8rem;

@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import type { P4xCategory } from '@/types/p4x'
+import { formatEuro } from '@/utils/formatters'
 
 defineProps<{
   category: P4xCategory | undefined
   amount?: number | null
   direct?: boolean
 }>()
-
-const formatCurrency = (val: number): string =>
-  new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' }).format(val)
 </script>
 
 <template>
@@ -20,14 +18,35 @@ const formatCurrency = (val: number): string =>
       color: category.text_color,
     }"
   >
-    <i v-if="direct" class="pi pi-check" style="font-size: 0.7rem; margin-right: 0.25rem" />
-    <i v-else class="pi pi-filter" style="font-size: 0.7rem; margin-right: 0.25rem" />
+    <i
+      v-if="direct"
+      class="pi pi-check"
+      aria-hidden="true"
+      style="font-size: 0.7rem; margin-right: 0.25rem"
+    />
+    <i
+      v-else
+      class="pi pi-filter"
+      aria-hidden="true"
+      style="font-size: 0.7rem; margin-right: 0.25rem"
+    />
+    <span class="visually-hidden">{{
+      direct ? 'Direkt zugewiesen: ' : 'Über Filter zugewiesen: '
+    }}</span>
     {{ category.label }}
-    <span v-if="amount != null"> ({{ formatCurrency(amount) }})</span>
+    <span v-if="amount != null"> ({{ formatEuro(amount) }})</span>
   </span>
 </template>
 
 <style scoped>
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .category-badge {
   display: inline-flex;
   align-items: center;

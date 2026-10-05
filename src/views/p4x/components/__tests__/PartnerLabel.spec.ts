@@ -37,4 +37,21 @@ describe('PartnerLabel', () => {
     expect(wrapper.text()).toContain('Kontakt:')
     expect(wrapper.text()).toContain('Firma GmbH')
   })
+
+  it('falls back to the raw type for an unknown type of the delegating partner too', () => {
+    const partner: PartnerRef = { type: 'member', id: 'member-uuid-1', cn: 'Max' }
+    const delegatingPartner: PartnerRef = { type: 'verein', id: 'x-uuid-1', cn: 'Sonst' }
+    const wrapper = mount(PartnerLabel, { props: { partner, delegatingPartner } })
+
+    expect(wrapper.find('.delegating').text()).toContain('verein: Sonst')
+  })
+
+  it('hides its icons from assistive technology', () => {
+    const partner: PartnerRef = { type: 'member', id: 'member-uuid-1', cn: 'Max' }
+    const delegatingPartner: PartnerRef = { type: 'contact', id: 'contact-uuid-2', cn: 'Firma' }
+    const wrapper = mount(PartnerLabel, { props: { partner, delegatingPartner } })
+
+    expect(wrapper.findAll('i').length).toBe(2)
+    expect(wrapper.findAll('i').every((i) => i.attributes('aria-hidden') === 'true')).toBe(true)
+  })
 })

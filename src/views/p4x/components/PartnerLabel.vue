@@ -13,6 +13,8 @@ const typeLabels: Record<string, string> = {
   special: 'Spezial',
 }
 
+const typeLabel = (type: string): string => typeLabels[type] ?? type
+
 const typeIcons: Record<string, string> = {
   member: 'pi-user',
   contact: 'pi-building',
@@ -24,14 +26,22 @@ const typeIcons: Record<string, string> = {
 <template>
   <div class="partner-label">
     <div>
-      <i :class="['pi', typeIcons[partner.type] || 'pi-question']" style="margin-right: 0.3rem" />
-      <strong>{{ typeLabels[partner.type] || partner.type }}:</strong>
+      <i
+        :class="['pi', typeIcons[partner.type] || 'pi-question']"
+        aria-hidden="true"
+        style="margin-right: 0.3rem"
+      />
+      <strong>{{ typeLabel(partner.type) }}:</strong>
       {{ partner.cn }}
     </div>
     <div v-if="delegatingPartner" class="delegating">
-      <i class="pi pi-arrow-right" style="margin-right: 0.3rem; font-size: 0.75rem" />
+      <i
+        class="pi pi-arrow-right"
+        aria-hidden="true"
+        style="margin-right: 0.3rem; font-size: 0.75rem"
+      />
       <small>
-        <strong>{{ typeLabels[delegatingPartner.type] }}:</strong>
+        <strong>{{ typeLabel(delegatingPartner.type) }}:</strong>
         {{ delegatingPartner.cn }}
       </small>
     </div>

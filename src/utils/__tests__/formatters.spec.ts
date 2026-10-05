@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  formatEuro,
   formatDate,
   formatDateTime,
   formatDateLong,
@@ -280,5 +281,23 @@ describe('trimmedOrNull', () => {
 
   it.each([[''], ['   '], ['\t\n'], [null], [undefined]])('turns %j into null', (value) => {
     expect(trimmedOrNull(value)).toBeNull()
+  })
+})
+
+describe('formatEuro', () => {
+  it.each([
+    [12.5, '12,50'],
+    [-3.2, '3,20'],
+    [1234.5, '1.234,50'],
+    [0, '0,00'],
+  ])('formats %d as euro with two decimals and the Austrian separators', (amount, digits) => {
+    const text = formatEuro(amount).replace(/\s/g, ' ')
+
+    expect(text).toContain(digits)
+    expect(text).toContain('€')
+  })
+
+  it('puts the minus sign of a negative amount in front', () => {
+    expect(formatEuro(-3.2).startsWith('-')).toBe(true)
   })
 })

@@ -58,11 +58,11 @@ defineExpose({ open })
     v-model:visible="visible"
     header="Kommentar und Anhang bearbeiten"
     :modal="true"
-    style="width: 35rem"
+    :style="{ width: '35rem', maxWidth: '95vw' }"
   >
     <div class="field">
-      <label class="field-label">Kommentar</label>
-      <Textarea v-model="comment" rows="3" class="w-full" :maxlength="250" />
+      <label class="field-label" for="tx-comment">Kommentar</label>
+      <Textarea id="tx-comment" v-model="comment" rows="3" class="w-full" :maxlength="250" />
     </div>
 
     <div v-if="transaction.has_attachment" class="field">

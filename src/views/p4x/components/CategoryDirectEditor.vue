@@ -35,6 +35,8 @@ const form = ref({
   amt2: 0,
 })
 
+const categoryById = computed(() => new Map(props.categories.map((c) => [c.id, c])))
+
 const categoryOptions = computed(() =>
   [...props.categories]
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -189,7 +191,12 @@ defineExpose({ open })
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" header="Kategorisierung!" :modal="true" style="width: 45rem">
+  <Dialog
+    v-model:visible="visible"
+    header="Kategorisierung!"
+    :modal="true"
+    :style="{ width: '45rem', maxWidth: '95vw' }"
+  >
     <div class="filter-section">
       <h4>Filter</h4>
 
@@ -210,18 +217,30 @@ defineExpose({ open })
             <template v-for="f in transaction.p4x_category_filters" :key="f.id">
               <tr>
                 <td class="icon-cell">
-                  <i
-                    class="pi pi-info-circle icon-btn"
+                  <Button
+                    icon="pi pi-info-circle"
+                    text
+                    rounded
+                    size="small"
+                    aria-label="Details"
                     title="Details"
                     @click="toggleDetails(f.id)"
                   />
-                  <i
-                    class="pi pi-pencil icon-btn"
+                  <Button
+                    icon="pi pi-pencil"
+                    text
+                    rounded
+                    size="small"
+                    aria-label="Filter bearbeiten"
                     title="bearbeiten"
                     @click="navigateToFilterEdit(f.id)"
                   />
-                  <i
-                    class="pi pi-hammer icon-btn"
+                  <Button
+                    icon="pi pi-hammer"
+                    text
+                    rounded
+                    size="small"
+                    aria-label="Treffer zu Direktkategorisierung umwandeln"
                     title="Treffer zu Direktkategorisierung umwandeln"
                     @click="navigateToFilter2Direct(f.id)"
                   />
@@ -229,7 +248,7 @@ defineExpose({ open })
                 <td>{{ f.hitCount }}</td>
                 <td>{{ f.name }}</td>
                 <td>
-                  <CategoryLabel :category="categories.find((c) => c.id === f.p4x_category_id)" />
+                  <CategoryLabel :category="categoryById.get(f.p4x_category_id)" />
                 </td>
               </tr>
               <tr v-if="expandedFilters.has(f.id)">
@@ -249,9 +268,7 @@ defineExpose({ open })
                       <pre class="subject-value"><code>{{ f.subject }}</code></pre>
                     </div>
                     <div>
-                      <CategoryLabel
-                        :category="categories.find((c) => c.id === f.p4x_category_id)"
-                      />
+                      <CategoryLabel :category="categoryById.get(f.p4x_category_id)" />
                     </div>
                   </div>
                 </td>
@@ -325,15 +342,6 @@ defineExpose({ open })
 }
 .icon-cell {
   white-space: nowrap;
-}
-.icon-btn {
-  cursor: pointer;
-  margin-right: 0.4rem;
-  font-size: 0.9rem;
-  color: var(--p-text-muted-color);
-}
-.icon-btn:hover {
-  color: var(--p-primary-color);
 }
 .details-cell {
   padding: 0 0.5rem 0.5rem !important;

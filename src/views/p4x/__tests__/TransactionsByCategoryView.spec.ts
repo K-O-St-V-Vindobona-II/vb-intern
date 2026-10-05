@@ -283,4 +283,17 @@ describe('TransactionsByCategoryView', () => {
     ])
     wrapper.unmount()
   })
+
+  it('shows the name of the selected category and not the name of another one', async () => {
+    const wrapper = mount(TransactionsByCategoryView, mountOpts)
+    await flushPromises()
+
+    await selectCategory(wrapper, 'category-uuid-2')
+    await flushPromises()
+
+    const card = wrapper.find('.info-card').text()
+    expect(card).toContain('Name: beitrag')
+    expect(card).not.toContain('spende')
+    wrapper.unmount()
+  })
 })

@@ -304,4 +304,16 @@ describe('TransactionsByFilterView', () => {
     ])
     wrapper.unmount()
   })
+
+  it('passes the categories of the dashboard to the TransactionTable', async () => {
+    const wrapper = mount(TransactionsByFilterView, mountOpts)
+    await flushPromises()
+    await selectFilter(wrapper, '1')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'TransactionTable' }).props('categories')).toEqual(
+      categories,
+    )
+    wrapper.unmount()
+  })
 })
