@@ -18,11 +18,11 @@
   },
   "dependencies": {
     "@primevue/themes": "^4.5.4",
-    "axios": "^1.18.0",
+    "axios": "^1.20.0",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.5",
-    "vue": "^3.5.38",
+    "vue": "^3.5.43",
     "vue-router": "^5.1.0",
     "vue3-google-login": "^2.1.4"
   },
