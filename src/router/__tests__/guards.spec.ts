@@ -32,7 +32,7 @@ function buildRoute(overrides: Partial<RouteLocationNormalized> = {}): RouteLoca
 
 function buildUser(permissions: string[] = []): User {
   return {
-    id: 1,
+    id: 'user-uuid-1',
     cn: 'Max Mustermann',
     default_image: null,
     org_id: 'vbw',
@@ -40,6 +40,7 @@ function buildUser(permissions: string[] = []): User {
     permissions,
     google_linked: false,
     chroniclemail: false,
+    is_fee_member: false,
     session_idle_timeout: 1800,
   }
 }

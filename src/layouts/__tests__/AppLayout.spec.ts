@@ -1,10 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AppLayout from '@/layouts/AppLayout.vue'
+import source from '../AppLayout.vue?raw'
 import { useLoadingStore } from '@/stores/loading'
 
 vi.mock('vue-router', () => ({
@@ -52,10 +50,6 @@ describe('AppLayout.vue', () => {
   // sticky header resolve against a box that never scrolls, and the header
   // then scrolls away with the page.
   it('keeps the sticky header working: the layout root creates no scroll container', () => {
-    const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '..', 'AppLayout.vue'),
-      'utf-8',
-    )
     const rootRule = /\.layout-container\s*\{([^}]*)\}/.exec(source)?.[1] ?? ''
 
     expect(rootRule).not.toBe('')

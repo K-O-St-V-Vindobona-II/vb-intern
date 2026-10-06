@@ -1,18 +1,12 @@
 import { mount } from '@vue/test-utils'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import AuthLayout from '@/layouts/AuthLayout.vue'
+import source from '../AuthLayout.vue?raw'
 
 vi.mock('vue-router', () => ({
   RouterView: { template: '<div data-test="router-view" />' },
 }))
 
-const source = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '..', 'AuthLayout.vue'),
-  'utf-8',
-)
 const styleBlock = /<style>([\s\S]*?)<\/style>/.exec(source)?.[1] ?? ''
 const selectors = [...styleBlock.matchAll(/([^{}]+)\{/g)].map((match) => match[1]!.trim())
 

@@ -36,7 +36,7 @@ describe('archiveService', () => {
   })
 
   it('getDirDetail fetches a single directory', () => {
-    archiveService.getDirDetail(7)
+    archiveService.getDirDetail('7')
     expect(mockGet).toHaveBeenCalledWith('/archive/dirs/7')
   })
 
@@ -48,33 +48,33 @@ describe('archiveService', () => {
 
   it('updateDir puts the updated directory payload', () => {
     const data = { name: 'Fotos 2', permissions: [], recursive_permissions: false }
-    archiveService.updateDir(7, data)
+    archiveService.updateDir('7', data)
     expect(mockPut).toHaveBeenCalledWith('/archive/dirs/7', data)
   })
 
   it('deleteDir deletes the directory', () => {
-    archiveService.deleteDir(7)
+    archiveService.deleteDir('7')
     expect(mockDelete).toHaveBeenCalledWith('/archive/dirs/7')
   })
 
   it('restoreDir patches the restore endpoint', () => {
-    archiveService.restoreDir(7)
+    archiveService.restoreDir('7')
     expect(mockPatch).toHaveBeenCalledWith('/archive/dirs/7/restore')
   })
 
   it('purgeDir deletes the purge endpoint', () => {
-    archiveService.purgeDir(7)
+    archiveService.purgeDir('7')
     expect(mockDelete).toHaveBeenCalledWith('/archive/dirs/7/purge')
   })
 
   it('receiveItems posts to the dir-scoped receive endpoint', () => {
     const data = { type: 'file', ids: ['1', '2'], action: 'move' }
-    archiveService.receiveItems(7, data)
+    archiveService.receiveItems('7', data)
     expect(mockPost).toHaveBeenCalledWith('/archive/dirs/7/receive', data)
   })
 
   it('receiveItemsRoot posts to the root receive endpoint', () => {
-    const data = { type: 'dir', ids: [3], action: 'move' }
+    const data = { type: 'dir', ids: ['3'], action: 'move' }
     archiveService.receiveItemsRoot(data)
     expect(mockPost).toHaveBeenCalledWith('/archive/dirs/receive', data)
   })
@@ -138,7 +138,7 @@ describe('archiveService', () => {
     expect(mockPost).toHaveBeenCalledWith('/archive/upload', expect.any(FormData), {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    const formData = mockPost.mock.calls[0][1] as FormData
+    const formData = mockPost.mock.calls[0]![1] as FormData
     expect(formData.get('file')).toBe(file)
     expect(formData.get('description')).toBe('Beschreibung')
   })

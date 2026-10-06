@@ -32,7 +32,7 @@ describe('publicGalleryService', () => {
     publicGalleryService.uploadImage(file, 'Ein Bild')
 
     expect(mockPost).toHaveBeenCalledTimes(1)
-    const [url, formData, config] = mockPost.mock.calls[0]
+    const [url, formData, config] = mockPost.mock.calls[0]!
     expect(url).toBe('/public-gallery-admin/images')
     expect(formData).toBeInstanceOf(FormData)
     expect(formData.get('file')).toBe(file)
@@ -44,7 +44,7 @@ describe('publicGalleryService', () => {
     const file = new File(['x'], 'a.jpg', { type: 'image/jpeg' })
     publicGalleryService.uploadImage(file, null)
 
-    const formData = mockPost.mock.calls[0][1] as FormData
+    const formData = mockPost.mock.calls[0]![1] as FormData
     expect(formData.get('caption')).toBeNull()
   })
 

@@ -55,6 +55,7 @@ describe('siteSettingsService', () => {
       about_video_heading: 'Titel',
       youtube_url: 'https://youtu.be/abcdefghijk',
       calendar_id: 'abc@group.calendar.google.com',
+      gallery_heading: 'Galerie',
     }
     siteSettingsService.updateSettings(data)
     expect(mockPut).toHaveBeenCalledWith(`${PREFIX}/settings`, data)
@@ -75,21 +76,21 @@ describe('programmHintsService', () => {
   })
 
   it('update puts the changed text', () => {
-    programmHintsService.update(1, { text: 'Geändert' })
+    programmHintsService.update('1', { text: 'Geändert' })
     expect(mockPut).toHaveBeenCalledWith(`${PREFIX}/programm-hints/1`, {
       text: 'Geändert',
     })
   })
 
   it('move posts the direction', () => {
-    programmHintsService.move(1, 'down')
+    programmHintsService.move('1', 'down')
     expect(mockPost).toHaveBeenCalledWith(`${PREFIX}/programm-hints/1/move`, {
       direction: 'down',
     })
   })
 
   it('remove sends a DELETE request', () => {
-    programmHintsService.remove(1)
+    programmHintsService.remove('1')
     expect(mockDelete).toHaveBeenCalledWith(`${PREFIX}/programm-hints/1`)
   })
 })
@@ -109,7 +110,7 @@ describe('quotesService', () => {
   })
 
   it('update puts the changed quote', () => {
-    quotesService.update(2, { quote: 'Geändert', author: 'Jemand' })
+    quotesService.update('2', { quote: 'Geändert', author: 'Jemand' })
     expect(mockPut).toHaveBeenCalledWith(`${PREFIX}/quotes/2`, {
       quote: 'Geändert',
       author: 'Jemand',
@@ -117,14 +118,14 @@ describe('quotesService', () => {
   })
 
   it('move posts the direction', () => {
-    quotesService.move(2, 'up')
+    quotesService.move('2', 'up')
     expect(mockPost).toHaveBeenCalledWith(`${PREFIX}/quotes/2/move`, {
       direction: 'up',
     })
   })
 
   it('remove sends a DELETE request', () => {
-    quotesService.remove(2)
+    quotesService.remove('2')
     expect(mockDelete).toHaveBeenCalledWith(`${PREFIX}/quotes/2`)
   })
 })
@@ -151,7 +152,7 @@ describe('socialLinksService', () => {
   })
 
   it('update puts label/url/is_enabled without platform', () => {
-    socialLinksService.update(3, {
+    socialLinksService.update('3', {
       label: 'Instagram',
       url: 'https://www.instagram.com/vindobona2',
       is_enabled: false,
@@ -164,14 +165,14 @@ describe('socialLinksService', () => {
   })
 
   it('move posts the direction', () => {
-    socialLinksService.move(3, 'down')
+    socialLinksService.move('3', 'down')
     expect(mockPost).toHaveBeenCalledWith(`${PREFIX}/social-links/3/move`, {
       direction: 'down',
     })
   })
 
   it('remove sends a DELETE request', () => {
-    socialLinksService.remove(3)
+    socialLinksService.remove('3')
     expect(mockDelete).toHaveBeenCalledWith(`${PREFIX}/social-links/3`)
   })
 })
