@@ -28,3 +28,31 @@ describe('ci-cd.yml release job', () => {
     )
   })
 })
+
+describe('ci-cd.yml smoke test', () => {
+  const smoke = jobBlock('smoke-test-readonly')
+
+  it('refuses a container whose runtime values are missing or malformed', () => {
+    expect(smoke).toContain('- name: Refuse bad runtime values')
+    expect(smoke).toContain('vb-intern:smoke-test nginx -t')
+    expect(smoke).not.toContain('--cap-add')
+  })
+
+  it('starts with a run on valid values, so a refusal cannot come from the setup', () => {
+    expect(smoke).toContain('start "" || { echo "The container did not start with valid values"')
+  })
+
+  it.each([
+    '"API_BASE_URL="',
+    '"API_BASE_URL=api.example.test"',
+    `"API_BASE_URL=https://x.test/a'b"`,
+    '"API_BASE_URL=https://x.test/a b"',
+    "'API_BASE_URL=https://x.test/$(id)'",
+    `"GOOGLE_CLIENT_ID=a'b"`,
+    '"PASSWORD_MIN_LENGTH=twelve"',
+    '"PASSWORD_MIN_LENGTH=0"',
+    '"APP_ENVIRONMENT=staging"',
+  ])('tries the bad value %s', (value) => {
+    expect(smoke).toContain(value)
+  })
+})

@@ -42,6 +42,37 @@ optional_env GOOGLE_CLIENT_ID
 require_env PASSWORD_MIN_LENGTH
 require_env APP_ENVIRONMENT
 
+fail() {
+  echo "FATAL: $1 Aborting." >&2
+  exit 1
+}
+
+# config.template.js writes every value between single quotes into JavaScript that the browser
+# executes, so each one is held to what it may legitimately be: a quote, backslash, angle
+# bracket, dollar sign, backtick, whitespace or line break in any of them would end the string
+# or the script and break, or take over, config.js.
+case "$API_BASE_URL" in
+  http://?* | https://?*) ;;
+  *) fail "API_BASE_URL must start with http:// or https:// and name a host." ;;
+esac
+case "$API_BASE_URL" in
+  *[!A-Za-z0-9:/._~%@+,=?\&#-]*)
+    fail "API_BASE_URL contains a character that is not allowed in a plain URL."
+    ;;
+esac
+case "$GOOGLE_CLIENT_ID" in
+  *[!A-Za-z0-9._-]*)
+    fail "GOOGLE_CLIENT_ID may only contain letters, digits, dots, underscores and hyphens."
+    ;;
+esac
+case "$PASSWORD_MIN_LENGTH" in
+  *[!0-9]* | 0*) fail "PASSWORD_MIN_LENGTH must be a positive whole number." ;;
+esac
+case "$APP_ENVIRONMENT" in
+  development | test | qa | production) ;;
+  *) fail "APP_ENVIRONMENT must be one of: development, test, qa, production." ;;
+esac
+
 if [ ! -f "$TEMPLATE" ]; then
   echo "FATAL: $TEMPLATE not found. Aborting." >&2
   exit 1
