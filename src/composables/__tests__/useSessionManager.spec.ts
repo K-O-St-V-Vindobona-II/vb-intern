@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
 import { useSessionManager } from '../useSessionManager'
 import type { User } from '@/types/member'
+import { REFRESH_TIMEOUT_MS } from '@/services/sessionRefresh'
 
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
@@ -92,7 +93,9 @@ describe('useSessionManager', () => {
     await nextTick()
 
     const api = (await import('@/services/api')).default
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
   })
 
   it('auto-logs out after idle timeout', async () => {
@@ -156,7 +159,9 @@ describe('useSessionManager', () => {
     await nextTick()
 
     const api = (await import('@/services/api')).default
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
   })
 
   it('cleans up timers and listeners on unmount', () => {
@@ -202,12 +207,36 @@ describe('useSessionManager', () => {
 
     mountComposable()
 
-    vi.advanceTimersByTime(120_000)
-    await nextTick()
+    await vi.advanceTimersByTimeAsync(120_000)
 
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
     expect(mockAuthStore.setToken).toHaveBeenCalledWith(refreshedToken)
     expect(mockLogout).not.toHaveBeenCalled()
+  })
+
+  it('schedules the next refresh for the new token after a successful proactive refresh', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mockAuthStore.token = makeJwt({ iat: now, exp: now + 120, sub: 'test' })
+    const firstRefresh = makeJwt({ iat: now, exp: now + 120 + 600, sub: 'test' })
+    const laterRefresh = makeJwt({ iat: now, exp: now + 120 + 36_000, sub: 'test' })
+    const api = (await import('@/services/api')).default
+    vi.mocked(api.post).mockClear()
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { access_token: firstRefresh } })
+      .mockResolvedValue({ data: { access_token: laterRefresh } })
+
+    mountComposable()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.post).toHaveBeenCalledTimes(1)
+
+    // The new token is due 600 s after the first refresh (inside the idle
+    // timeout of 30 minutes), not earlier.
+    await vi.advanceTimersByTimeAsync(500_000)
+    expect(api.post).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(200_000)
+    expect(api.post).toHaveBeenCalledTimes(2)
   })
 
   it('defaults idle timeout to 30 minutes when user has no setting', async () => {

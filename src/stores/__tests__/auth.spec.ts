@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import authService from '@/services/authService'
 import memberService from '@/services/memberService'
 import api from '@/services/api'
+import { REFRESH_TIMEOUT_MS } from '@/services/sessionRefresh'
 import { clearPresignedUrlCache } from '@/composables/useArchiveDownload'
 import type { User } from '@/types/member'
 
@@ -165,7 +166,9 @@ describe('Auth Store', () => {
     const result = await store.restoreSession()
 
     expect(result).toBe(true)
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
     expect(store.token).toBe('restored-jwt')
     expect(store.user).toEqual(buildUser({ vorname: 'Restored' }))
     expect(store.isRestoringSession).toBe(false)

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { User } from '@/types/member'
 import authService from '@/services/authService'
 import memberService from '@/services/memberService'
-import api from '@/services/api'
+import { refreshAccessToken } from '@/services/sessionRefresh'
 import { clearPresignedUrlCache } from '@/composables/useArchiveDownload'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -35,8 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function restoreSession(): Promise<boolean> {
     isRestoringSession.value = true
     try {
-      const { data } = await api.post('/auth/refresh')
-      setToken(data.access_token)
+      setToken(await refreshAccessToken())
       await fetchUser()
       return true
     } catch {

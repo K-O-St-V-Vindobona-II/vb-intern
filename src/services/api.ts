@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import router from '@/router'
 import { apiBaseUrl } from '@/runtimeConfig'
+import { refreshAccessToken } from '@/services/sessionRefresh'
 
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
@@ -18,14 +19,6 @@ const api = axios.create({
     Accept: 'application/json',
   },
 })
-
-let isRefreshing = false
-let refreshSubscribers: Array<(token: string) => void> = []
-
-function onRefreshComplete(newToken: string) {
-  refreshSubscribers.forEach((cb) => cb(newToken))
-  refreshSubscribers = []
-}
 
 function redirectToLoginIfNeeded() {
   if (router.currentRoute.value.name !== 'login') {
@@ -45,33 +38,21 @@ async function handleRefreshEndpointUnauthorized(error: unknown) {
   return Promise.reject(error)
 }
 
+// Every request that gets a 401 while a refresh runs waits for that same refresh
+// (see refreshAccessToken) and is retried with the new token, or fails with its
+// own error when the refresh fails.
 async function refreshTokenAndRetry(originalRequest: InternalAxiosRequestConfig, error: unknown) {
-  isRefreshing = true
   try {
-    const { data } = await api.post('/auth/refresh')
-    const authStore = useAuthStore()
-    authStore.setToken(data.access_token)
-    isRefreshing = false
-    onRefreshComplete(data.access_token)
-    originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+    const accessToken = await refreshAccessToken()
+    useAuthStore().setToken(accessToken)
+    originalRequest.headers.Authorization = `Bearer ${accessToken}`
     return api(originalRequest)
   } catch {
-    isRefreshing = false
-    refreshSubscribers = []
     const authStore = useAuthStore()
     authStore.clearAuth()
     redirectToLoginIfNeeded()
     return Promise.reject(error)
   }
-}
-
-function queueForRefresh(originalRequest: InternalAxiosRequestConfig) {
-  return new Promise((resolve) => {
-    refreshSubscribers.push((newToken: string) => {
-      originalRequest.headers.Authorization = `Bearer ${newToken}`
-      resolve(api(originalRequest))
-    })
-  })
 }
 
 // Centralizes the 401 branch so the response interceptor below stays a flat
@@ -90,10 +71,7 @@ async function handleUnauthorized(
 
   originalRequest._retry = true
 
-  if (!isRefreshing) {
-    return refreshTokenAndRetry(originalRequest, error)
-  }
-  return queueForRefresh(originalRequest)
+  return refreshTokenAndRetry(originalRequest, error)
 }
 
 // Refreshes the cached permission set in case it was revoked server-side,

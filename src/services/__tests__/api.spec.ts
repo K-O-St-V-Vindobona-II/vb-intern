@@ -20,6 +20,7 @@ vi.mock('@/services/memberService', () => ({
 }))
 
 import api from '@/services/api'
+import { refreshAccessToken, REFRESH_TIMEOUT_MS } from '@/services/sessionRefresh'
 import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import memberService from '@/services/memberService'
@@ -240,6 +241,103 @@ describe('api (axios interceptors)', () => {
     expect(resA.data).toEqual({ url: '/protected/a' })
     expect(resB.data).toEqual({ url: '/protected/b' })
     expect(authStore.token).toBe('new-token')
+  })
+
+  it('sends exactly one refresh request for several requests that get a 401 together', async () => {
+    useAuthStore().setToken('expired-token')
+    let refreshCalls = 0
+    let releaseRefresh: () => void = () => {}
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/refresh') {
+        refreshCalls++
+        await refreshGate
+        return makeResponse(config, { access_token: 'new-token' })
+      }
+      if (config.headers.Authorization !== 'Bearer new-token') {
+        throw makeError(config, 401, { detail: 'expired' })
+      }
+      return makeResponse(config, { url: config.url })
+    })
+
+    const requests = [api.get('/a'), api.get('/b'), api.get('/c'), api.get('/d')]
+    await vi.waitFor(() => expect(refreshCalls).toBe(1))
+    releaseRefresh()
+    const responses = await Promise.all(requests)
+
+    expect(refreshCalls).toBe(1)
+    expect(responses.map((r) => r.data.url)).toEqual(['/a', '/b', '/c', '/d'])
+  })
+
+  it('shares one refresh request between a refresh started by the session timer and a 401', async () => {
+    useAuthStore().setToken('expired-token')
+    let refreshCalls = 0
+    let releaseRefresh: () => void = () => {}
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/refresh') {
+        refreshCalls++
+        await refreshGate
+        return makeResponse(config, { access_token: 'new-token' })
+      }
+      if (config.headers.Authorization !== 'Bearer new-token') {
+        throw makeError(config, 401, { detail: 'expired' })
+      }
+      return makeResponse(config, { ok: true })
+    })
+
+    const fromTimer = refreshAccessToken()
+    await vi.waitFor(() => expect(refreshCalls).toBe(1))
+    const protectedRequest = api.get('/protected')
+    await vi.waitFor(() => expect(api.defaults.adapter).toHaveBeenCalledTimes(2))
+    releaseRefresh()
+
+    await expect(fromTimer).resolves.toBe('new-token')
+    await expect(protectedRequest).resolves.toMatchObject({ data: { ok: true } })
+    expect(refreshCalls).toBe(1)
+  })
+
+  it('fails every request that waits for a refresh when the refresh fails', async () => {
+    const authStore = useAuthStore()
+    authStore.setToken('expired-token')
+    let refreshCalls = 0
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/refresh') {
+        refreshCalls++
+        await Promise.resolve()
+        throw makeError(config, 500, { detail: 'outage' })
+      }
+      throw makeError(config, 401, { detail: 'expired' })
+    })
+
+    const results = await Promise.allSettled([api.get('/a'), api.get('/b'), api.get('/c')])
+
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected', 'rejected'])
+    expect(refreshCalls).toBe(1)
+    expect(authStore.token).toBeNull()
+  })
+
+  it('limits the time a refresh request may take', async () => {
+    useAuthStore().setToken('expired-token')
+    let refreshTimeout: number | undefined
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/refresh') {
+        refreshTimeout = config.timeout
+        return makeResponse(config, { access_token: 'new-token' })
+      }
+      if (config.headers.Authorization !== 'Bearer new-token') {
+        throw makeError(config, 401, { detail: 'expired' })
+      }
+      return makeResponse(config)
+    })
+
+    await api.get('/protected')
+
+    expect(refreshTimeout).toBe(REFRESH_TIMEOUT_MS)
   })
 
   it('does not try a second refresh when the retried request is rejected with a 401 again', async () => {
