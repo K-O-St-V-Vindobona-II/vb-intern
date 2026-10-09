@@ -609,14 +609,14 @@ const capitalize = (s: string | null | undefined) =>
             </div>
           </div>
 
-          <div class="show-field show-field--check">
+          <div v-if="member.chroniclemail !== null" class="show-field show-field--check">
             <span class="check-icon" :class="member.chroniclemail ? 'active' : ''">
               {{ member.chroniclemail ? '☑' : '☐' }}
             </span>
             <span>Chroniclemails aktiviert</span>
           </div>
 
-          <div class="show-field show-field--check">
+          <div v-if="member.auth_locked !== null" class="show-field show-field--check">
             <span class="check-icon" :class="member.auth_locked ? 'active' : ''">
               {{ member.auth_locked ? '☑' : '☐' }}
             </span>

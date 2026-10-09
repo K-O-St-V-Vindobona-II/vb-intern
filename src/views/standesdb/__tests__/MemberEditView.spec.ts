@@ -208,6 +208,31 @@ describe('MemberEditView', () => {
     expect(wrapper.text()).toContain('Grabadresse')
   })
 
+  it('fills the chronicle and lock checkboxes from the loaded member', async () => {
+    mockGetMember.mockResolvedValue({
+      data: buildMember({ chroniclemail: true, auth_locked: false }),
+    })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    // Checkbox order: Gründer, Entlassen, Verstorben, Chroniclemails, Zugang gesperrt.
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+    expect(checkboxes[3]!.props('modelValue')).toBe(true)
+    expect(checkboxes[4]!.props('modelValue')).toBe(false)
+  })
+
+  it('keeps the safe defaults when the API withholds the account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: buildMember({ chroniclemail: null, auth_locked: null }),
+    })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+    expect(checkboxes[3]!.props('modelValue')).toBe(false)
+    expect(checkboxes[4]!.props('modelValue')).toBe(true)
+  })
+
   it('shows the MKV/OGV link field only for org vbw', async () => {
     mockGetMember.mockResolvedValue({ data: buildMember({ org_id: 'vbn' }) })
     const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')

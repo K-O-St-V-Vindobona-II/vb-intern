@@ -137,7 +137,7 @@ const fuzzyDateFields: {
   },
 ]
 
-const copyField = <K extends keyof MemberFormData>(key: K, data: MemberDetail) => {
+const copyField = <K extends keyof MemberFormData>(key: K, data: MemberFormData) => {
   form.value[key] = data[key]
 }
 
@@ -152,7 +152,14 @@ const load = async () => {
 
     if (!isNew.value && memberId.value) {
       const resp = await standesdbService.getMember(memberId.value)
-      const data = resp.data as MemberDetail
+      const detail = resp.data as MemberDetail
+      // The API withholds the account status from viewers who may not see it:
+      // keep the form's safe defaults for those two flags.
+      const data = {
+        ...detail,
+        chroniclemail: detail.chroniclemail ?? form.value.chroniclemail,
+        auth_locked: detail.auth_locked ?? form.value.auth_locked,
+      }
       ;(Object.keys(form.value) as (keyof MemberFormData)[]).forEach((key) => {
         if (key in data) {
           copyField(key, data)

@@ -187,6 +187,36 @@ describe('MemberShowView', () => {
     expect(w.text()).not.toContain('Email verifiziert')
   })
 
+  it('shows the chronicle and sign-in lock rows with their state when the API returns them', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: true, auth_locked: false },
+    })
+    const w = await mountView()
+
+    expect(w.text()).toContain('☑Chroniclemails aktiviert')
+    expect(w.text()).toContain('☐Zugang gesperrt')
+  })
+
+  it('shows an unchecked row, not a hidden one, for a false account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: false, auth_locked: true },
+    })
+    const w = await mountView()
+
+    expect(w.text()).toContain('☐Chroniclemails aktiviert')
+    expect(w.text()).toContain('☑Zugang gesperrt')
+  })
+
+  it('hides the chronicle and sign-in lock rows when the API withholds the account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: null, auth_locked: null },
+    })
+    const w = await mountView()
+
+    expect(w.text()).not.toContain('Chroniclemails aktiviert')
+    expect(w.text()).not.toContain('Zugang gesperrt')
+  })
+
   it('renders phone as tel link', async () => {
     const w = await mountView()
     const link = w.find('a[href="tel:+43650123456"]')
