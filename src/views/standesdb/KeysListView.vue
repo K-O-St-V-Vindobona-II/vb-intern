@@ -1,45 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
 import { toLocalDateStr } from '@/utils/formatters'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
 import type { KeysListMember } from '@/types/standesdb'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
-const router = useRouter()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const downloading = ref(false)
 const keyNames = ref<string[]>([])
 const members = ref<KeysListMember[]>([])
 
-const goToMember = (id: string) => {
-  router.push({
-    name: 'standesdb-member-show',
-    params: { id },
-  })
-}
+const memberLink = (id: string) => ({ name: 'standesdb-member-show', params: { id } })
 
 const download = async () => {
   downloading.value = true
   try {
     const resp = await standesdbService.downloadKeysList()
-
-    const disposition = resp.headers['content-disposition'] ?? ''
-    const match = disposition.match(/filename=(.+)/)
-    const filename = match ? match[1] : `schluessel_${toLocalDateStr(new Date())}.txt`
-
-    const url = URL.createObjectURL(resp.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = downloadBlobResponse(resp, `schluessel_${toLocalDateStr(new Date())}.txt`)
 
     toast.add({
       severity: 'success',
@@ -59,15 +45,21 @@ const download = async () => {
   }
 }
 
-onMounted(async () => {
+const loadKeys = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await standesdbService.getKeysList()
     keyNames.value = resp.data.key_names
     members.value = resp.data.members
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadKeys)
 </script>
 
 <template>
@@ -75,7 +67,7 @@ onMounted(async () => {
     <div class="keys-header">
       <h2>Standesdatenbank</h2>
       <p class="keys-subtitle">Liste der Schlüsselinhaber</p>
-      <div v-if="!loading" class="keys-actions-top">
+      <div v-if="!loading && !loadFailed" class="keys-actions-top">
         <Button
           label="Download"
           icon="pi pi-download"
@@ -87,7 +79,14 @@ onMounted(async () => {
       </div>
     </div>
 
-    <Card v-if="!loading">
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        Die Schlüsselliste konnte nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadKeys" />
+    </div>
+
+    <Card v-if="!loading && !loadFailed">
       <template #content>
         <DataTable
           :value="members"
@@ -99,29 +98,33 @@ onMounted(async () => {
         >
           <Column field="nachname" header="Nachname" sortable>
             <template #body="{ data }">
-              <a class="member-link" @click.prevent="goToMember(data.id)">
-                {{ data.nachname }}
-              </a>
+              <RouterLink class="member-link" :to="memberLink(data.id)">
+                {{ data.nachname ?? '-' }}
+              </RouterLink>
             </template>
           </Column>
           <Column field="vorname" header="Vorname" sortable>
             <template #body="{ data }">
-              <a class="member-link" @click.prevent="goToMember(data.id)">
-                {{ data.vorname }}
-              </a>
+              <RouterLink class="member-link" :to="memberLink(data.id)">
+                {{ data.vorname ?? '-' }}
+              </RouterLink>
             </template>
           </Column>
-          <Column
-            v-for="keyName in keyNames"
-            :key="keyName"
-            :header="keyName"
-            header-class="key-col-header"
-            class="key-col"
-          >
+          <Column v-for="keyName in keyNames" :key="keyName" :header="keyName">
             <template #body="{ data }">
               <div class="key-cell">
-                <i v-if="data.keys[keyName]" class="pi pi-check-circle key-yes" />
-                <i v-else class="pi pi-times-circle key-no" />
+                <i
+                  v-if="data.keys[keyName]"
+                  class="pi pi-check-circle key-yes"
+                  role="img"
+                  :aria-label="`${keyName}: vorhanden`"
+                />
+                <i
+                  v-else
+                  class="pi pi-times-circle key-no"
+                  role="img"
+                  :aria-label="`${keyName}: nicht vorhanden`"
+                />
               </div>
             </template>
           </Column>
@@ -129,7 +132,7 @@ onMounted(async () => {
       </template>
     </Card>
 
-    <div v-if="!loading" class="download-action">
+    <div v-if="!loading && !loadFailed" class="download-action">
       <Button
         label="Download als Textdatei"
         icon="pi pi-download"
@@ -151,6 +154,13 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
 .keys-subtitle {
   color: var(--p-text-muted-color);
   margin: 0;
@@ -168,12 +178,6 @@ onMounted(async () => {
 
 .member-link:hover {
   text-decoration: underline;
-}
-
-.key-col-header,
-.key-col {
-  text-align: center;
-  width: 15%;
 }
 
 .key-cell {

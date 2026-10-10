@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
 import type { SumUpBalance } from '@/types/p4x'
@@ -10,6 +10,8 @@ import Message from 'primevue/message'
 const loading = ref(true)
 const loadFailed = ref(false)
 const data = ref<SumUpBalance | null>(null)
+
+const saldo = computed(() => (data.value ? data.value.in_sum + data.value.out_sum : 0))
 
 const load = async () => {
   loading.value = true
@@ -60,7 +62,7 @@ onMounted(load)
           Betrag, der regelmässig an die Bar-Kassa überwiesen werden soll
         </div>
         <div class="saldo-amount">
-          <Amount :amount="data.in_sum + data.out_sum" />
+          <Amount :amount="saldo" />
         </div>
       </div>
     </div>

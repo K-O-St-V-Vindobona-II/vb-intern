@@ -50,8 +50,13 @@ onMounted(load)
     <DataTable :value="categories" size="small" striped-rows scrollable>
       <Column header="" style="width: 3rem">
         <template #body="{ data }">
-          <i
-            class="pi pi-pencil clickable"
+          <Button
+            v-tooltip="'Bearbeiten'"
+            icon="pi pi-pencil"
+            text
+            rounded
+            size="small"
+            aria-label="Bearbeiten"
             @click="router.push({ name: 'p4x-category-edit', params: { id: data.id } })"
           />
         </template>
@@ -93,12 +98,6 @@ onMounted(load)
   font-size: 0.85rem;
   color: var(--p-text-muted-color);
   margin-bottom: 0.5rem;
-}
-.clickable {
-  cursor: pointer;
-}
-.clickable:hover {
-  color: var(--p-primary-600);
 }
 .uniform-label {
   min-width: 14rem;

@@ -7,7 +7,7 @@ import PrimeVue from 'primevue/config'
 const orgs = [{ id: 'vbw', label: 'Wien' }]
 const states = [{ id: 'active', label: 'Aktiv' }]
 
-const mountWith = (props: Record<string, unknown>) =>
+const mountWith = (props: { title: string; recursive?: boolean }) =>
   mount(PermissionViewer, {
     props: { orgs, states, modelValue: [], ...props },
     global: { plugins: [PrimeVue] },

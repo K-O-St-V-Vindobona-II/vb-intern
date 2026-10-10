@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import archiveService from '@/services/archiveService'
-import { formatDate, formatSize } from '@/utils/formatters'
+import { formatApiError, formatDate, formatSize } from '@/utils/formatters'
 import type { FileShort, UploadConfig } from '@/types/archive'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
@@ -20,7 +19,10 @@ interface PreparedFile {
 
 const toast = useToast()
 
+const placeholderYear = new Date().getFullYear()
+
 const config = ref<UploadConfig | null>(null)
+const configError = ref(false)
 const description = ref('')
 const preparedFiles = ref<PreparedFile[]>([])
 const uploading = ref(false)
@@ -32,11 +34,14 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const validFiles = computed(() => preparedFiles.value.filter((f) => f.valid))
 const invalidFiles = computed(() => preparedFiles.value.filter((f) => !f.valid))
 
+// Blanks around the text do not count: five spaces are not a description.
+const trimmedDescription = computed(() => description.value.trim())
+
 const descriptionValid = computed(() => {
   if (!config.value) return false
   return (
-    description.value.length >= config.value.descminlength &&
-    description.value.length <= config.value.descmaxlength
+    trimmedDescription.value.length >= config.value.descminlength &&
+    trimmedDescription.value.length <= config.value.descmaxlength
   )
 })
 
@@ -52,7 +57,7 @@ const validateFile = (file: File): PreparedFile => {
     return { file, valid: false, error: 'Keine Dateiendung.' }
   }
 
-  const ext = parts.pop()!.toLowerCase()
+  const ext = (parts.pop() ?? '').toLowerCase()
   if (!config.value.extensions.includes(ext)) {
     return { file, valid: false, error: `Format ".${ext}" nicht erlaubt.` }
   }
@@ -80,6 +85,7 @@ const addFiles = (files: FileList | File[]) => {
 }
 
 const removeFile = (index: number) => {
+  if (uploading.value) return
   preparedFiles.value.splice(index, 1)
 }
 
@@ -91,6 +97,9 @@ const onFileInput = (e: Event) => {
 
 const onDrop = (e: DragEvent) => {
   dragOver.value = false
+  // Files dropped while an upload runs would be cleared with the list afterwards without
+  // ever being uploaded.
+  if (uploading.value) return
   if (e.dataTransfer?.files) addFiles(e.dataTransfer.files)
 }
 
@@ -121,23 +130,29 @@ const fileIcon = (name: string): string => {
 const startUpload = async () => {
   uploading.value = true
   uploadProgress.value = 0
-  const total = validFiles.value.length
+  const queue = validFiles.value
+  const total = queue.length
+  const sentDescription = trimmedDescription.value
   let done = 0
+  const failed: PreparedFile[] = []
   const errors: string[] = []
 
-  for (const pf of validFiles.value) {
+  for (const pf of queue) {
     try {
-      await archiveService.uploadFile(pf.file, description.value)
+      await archiveService.uploadFile(pf.file, sentDescription)
     } catch (err: unknown) {
       const msg = formatApiError(err, 'Unbekannter Fehler')
       errors.push(`${pf.file.name}: ${msg}`)
+      failed.push(pf)
     }
     done++
     uploadProgress.value = Math.round((done / total) * 100)
   }
 
-  preparedFiles.value = []
-  description.value = ''
+  // Files that failed stay in the selection (with the description) so that they can be
+  // sent again without picking them once more.
+  preparedFiles.value = failed
+  if (!failed.length) description.value = ''
   await loadUnfiled()
   uploading.value = false
 
@@ -145,7 +160,7 @@ const startUpload = async () => {
     toast.add({
       severity: 'warn',
       summary: `${done - errors.length} von ${total} hochgeladen`,
-      detail: errors.join('\n'),
+      detail: `${errors.join('\n')}\nDie fehlgeschlagenen Dateien bleiben zum erneuten Versuch ausgewählt.`,
       life: 8000,
     })
   } else {
@@ -161,16 +176,35 @@ const loadUnfiled = async () => {
   try {
     const resp = await archiveService.getUnfiledUploads()
     unfiled.value = resp.data.files
-  } catch {
-    /* empty */
+  } catch (err: unknown) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Hinweis',
+      detail: formatApiError(err, 'Unsortierte Uploads konnten nicht geladen werden.'),
+      life: 5000,
+    })
   }
 }
 
-onMounted(async () => {
-  const resp = await archiveService.getUploadConfig()
-  config.value = resp.data
+const loadConfig = async () => {
+  configError.value = false
+  try {
+    const resp = await archiveService.getUploadConfig()
+    config.value = resp.data
+  } catch (err: unknown) {
+    configError.value = true
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: formatApiError(err, 'Upload-Konfiguration konnte nicht geladen werden.'),
+      life: 5000,
+    })
+    return
+  }
   await loadUnfiled()
-})
+}
+
+onMounted(loadConfig)
 </script>
 
 <template>
@@ -192,21 +226,34 @@ onMounted(async () => {
       </template>
     </Card>
 
+    <div v-if="configError" class="config-error">
+      <p>Die Upload-Konfiguration konnte nicht geladen werden.</p>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" @click="loadConfig" />
+    </div>
+
     <!-- Drag & Drop Zone -->
     <div
+      v-else
       class="drop-zone"
       :class="{ 'drop-zone-active': dragOver }"
+      role="button"
+      tabindex="0"
+      aria-label="Dateien zum Hochladen auswählen"
       @dragover.prevent="dragOver = true"
       @dragleave.prevent="dragOver = false"
       @drop.prevent="onDrop"
       @click="openFilePicker"
+      @keydown.enter.prevent="openFilePicker"
+      @keydown.space.prevent="openFilePicker"
     >
       <input
         ref="fileInputRef"
         type="file"
         multiple
         class="hidden-input"
+        tabindex="-1"
         :disabled="uploading"
+        @click.stop
         @change="onFileInput"
       />
       <i class="pi pi-cloud-upload drop-icon" />
@@ -240,7 +287,15 @@ onMounted(async () => {
             <span class="file-size">{{ formatSize(pf.file.size) }}</span>
             <span v-if="pf.error" class="file-error">{{ pf.error }}</span>
           </div>
-          <i class="pi pi-times file-remove" @click="removeFile(index)" />
+          <button
+            type="button"
+            class="file-remove"
+            :aria-label="`${pf.file.name} aus der Auswahl entfernen`"
+            :disabled="uploading"
+            @click="removeFile(index)"
+          >
+            <i class="pi pi-times" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
@@ -252,19 +307,20 @@ onMounted(async () => {
 
     <!-- Description + Upload -->
     <div v-if="validFiles.length && config" class="upload-form">
-      <label class="desc-label">
+      <label for="upload-description" class="desc-label">
         Beschreibung
         <small class="desc-counter"> {{ description.length }} / {{ config.descmaxlength }} </small>
       </label>
       <InputText
+        id="upload-description"
         v-model="description"
         class="desc-input"
-        :placeholder="`z.B. Fotos vom Stiftungsfest ${new Date().getFullYear()}`"
+        :placeholder="`z.B. Fotos vom Stiftungsfest ${placeholderYear}`"
         :disabled="uploading"
         :maxlength="config.descmaxlength"
       />
       <small
-        v-if="description.length > 0 && description.length < config.descminlength"
+        v-if="trimmedDescription.length > 0 && trimmedDescription.length < config.descminlength"
         class="desc-hint"
       >
         Mindestens {{ config.descminlength }} Zeichen
@@ -458,13 +514,24 @@ onMounted(async () => {
   font-size: 0.8rem;
 }
 .file-remove {
+  background: none;
+  border: none;
   cursor: pointer;
   color: var(--p-text-muted-color);
   flex-shrink: 0;
   padding: 0.25rem;
 }
-.file-remove:hover {
+.file-remove:hover:not(:disabled) {
   color: var(--p-red-600);
+}
+.file-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.config-error {
+  text-align: center;
+  color: var(--p-text-muted-color);
+  margin: 2rem 0;
 }
 .file-summary {
   margin-top: 0.5rem;

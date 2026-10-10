@@ -5,6 +5,12 @@ import ContactEditView from '../ContactEditView.vue'
 import PrimeVue from 'primevue/config'
 import type { ContactDetail, ReferenceData } from '@/types/standesdb'
 
+const CONTACT_ID = '11111111-1111-1111-1111-111111111111'
+const OTHER_CONTACT_ID = '22222222-2222-2222-2222-222222222222'
+const CREATED_ID = '99999999-9999-9999-9999-999999999999'
+
+// Wrappers left mounted by earlier cases would react to the route changes of later ones.
+
 function buildReferenceData(): ReferenceData {
   return {
     orgs: [{ id: 'vbw', label: 'Wien', order: 1 }],
@@ -17,7 +23,7 @@ function buildReferenceData(): ReferenceData {
 
 function buildContact(overrides: Partial<ContactDetail> = {}): ContactDetail {
   return {
-    id: '1',
+    id: CONTACT_ID,
     cn: 'Firma GmbH',
     kontakttyp: 'organisation',
     anrede: null,
@@ -91,7 +97,7 @@ describe('ContactEditView', () => {
     mockGetContact.mockReset()
     mockGetReferenceData.mockResolvedValue({ data: buildReferenceData() })
     mockGetContact.mockResolvedValue({ data: buildContact() })
-    mockCreateContact.mockResolvedValue({ data: { id: 9 } })
+    mockCreateContact.mockResolvedValue({ data: { id: CREATED_ID } })
     mockUpdateContact.mockResolvedValue({})
   })
 
@@ -100,15 +106,15 @@ describe('ContactEditView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Neuen Kontakt anlegen')
-    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('#contact-name').element as HTMLInputElement).value).toBe('')
     expect(mockGetContact).not.toHaveBeenCalled()
   })
 
   it('loads and pre-fills an existing contact for editing', async () => {
-    const wrapper = await mountAt('/standesdb/contacts/1/edit')
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
     await flushPromises()
 
-    expect(mockGetContact).toHaveBeenCalledWith('1')
+    expect(mockGetContact).toHaveBeenCalledWith(CONTACT_ID)
     expect(wrapper.text()).toContain('Kontakt bearbeiten')
     const emailInput = wrapper.find('input[type="email"]').element as HTMLInputElement
     expect(emailInput.value).toBe('kontakt@firma.at')
@@ -116,7 +122,7 @@ describe('ContactEditView', () => {
 
   it('redirects to not-found on a 404 while loading', async () => {
     mockGetContact.mockRejectedValueOnce({ response: { status: 404 } })
-    await mountAt('/standesdb/contacts/999/edit')
+    await mountAt(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('not-found')
@@ -126,8 +132,7 @@ describe('ContactEditView', () => {
     const wrapper = await mountAt('/standesdb/contacts/new')
     await flushPromises()
 
-    // Field order in the left column: Kontakttyp (Select), Anrede, Name, ...
-    await wrapper.findAll('.col input')[1]!.setValue('Neue Firma GmbH')
+    await wrapper.find('#contact-name').setValue('Neue Firma GmbH')
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
     await saveBtn.trigger('click')
     await flushPromises()
@@ -137,11 +142,11 @@ describe('ContactEditView', () => {
     )
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
     expect(router.currentRoute.value.name).toBe('standesdb-contact-show')
-    expect(router.currentRoute.value.params.id).toBe('9')
+    expect(router.currentRoute.value.params['id']).toBe(CREATED_ID)
   })
 
   it('updates an existing contact and navigates back to its detail page', async () => {
-    const wrapper = await mountAt('/standesdb/contacts/1/edit')
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -149,18 +154,18 @@ describe('ContactEditView', () => {
     await flushPromises()
 
     expect(mockUpdateContact).toHaveBeenCalledWith(
-      '1',
+      CONTACT_ID,
       expect.objectContaining({ name: 'Firma GmbH' }),
     )
     expect(router.currentRoute.value.name).toBe('standesdb-contact-show')
-    expect(router.currentRoute.value.params.id).toBe('1')
+    expect(router.currentRoute.value.params['id']).toBe(CONTACT_ID)
   })
 
   it('shows a plain error toast for a string error detail', async () => {
     mockUpdateContact.mockRejectedValueOnce({
       response: { data: { detail: 'Name bereits vergeben.' } },
     })
-    const wrapper = await mountAt('/standesdb/contacts/1/edit')
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -180,7 +185,7 @@ describe('ContactEditView', () => {
         },
       },
     })
-    const wrapper = await mountAt('/standesdb/contacts/1/edit')
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -188,46 +193,348 @@ describe('ContactEditView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Validierungsfehler')
-    expect(wrapper.text()).toContain('name:')
-    expect(wrapper.text()).toContain('field required')
+    expect(wrapper.text()).toContain('Name: field required')
+    expect(wrapper.text()).not.toContain('name:')
   })
 
-  describe('when the data cannot be loaded', () => {
-    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
-      wrapper.findAll('button').find((b) => b.text() === 'Speichern')
+  it('sends a cleared optional field as null and a padded name trimmed', async () => {
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+    await flushPromises()
 
-    it('shows no form and no save button when the contact cannot be loaded', async () => {
+    await wrapper.find('#contact-email').setValue('')
+    await wrapper.find('#contact-anrede').setValue('   ')
+    await wrapper.find('#contact-name').setValue('  Firma AG  ')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Speichern')!
+      .trigger('click')
+    await flushPromises()
+
+    const payload = mockUpdateContact.mock.calls[0]![1]
+    expect(payload).toMatchObject({ email: null, anrede: null, name: 'Firma AG' })
+    expect(payload.rufnummer).toBe('+43123456')
+  })
+
+  it('limits the input to the lengths the API accepts', async () => {
+    const wrapper = await mountAt('/standesdb/contacts/new')
+    await flushPromises()
+
+    const limits = {
+      '#contact-name': '64',
+      '#contact-couleurname': '64',
+      '#contact-anrede': '32',
+      '#contact-adresse-plz': '8',
+      '#contact-adresse-ort': '32',
+      '#contact-adresse-land': '32',
+      '#contact-email': '128',
+    }
+    Object.entries(limits).forEach(([selector, max]) => {
+      expect(wrapper.find(selector).attributes('maxlength')).toBe(max)
+    })
+  })
+
+  it('connects every text label to its field', async () => {
+    const wrapper = await mountAt('/standesdb/contacts/new')
+    await flushPromises()
+
+    const labels = wrapper.findAll('label[for]')
+    expect(labels.length).toBeGreaterThanOrEqual(12)
+    labels.forEach((label) => {
+      const target = wrapper.find(`#${label.attributes('for')}`)
+      expect(target.exists(), `no control for label "${label.text()}"`).toBe(true)
+    })
+  })
+
+  it('shows the message of a rejected e-mail address next to the field', async () => {
+    mockUpdateContact.mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: [
+            { loc: ['body', 'email'], msg: 'Value error, Keine gültige Adresse.' },
+            { loc: ['body', 'rufnummer'], msg: 'Ungültiges Telefonnummernformat.' },
+          ],
+        },
+      },
+    })
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Speichern')!
+      .trigger('click')
+    await flushPromises()
+
+    const field = wrapper.find('#contact-email').element.closest('.field')!
+    expect(field.textContent).toContain('Keine gültige Adresse.')
+    expect(field.textContent).not.toContain('Value error')
+    expect(wrapper.text()).toContain('E-Mail: Keine gültige Adresse.')
+    expect(wrapper.text()).toContain('Rufnummer: Ungültiges Telefonnummernformat.')
+  })
+
+  it('does not show internal keys for plain-text validation errors', async () => {
+    mockUpdateContact.mockRejectedValueOnce({
+      response: {
+        data: { detail: [{ loc: ['body', 'name'], msg: 'zu lang' }, 'Allgemeiner Fehler'] },
+      },
+    })
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Speichern')!
+      .trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Allgemeiner Fehler')
+    expect(wrapper.text()).not.toContain('validation_')
+  })
+
+  it('names the failure when the error carries no reason', async () => {
+    mockUpdateContact.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Speichern')!
+      .trigger('click')
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', detail: 'Speichern fehlgeschlagen.' }),
+    )
+  })
+
+  describe('the payload', () => {
+    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
+      wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+
+    it('sends the fields that are not trimmed as they were loaded', async () => {
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(mockUpdateContact.mock.calls[0]![1]).toMatchObject({
+        kontakttyp: 'organisation',
+        org_id: 'vbw',
+        zustellungen: true,
+        datum: null,
+        datum_accuracy: 0,
+      })
+    })
+
+    it.each([
+      ['#contact-couleurname', 'couleurname'],
+      ['#contact-adresse-anschrift', 'adresse_anschrift'],
+      ['#contact-adresse-plz', 'adresse_plz'],
+      ['#contact-adresse-ort', 'adresse_ort'],
+      ['#contact-adresse-land', 'adresse_land'],
+      ['#contact-rufnummer', 'rufnummer'],
+      ['#contact-anmerkungen', 'anmerkungen'],
+    ])(
+      'sends %s as null when blank and without surrounding blanks otherwise',
+      async (selector, key) => {
+        const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+        await flushPromises()
+
+        await wrapper.find(selector).setValue('   ')
+        await saveButton(wrapper).trigger('click')
+        await flushPromises()
+        expect(mockUpdateContact.mock.calls[0]![1][key]).toBeNull()
+
+        mockUpdateContact.mockClear()
+        await router.push(`/standesdb/contacts/${CONTACT_ID}/edit`)
+        await flushPromises()
+        await wrapper.find(selector).setValue('  Wert  ')
+        await saveButton(wrapper).trigger('click')
+        await flushPromises()
+        expect(mockUpdateContact.mock.calls[0]![1][key]).toBe('Wert')
+      },
+    )
+
+    it('confirms a saved change with a toast', async () => {
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'success', detail: 'Änderungen wurden übernommen.' }),
+      )
+    })
+  })
+
+  describe('validation messages', () => {
+    const saveButton = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
+      wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+
+    it('names every field of the form in German in the summary', async () => {
+      const labels: Record<string, string> = {
+        kontakttyp: 'Kontakttyp',
+        anrede: 'Anrede',
+        name: 'Name',
+        couleurname: 'Couleurname',
+        org_id: 'Verbindung (Referenz)',
+        adresse_anschrift: 'Adresse (Anschrift)',
+        adresse_plz: 'Adresse (PLZ)',
+        adresse_ort: 'Adresse (Ort)',
+        adresse_land: 'Adresse (Land)',
+        zustellungen: 'Zustellungen',
+        email: 'E-Mail',
+        rufnummer: 'Rufnummer',
+        datum: 'Datum',
+        datum_accuracy: 'Datum',
+        anmerkungen: 'Anmerkungen',
+      }
+      mockUpdateContact.mockRejectedValueOnce({
+        response: {
+          data: {
+            detail: Object.keys(labels).map((field) => ({
+              loc: ['body', field],
+              msg: `ungültig (${field})`,
+            })),
+          },
+        },
+      })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      const summary = wrapper.find('.error-summary').text()
+      Object.entries(labels).forEach(([field, label]) => {
+        expect(summary).toContain(`${label}: ungültig (${field})`)
+      })
+    })
+
+    it('shows the lines of the summary in a toast and no second generic one', async () => {
+      mockUpdateContact.mockRejectedValueOnce({
+        response: { data: { detail: [{ loc: ['body', 'name'], msg: 'zu lang' }] } },
+      })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledTimes(1)
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          severity: 'error',
+          summary: 'Validierungsfehler',
+          detail: 'Name: zu lang',
+        }),
+      )
+    })
+
+    it('ignores an entry that names no field', async () => {
+      mockUpdateContact.mockRejectedValueOnce({
+        response: {
+          data: { detail: [{ msg: 'ohne Ort' }, { loc: ['body', 'name'], msg: 'zu lang' }] },
+        },
+      })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.error-summary').text()).not.toContain('undefined')
+      expect(wrapper.find('.error-summary').text()).toContain('Name: zu lang')
+    })
+
+    it('marks the name and the e-mail field as invalid', async () => {
+      mockUpdateContact.mockRejectedValueOnce({
+        response: {
+          data: {
+            detail: [
+              { loc: ['body', 'name'], msg: 'zu lang' },
+              { loc: ['body', 'email'], msg: 'ungültig' },
+            ],
+          },
+        },
+      })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+      expect(wrapper.find('#contact-name').classes()).not.toContain('p-invalid')
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('#contact-name').classes()).toContain('p-invalid')
+      expect(wrapper.find('#contact-email').classes()).toContain('p-invalid')
+    })
+
+    it('drops the general messages of an earlier attempt when saving again', async () => {
+      mockUpdateContact
+        .mockRejectedValueOnce({ response: { data: { detail: ['Allgemeiner Fehler'] } } })
+        .mockRejectedValueOnce({ response: { data: { detail: 'Name bereits vergeben.' } } })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.error-summary').text()).toContain('Allgemeiner Fehler')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.error-summary').exists()).toBe(false)
+    })
+
+    it('drops the general messages when another contact is loaded', async () => {
+      mockUpdateContact.mockRejectedValueOnce({
+        response: { data: { detail: ['Allgemeiner Fehler'] } },
+      })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.error-summary').exists()).toBe(true)
+
+      await router.push(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
+      await flushPromises()
+
+      expect(wrapper.find('.error-summary').exists()).toBe(false)
+    })
+  })
+
+  describe('a load that fails', () => {
+    it('regression: shows no form for an existing contact when the contact cannot be loaded', async () => {
       mockGetContact.mockRejectedValue({ response: { status: 500 } })
-      const wrapper = await mountAt('/standesdb/contacts/1/edit')
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
       await flushPromises()
 
       expect(wrapper.text()).toContain('Der Kontakt konnte nicht geladen werden.')
-      expect(wrapper.find('input').exists()).toBe(false)
-      expect(saveButton(wrapper)).toBeUndefined()
+      expect(wrapper.find('#contact-name').exists()).toBe(false)
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Speichern')).toBe(false)
+    })
+
+    it('regression: shows no form when only the reference data cannot be loaded', async () => {
+      mockGetReferenceData.mockRejectedValue(new Error('offline'))
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Der Kontakt konnte nicht geladen werden.')
       expect(mockUpdateContact).not.toHaveBeenCalled()
     })
 
-    it('shows no form when only the reference data fails', async () => {
-      mockGetReferenceData.mockRejectedValue(new Error('Network Error'))
-      const wrapper = await mountAt('/standesdb/contacts/1/edit')
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Der Kontakt konnte nicht geladen werden.')
-      expect(saveButton(wrapper)).toBeUndefined()
-    })
-
-    it('names its own failure on the create form', async () => {
-      mockGetReferenceData.mockRejectedValue({ response: { status: 500 } })
+    it('names the failure of the create form as such', async () => {
+      mockGetReferenceData.mockRejectedValue(new Error('offline'))
       const wrapper = await mountAt('/standesdb/contacts/new')
       await flushPromises()
 
       expect(wrapper.text()).toContain('Das Formular konnte nicht geladen werden.')
-      expect(saveButton(wrapper)).toBeUndefined()
     })
 
-    it('loads the form when "Erneut versuchen" is pressed', async () => {
+    it('loads the form after "Erneut versuchen"', async () => {
       mockGetContact.mockRejectedValueOnce({ response: { status: 500 } })
-      const wrapper = await mountAt('/standesdb/contacts/1/edit')
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
       await flushPromises()
 
       await wrapper
@@ -236,103 +543,101 @@ describe('ContactEditView', () => {
         .trigger('click')
       await flushPromises()
 
+      expect((wrapper.find('#contact-name').element as HTMLInputElement).value).toBe('Firma GmbH')
       expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
-      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe(
-        'kontakt@firma.at',
-      )
     })
 
-    it('redirects to not-found on a 403 while loading', async () => {
+    it('redirects to not-found on a 403', async () => {
       mockGetContact.mockRejectedValueOnce({ response: { status: 403 } })
-      await mountAt('/standesdb/contacts/1/edit')
+      await mountAt(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
       await flushPromises()
 
       expect(router.currentRoute.value.name).toBe('not-found')
     })
   })
 
-  describe('when the address changes while the view stays mounted', () => {
-    it('loads the other contact and saves onto that one', async () => {
-      mockGetContact.mockImplementation((id: string) =>
-        Promise.resolve({
-          data: buildContact({ id, name: `Kontakt ${id}`, email: `${id}@firma.at` }),
-        }),
-      )
-      const wrapper = await mountAt('/standesdb/contacts/A/edit')
+  describe('a change of the address while the form is open', () => {
+    it('regression: loads the other contact instead of saving the old form onto it', async () => {
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
       await flushPromises()
+      mockGetContact.mockResolvedValue({
+        data: buildContact({ id: OTHER_CONTACT_ID, name: 'Andere GmbH', email: 'andere@firma.at' }),
+      })
 
-      await router.push('/standesdb/contacts/B/edit')
+      await router.push(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
       await flushPromises()
-
-      expect(mockGetContact).toHaveBeenLastCalledWith('B')
-      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe(
-        'B@firma.at',
-      )
-
       await wrapper
         .findAll('button')
         .find((b) => b.text() === 'Speichern')!
         .trigger('click')
       await flushPromises()
 
+      expect(mockGetContact).toHaveBeenLastCalledWith(OTHER_CONTACT_ID)
       expect(mockUpdateContact).toHaveBeenCalledWith(
-        'B',
-        expect.objectContaining({ name: 'Kontakt B' }),
+        OTHER_CONTACT_ID,
+        expect.objectContaining({ name: 'Andere GmbH', email: 'andere@firma.at' }),
       )
     })
 
-    it('ignores a slow answer for the contact that was left', async () => {
-      let answerForA: (value: unknown) => void = () => {}
-      mockGetContact.mockImplementation((id: string) =>
-        id === 'A'
-          ? new Promise((resolve) => {
-              answerForA = resolve
-            })
-          : Promise.resolve({ data: buildContact({ id, email: 'B@firma.at' }) }),
-      )
-      const wrapper = await mountAt('/standesdb/contacts/A/edit')
-      await router.push('/standesdb/contacts/B/edit')
+    it('regression: a slow answer for the contact that was left does not fill the form', async () => {
+      let releaseFirst: (value: unknown) => void = () => {}
+      mockGetContact
+        .mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)))
+        .mockResolvedValueOnce({
+          data: buildContact({ id: OTHER_CONTACT_ID, name: 'Zweite GmbH' }),
+        })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+
+      await router.push(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
+      await flushPromises()
+      releaseFirst({ data: buildContact({ name: 'Erste GmbH' }) })
       await flushPromises()
 
-      answerForA({ data: buildContact({ id: 'A', email: 'A@firma.at' }) })
-      await flushPromises()
-
-      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe(
-        'B@firma.at',
-      )
+      expect((wrapper.find('#contact-name').element as HTMLInputElement).value).toBe('Zweite GmbH')
     })
 
-    it('ignores a late failure for the contact that was left', async () => {
-      let failForA: (reason: unknown) => void = () => {}
-      mockGetContact.mockImplementation((id: string) =>
-        id === 'A'
-          ? new Promise((_resolve, reject) => {
-              failForA = reject
-            })
-          : Promise.resolve({ data: buildContact({ id, email: 'B@firma.at' }) }),
-      )
-      const wrapper = await mountAt('/standesdb/contacts/A/edit')
-      await router.push('/standesdb/contacts/B/edit')
-      await flushPromises()
+    it('regression: a late failure for the contact that was left does not replace the form', async () => {
+      let failFirst: (reason: unknown) => void = () => {}
+      mockGetContact
+        .mockReturnValueOnce(new Promise((_resolve, reject) => (failFirst = reject)))
+        .mockResolvedValueOnce({
+          data: buildContact({ id: OTHER_CONTACT_ID, name: 'Zweite GmbH' }),
+        })
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
 
-      failForA({ response: { status: 500 } })
+      await router.push(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
+      await flushPromises()
+      failFirst({ response: { status: 500 } })
       await flushPromises()
 
       expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
-      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe(
-        'B@firma.at',
-      )
+      expect((wrapper.find('#contact-name').element as HTMLInputElement).value).toBe('Zweite GmbH')
     })
 
-    it('starts a blank form when an edit page is followed by the create page', async () => {
-      const wrapper = await mountAt('/standesdb/contacts/1/edit')
+    it('regression: keeps the form away while the newer contact loads when the older answer arrives', async () => {
+      let releaseFirst: (value: unknown) => void = () => {}
+      mockGetContact
+        .mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)))
+        .mockReturnValueOnce(new Promise(() => {}))
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
+
+      await router.push(`/standesdb/contacts/${OTHER_CONTACT_ID}/edit`)
+      await flushPromises()
+      releaseFirst({ data: buildContact({ name: 'Erste GmbH' }) })
+      await flushPromises()
+
+      expect(wrapper.find('#contact-name').exists()).toBe(false)
+    })
+
+    it('starts a blank form when the address changes from an edit to the create page', async () => {
+      const wrapper = await mountAt(`/standesdb/contacts/${CONTACT_ID}/edit`)
       await flushPromises()
 
       await router.push('/standesdb/contacts/new')
       await flushPromises()
 
       expect(wrapper.text()).toContain('Neuen Kontakt anlegen')
-      expect((wrapper.find('input[type="email"]').element as HTMLInputElement).value).toBe('')
+      expect((wrapper.find('#contact-name').element as HTMLInputElement).value).toBe('')
       expect(mockGetContact).toHaveBeenCalledTimes(1)
     })
   })

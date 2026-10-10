@@ -181,6 +181,68 @@ describe('AccountFormView', () => {
     wrapper.unmount()
   })
 
+  it('loads init_date as the local calendar date, not shifted by the browser timezone (regression)', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetDashboard.mockResolvedValue({
+      data: { accounts: [buildAccount({ init_date: '2021-05-15' })] },
+    })
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    const picker = wrapper.findComponent({ name: 'DatePicker' })
+    const modelValue = picker.props('modelValue') as Date
+    expect(modelValue.getFullYear()).toBe(2021)
+    expect(modelValue.getMonth()).toBe(4)
+    expect(modelValue.getDate()).toBe(15)
+    wrapper.unmount()
+  })
+
+  it('sends a date picked in the form back as the same calendar date, not shifted to UTC (regression)', async () => {
+    mockCreateAccount.mockResolvedValue({ data: buildAccount() })
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    const picker = wrapper.findComponent({ name: 'DatePicker' })
+    await picker.vm.$emit('update:modelValue', new Date(2021, 4, 15))
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockCreateAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ init_date: '2021-05-15' }),
+    )
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when the account is not found', async () => {
+    mockRoute.params = { id: '999' }
+    mockGetDashboard.mockResolvedValue({ data: { accounts: [] } })
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Konto bearbeiten')
+    expect(wrapper.find('input').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('shows a retry state instead of a blank editable form when loading fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(AccountFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('input').exists()).toBe(false)
+    const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')!
+
+    mockGetDashboard.mockResolvedValueOnce({ data: { accounts: [buildAccount()] } })
+    await retryBtn.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Konto bearbeiten')
+    wrapper.unmount()
+  })
+
   it('shows an error toast and does not navigate when saving fails', async () => {
     mockCreateAccount.mockRejectedValue({ response: { data: { detail: 'IBAN ungültig' } } })
     const wrapper = mount(AccountFormView, mountOpts)

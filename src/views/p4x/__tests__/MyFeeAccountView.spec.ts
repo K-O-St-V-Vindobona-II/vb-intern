@@ -155,6 +155,15 @@ describe('MyFeeAccountView', () => {
     wrapper.unmount()
   })
 
+  it('offers the progress toggle as a button', async () => {
+    mockGetOwnFeeMember.mockResolvedValue({ data: buildAccount() })
+    const wrapper = mount(MyFeeAccountView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.progress-toggle').element.tagName).toBe('BUTTON')
+    wrapper.unmount()
+  })
+
   it('exports the own account using the filename from the content-disposition header', async () => {
     mockGetOwnFeeMember.mockResolvedValue({ data: buildAccount() })
     mockExportOwnFeeMember.mockResolvedValue({

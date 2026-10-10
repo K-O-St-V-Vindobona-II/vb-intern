@@ -30,7 +30,7 @@ vi.mock('@/services/archiveService', () => ({
 function buildDir(overrides: Partial<DirShort> = {}): DirShort {
   return {
     type: 'dir',
-    id: 1,
+    id: '1',
     name: 'Fotos',
     description: 'Urlaubsfotos',
     created_at: '2026-06-01T00:00:00Z',
@@ -41,7 +41,14 @@ function buildDir(overrides: Partial<DirShort> = {}): DirShort {
 
 let activeWrapper: VueWrapper | null = null
 
-function mountDirList(props: Record<string, unknown>) {
+interface DirListProps {
+  items: DirShort[]
+  title: string
+  admin?: boolean
+  trash?: boolean
+}
+
+function mountDirList(props: DirListProps) {
   const wrapper = mount(DirList, {
     props,
     global: { plugins: [PrimeVue], stubs: { RouterLink: RouterLinkStub } },
@@ -73,7 +80,7 @@ describe('DirList', () => {
 
   it('shows the title with item count and renders a row per directory', () => {
     const wrapper = mountDirList({
-      items: [buildDir({ id: 1, name: 'A' }), buildDir({ id: 2, name: 'B' })],
+      items: [buildDir({ id: '1', name: 'A' }), buildDir({ id: '2', name: 'B' })],
       title: 'Einsicht',
     })
     expect(wrapper.text()).toContain('Einsicht (2)')
@@ -87,22 +94,25 @@ describe('DirList', () => {
   })
 
   it('links the directory name to its archive-dir route', async () => {
-    const wrapper = mountDirList({ items: [buildDir({ id: 5, name: 'Fotos' })], title: 'Einsicht' })
+    const wrapper = mountDirList({
+      items: [buildDir({ id: '5', name: 'Fotos' })],
+      title: 'Einsicht',
+    })
     expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
       name: 'archive-dir',
-      params: { id: 5 },
+      params: { id: '5' },
     })
   })
 
   it('links into a trashed directory too, so its remaining content can be managed', async () => {
     const wrapper = mountDirList({
-      items: [buildDir({ id: 5, name: 'Fotos' })],
+      items: [buildDir({ id: '5', name: 'Fotos' })],
       title: 'Papierkorb',
       trash: true,
     })
     expect(wrapper.findComponent(RouterLinkStub).props('to')).toEqual({
       name: 'archive-dir',
-      params: { id: 5 },
+      params: { id: '5' },
     })
   })
 
@@ -114,7 +124,7 @@ describe('DirList', () => {
   it('copies selected directories to the clipboard for admins and clears the selection', async () => {
     const store = useArchiveStore()
     const wrapper = mountDirList({
-      items: [buildDir({ id: 1 }), buildDir({ id: 2 })],
+      items: [buildDir({ id: '1' }), buildDir({ id: '2' })],
       title: 'Einsicht',
       admin: true,
     })
@@ -132,7 +142,7 @@ describe('DirList', () => {
   it('selects the directory that is shown in the clicked row after the table was sorted by name', async () => {
     const store = useArchiveStore()
     const wrapper = mountDirList({
-      items: [buildDir({ id: 1, name: 'Alpha' }), buildDir({ id: 2, name: 'Zulu' })],
+      items: [buildDir({ id: '1', name: 'Alpha' }), buildDir({ id: '2', name: 'Zulu' })],
       title: 'Einsicht',
       admin: true,
     })
@@ -151,7 +161,7 @@ describe('DirList', () => {
   })
 
   it('asks for confirmation before deleting a directory and emits changed on accept', async () => {
-    const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
+    const wrapper = mountDirList({ items: [buildDir({ id: '5' })], title: 'Einsicht', admin: true })
 
     // No selection checkbox column rendered for trash=false admin row besides the action button.
     await wrapper.find('tbody button').trigger('click')
@@ -161,13 +171,13 @@ describe('DirList', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockDeleteDir).toHaveBeenCalledWith(5)
+    expect(mockDeleteDir).toHaveBeenCalledWith('5')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
 
   it('restores a trashed directory on confirmation', async () => {
     const wrapper = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -179,12 +189,12 @@ describe('DirList', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockRestoreDir).toHaveBeenCalledWith(5)
+    expect(mockRestoreDir).toHaveBeenCalledWith('5')
   })
 
   it('shows an error toast when the delete/restore action fails', async () => {
     mockDeleteDir.mockRejectedValueOnce(new Error('failed'))
-    const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
+    const wrapper = mountDirList({ items: [buildDir({ id: '5' })], title: 'Einsicht', admin: true })
 
     await wrapper.find('tbody button').trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -195,7 +205,7 @@ describe('DirList', () => {
 
   it('shows the purge button only when admin and trash are both true', () => {
     const trashedAdmin = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -204,7 +214,7 @@ describe('DirList', () => {
     trashedAdmin.unmount()
 
     const trashedNonAdmin = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       trash: true,
     })
@@ -212,7 +222,7 @@ describe('DirList', () => {
     trashedNonAdmin.unmount()
 
     const adminNotTrashed = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Einsicht',
       admin: true,
     })
@@ -221,7 +231,7 @@ describe('DirList', () => {
 
   it('asks for confirmation before permanently deleting a directory and emits changed on accept', async () => {
     const wrapper = mountDirList({
-      items: [buildDir({ id: 5, name: 'Fotos' })],
+      items: [buildDir({ id: '5', name: 'Fotos' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -236,7 +246,7 @@ describe('DirList', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockPurgeDir).toHaveBeenCalledWith(5)
+    expect(mockPurgeDir).toHaveBeenCalledWith('5')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
 
@@ -247,7 +257,7 @@ describe('DirList', () => {
       },
     })
     const wrapper = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -268,7 +278,7 @@ describe('DirList', () => {
   it('shows a fallback error message when purge fails without a response body', async () => {
     mockPurgeDir.mockRejectedValueOnce(new Error('network error'))
     const wrapper = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -293,7 +303,7 @@ describe('DirList', () => {
       }),
     )
     mockRestoreDir.mockRejectedValueOnce(new Error('offline'))
-    const wrapper = mountDirList({ items: [buildDir({ id: 5 })], title: 'Einsicht', admin: true })
+    const wrapper = mountDirList({ items: [buildDir({ id: '5' })], title: 'Einsicht', admin: true })
 
     await wrapper.findAll('tbody button').at(-1)!.trigger('click')
     await mockConfirmRequire.mock.calls[0]![0].accept()
@@ -304,7 +314,7 @@ describe('DirList', () => {
 
     wrapper.unmount()
     const trashWrapper = mountDirList({
-      items: [buildDir({ id: 5 })],
+      items: [buildDir({ id: '5' })],
       title: 'Papierkorb',
       admin: true,
       trash: true,
@@ -319,7 +329,7 @@ describe('DirList', () => {
 
   it('names the selection checkboxes and the copy button for assistive technology', () => {
     const wrapper = mountDirList({
-      items: [buildDir({ id: 1, name: 'Fotos' })],
+      items: [buildDir({ id: '1', name: 'Fotos' })],
       title: 'Einsicht',
       admin: true,
     })

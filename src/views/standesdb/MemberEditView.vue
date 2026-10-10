@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
-import { getApiErrorDetail, getApiErrorStatus } from '@/utils/formatters'
+import { getApiErrorDetail, getApiErrorStatus, trimmedOrNull } from '@/utils/formatters'
 import type {
   MemberDetail,
   MemberFormData,
@@ -31,6 +31,14 @@ const loading = ref(true)
 const loadFailed = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
+const generalErrors = ref<string[]>([])
+const hasErrors = computed(
+  () => generalErrors.value.length > 0 || Object.keys(errors.value).length > 0,
+)
+const errorLines = computed(() => [
+  ...generalErrors.value,
+  ...Object.entries(errors.value).map(([field, msg]) => `${field}: ${msg}`),
+])
 const refs = ref<ReferenceData | null>(null)
 
 const isNew = computed(() => route.name === 'standesdb-member-new')
@@ -129,7 +137,7 @@ const fuzzyDateFields: {
   },
 ]
 
-const copyField = <K extends keyof MemberFormData>(key: K, data: MemberDetail) => {
+const copyField = <K extends keyof MemberFormData>(key: K, data: MemberFormData) => {
   form.value[key] = data[key]
 }
 
@@ -144,7 +152,14 @@ const load = async () => {
 
     if (!isNew.value && memberId.value) {
       const resp = await standesdbService.getMember(memberId.value)
-      const data = resp.data as MemberDetail
+      const detail = resp.data as MemberDetail
+      // The API withholds the account status from viewers who may not see it:
+      // keep the form's safe defaults for those two flags.
+      const data = {
+        ...detail,
+        chroniclemail: detail.chroniclemail ?? form.value.chroniclemail,
+        auth_locked: detail.auth_locked ?? form.value.auth_locked,
+      }
       ;(Object.keys(form.value) as (keyof MemberFormData)[]).forEach((key) => {
         if (key in data) {
           copyField(key, data)
@@ -165,14 +180,50 @@ const load = async () => {
 
 onMounted(load)
 
+// Optional free-text fields: a cleared input must reach the API as null,
+// not "" (the API's EmailStr rejects "" outright, and every other field
+// would otherwise store an empty string instead of "no value").
+const TEXT_FIELDS = [
+  'vortitel',
+  'vorname',
+  'nachname',
+  'nachname_geburt',
+  'nachtitel',
+  'couleurname',
+  'grabadresse',
+  'email',
+  'url',
+  'mkv_ogv_url',
+  'rufnummer_mobil',
+  'rufnummer_privat',
+  'rufnummer_beruf',
+  'adresse_privat_anschrift',
+  'adresse_privat_plz',
+  'adresse_privat_ort',
+  'adresse_privat_land',
+  'adresse_beruf_anschrift',
+  'adresse_beruf_plz',
+  'adresse_beruf_ort',
+  'adresse_beruf_land',
+  'arbeitgeber',
+  'taetigkeit',
+  'mitgliedschaften',
+  'verbandchargen',
+  'anmerkungen',
+] as const satisfies readonly (keyof MemberFormData)[]
+
 const buildPayload = () => {
   const { parent_cn: _parent_cn, ...payload } = form.value
+  TEXT_FIELDS.forEach((key) => {
+    ;(payload[key] as string | null) = trimmedOrNull(payload[key] as string | null)
+  })
   return payload
 }
 
 const save = async () => {
   saving.value = true
   errors.value = {}
+  generalErrors.value = []
 
   try {
     if (isNew.value) {
@@ -221,24 +272,16 @@ const save = async () => {
         const field = loc[loc.length - 1] ?? ''
         errors.value[field] = e.msg ?? ''
       })
+      generalErrors.value = stringErrors
 
-      const allMessages = [
-        ...stringErrors,
-        ...Object.entries(errors.value).map(([k, v]) => `${k}: ${v}`),
-      ]
-
-      if (allMessages.length) {
+      if (errorLines.value.length) {
         toast.add({
           severity: 'error',
           summary: 'Validierungsfehler',
-          detail: allMessages.join('\n'),
+          detail: errorLines.value.join('\n'),
           life: 8000,
         })
       }
-
-      stringErrors.forEach((msg: string, i: number) => {
-        errors.value[`roles_history_${i}`] = msg
-      })
     }
   } finally {
     saving.value = false
@@ -266,7 +309,7 @@ const save = async () => {
           <Button
             label="Speichern"
             icon="pi pi-check"
-            severity="danger"
+            severity="primary"
             size="small"
             :loading="saving"
             @click="save"
@@ -274,14 +317,15 @@ const save = async () => {
         </div>
       </div>
 
-      <!-- Zwei-Spalten-Layout wie ShowView -->
+      <!-- two-column layout, matches ShowView -->
       <div class="two-col">
-        <!-- LINKE SPALTE -->
+        <!-- left column -->
         <div class="col">
           <div v-if="refs" class="field">
-            <label>Organisation</label>
+            <label for="member-org-id">Organisation</label>
             <Select
               v-model="form.org_id"
+              input-id="member-org-id"
               :options="allowedOrgs"
               option-label="label"
               option-value="id"
@@ -299,42 +343,49 @@ const save = async () => {
 
           <div class="field-pair">
             <div class="field">
-              <label>Vortitel</label>
-              <InputText v-model="form.vortitel" class="w-full" />
+              <label for="member-vortitel">Vortitel</label>
+              <InputText id="member-vortitel" v-model="form.vortitel" class="w-full" />
             </div>
             <div class="field">
-              <label>Vorname</label>
-              <InputText v-model="form.vorname" class="w-full" />
-            </div>
-          </div>
-
-          <div class="field-pair">
-            <div class="field">
-              <label>Nachname</label>
-              <InputText v-model="form.nachname" class="w-full" />
-              <small v-if="errors['nachname']" class="p-error">{{ errors['nachname'] }}</small>
-            </div>
-            <div class="field">
-              <label>Nachtitel</label>
-              <InputText v-model="form.nachtitel" class="w-full" />
+              <label for="member-vorname">Vorname</label>
+              <InputText id="member-vorname" v-model="form.vorname" class="w-full" />
             </div>
           </div>
 
           <div class="field-pair">
             <div class="field">
-              <label>Couleurname</label>
-              <InputText v-model="form.couleurname" class="w-full" />
+              <label for="member-nachname">Nachname</label>
+              <InputText id="member-nachname" v-model="form.nachname" class="w-full" />
+              <Message v-if="errors['nachname']" severity="error" size="small" variant="simple">
+                {{ errors['nachname'] }}
+              </Message>
             </div>
             <div class="field">
-              <label>Geburtsname</label>
-              <InputText v-model="form.nachname_geburt" class="w-full" />
+              <label for="member-nachtitel">Nachtitel</label>
+              <InputText id="member-nachtitel" v-model="form.nachtitel" class="w-full" />
+            </div>
+          </div>
+
+          <div class="field-pair">
+            <div class="field">
+              <label for="member-couleurname">Couleurname</label>
+              <InputText id="member-couleurname" v-model="form.couleurname" class="w-full" />
+            </div>
+            <div class="field">
+              <label for="member-nachname-geburt">Geburtsname</label>
+              <InputText
+                id="member-nachname-geburt"
+                v-model="form.nachname_geburt"
+                class="w-full"
+              />
             </div>
           </div>
 
           <div v-if="refs" class="field">
-            <label>Status</label>
+            <label for="member-state-id">Status</label>
             <Select
               v-model="form.state_id"
+              input-id="member-state-id"
               :options="refs.states"
               option-label="label"
               option-value="id"
@@ -374,8 +425,8 @@ const save = async () => {
               @update:accuracy="form.sterbedatum_accuracy = $event"
             />
             <div v-if="form.verstorben" class="field">
-              <label>Grabadresse</label>
-              <InputText v-model="form.grabadresse" class="w-full" />
+              <label for="member-grabadresse">Grabadresse</label>
+              <InputText id="member-grabadresse" v-model="form.grabadresse" class="w-full" />
             </div>
           </div>
 
@@ -419,43 +470,50 @@ const save = async () => {
           />
         </div>
 
-        <!-- RECHTE SPALTE -->
+        <!-- right column -->
         <div class="col">
           <div class="field">
-            <label>E-Mail</label>
-            <InputText v-model="form.email" type="email" class="w-full" />
-            <small v-if="errors['email']" class="p-error">{{ errors['email'] }}</small>
+            <label for="member-email">E-Mail</label>
+            <InputText id="member-email" v-model="form.email" type="email" class="w-full" />
+            <Message v-if="errors['email']" severity="error" size="small" variant="simple">
+              {{ errors['email'] }}
+            </Message>
           </div>
 
           <div class="field">
-            <label>URI</label>
-            <InputText v-model="form.url" class="w-full" />
+            <label for="member-url">URI</label>
+            <InputText id="member-url" v-model="form.url" class="w-full" />
           </div>
 
           <div v-if="form.org_id === 'vbw'" class="field">
-            <label>MKV/OGV-Link</label>
-            <InputText v-model="form.mkv_ogv_url" class="w-full" />
+            <label for="member-mkv-ogv-url">MKV/OGV-Link</label>
+            <InputText id="member-mkv-ogv-url" v-model="form.mkv_ogv_url" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Rufnummer (mobil)</label>
-            <InputText v-model="form.rufnummer_mobil" class="w-full" />
+            <label for="member-rufnummer-mobil">Rufnummer (mobil)</label>
+            <InputText id="member-rufnummer-mobil" v-model="form.rufnummer_mobil" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Rufnummer (privat)</label>
-            <InputText v-model="form.rufnummer_privat" class="w-full" />
+            <label for="member-rufnummer-privat">Rufnummer (privat)</label>
+            <InputText
+              id="member-rufnummer-privat"
+              v-model="form.rufnummer_privat"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Rufnummer (beruflich)</label>
-            <InputText v-model="form.rufnummer_beruf" class="w-full" />
+            <label for="member-rufnummer-beruf">Rufnummer (beruflich)</label>
+            <InputText id="member-rufnummer-beruf" v-model="form.rufnummer_beruf" class="w-full" />
           </div>
 
           <div class="field">
-            <label>Zustellung</label>
+            <label for="member-zustellungen">Zustellung</label>
             <Select
               v-model="form.zustellungen"
+              input-id="member-zustellungen"
               :options="zustellungOptions"
               option-label="label"
               option-value="value"
@@ -465,63 +523,105 @@ const save = async () => {
 
           <label class="section-label">Privatadresse</label>
           <div class="field">
-            <label>Anschrift</label>
-            <InputText v-model="form.adresse_privat_anschrift" class="w-full" />
+            <label for="member-adresse-privat-anschrift">Anschrift</label>
+            <InputText
+              id="member-adresse-privat-anschrift"
+              v-model="form.adresse_privat_anschrift"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>PLZ</label>
-            <InputText v-model="form.adresse_privat_plz" class="w-full" />
+            <label for="member-adresse-privat-plz">PLZ</label>
+            <InputText
+              id="member-adresse-privat-plz"
+              v-model="form.adresse_privat_plz"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Ort</label>
-            <InputText v-model="form.adresse_privat_ort" class="w-full" />
+            <label for="member-adresse-privat-ort">Ort</label>
+            <InputText
+              id="member-adresse-privat-ort"
+              v-model="form.adresse_privat_ort"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Land</label>
-            <InputText v-model="form.adresse_privat_land" class="w-full" />
+            <label for="member-adresse-privat-land">Land</label>
+            <InputText
+              id="member-adresse-privat-land"
+              v-model="form.adresse_privat_land"
+              class="w-full"
+            />
           </div>
 
           <label class="section-label">Berufsadresse</label>
           <div class="field">
-            <label>Anschrift</label>
-            <InputText v-model="form.adresse_beruf_anschrift" class="w-full" />
+            <label for="member-adresse-beruf-anschrift">Anschrift</label>
+            <InputText
+              id="member-adresse-beruf-anschrift"
+              v-model="form.adresse_beruf_anschrift"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>PLZ</label>
-            <InputText v-model="form.adresse_beruf_plz" class="w-full" />
+            <label for="member-adresse-beruf-plz">PLZ</label>
+            <InputText
+              id="member-adresse-beruf-plz"
+              v-model="form.adresse_beruf_plz"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Ort</label>
-            <InputText v-model="form.adresse_beruf_ort" class="w-full" />
+            <label for="member-adresse-beruf-ort">Ort</label>
+            <InputText
+              id="member-adresse-beruf-ort"
+              v-model="form.adresse_beruf_ort"
+              class="w-full"
+            />
           </div>
           <div class="field">
-            <label>Land</label>
-            <InputText v-model="form.adresse_beruf_land" class="w-full" />
-          </div>
-
-          <div class="field">
-            <label>Weitere Mitgliedschaften</label>
-            <Textarea v-model="form.mitgliedschaften" rows="2" class="w-full" />
-          </div>
-
-          <div class="field">
-            <label>Verbandschargen</label>
-            <Textarea v-model="form.verbandchargen" rows="2" class="w-full" />
-          </div>
-
-          <div class="field">
-            <label>Anmerkungen</label>
-            <Textarea v-model="form.anmerkungen" rows="3" class="w-full" />
-          </div>
-
-          <div class="field">
-            <label>Arbeitgeber</label>
-            <InputText v-model="form.arbeitgeber" class="w-full" />
+            <label for="member-adresse-beruf-land">Land</label>
+            <InputText
+              id="member-adresse-beruf-land"
+              v-model="form.adresse_beruf_land"
+              class="w-full"
+            />
           </div>
 
           <div class="field">
-            <label>Tätigkeit</label>
-            <InputText v-model="form.taetigkeit" class="w-full" />
+            <label for="member-mitgliedschaften">Weitere Mitgliedschaften</label>
+            <Textarea
+              id="member-mitgliedschaften"
+              v-model="form.mitgliedschaften"
+              rows="2"
+              class="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="member-verbandchargen">Verbandschargen</label>
+            <Textarea
+              id="member-verbandchargen"
+              v-model="form.verbandchargen"
+              rows="2"
+              class="w-full"
+            />
+          </div>
+
+          <div class="field">
+            <label for="member-anmerkungen">Anmerkungen</label>
+            <Textarea id="member-anmerkungen" v-model="form.anmerkungen" rows="3" class="w-full" />
+          </div>
+
+          <div class="field">
+            <label for="member-arbeitgeber">Arbeitgeber</label>
+            <InputText id="member-arbeitgeber" v-model="form.arbeitgeber" class="w-full" />
+          </div>
+
+          <div class="field">
+            <label for="member-taetigkeit">Tätigkeit</label>
+            <InputText id="member-taetigkeit" v-model="form.taetigkeit" class="w-full" />
           </div>
 
           <div class="field field--check">
@@ -539,7 +639,7 @@ const save = async () => {
         </div>
       </div>
 
-      <!-- Chargen: volle Breite -->
+      <!-- roles: full width -->
       <RolesHistoryEditor
         v-if="refs"
         :model-value="form.roles_history"
@@ -547,18 +647,11 @@ const save = async () => {
         @update:model-value="form.roles_history = $event"
       />
 
-      <Message
-        v-if="Object.keys(errors).length"
-        severity="error"
-        :closable="false"
-        style="margin-top: 1rem"
-      >
+      <Message v-if="hasErrors" severity="error" :closable="false" style="margin-top: 1rem">
         <div>
           <strong>Validierungsfehler:</strong>
           <ul style="margin: 0.25rem 0 0; padding-left: 1.25rem">
-            <li v-for="(msg, field) in errors" :key="field">
-              <strong>{{ field }}:</strong> {{ msg }}
-            </li>
+            <li v-for="line in errorLines" :key="line">{{ line }}</li>
           </ul>
         </div>
       </Message>
@@ -568,7 +661,7 @@ const save = async () => {
         <Button
           label="Speichern"
           icon="pi pi-check"
-          severity="danger"
+          severity="primary"
           size="small"
           :loading="saving"
           @click="save"

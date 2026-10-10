@@ -65,7 +65,14 @@ function buildFile(overrides: Partial<FileShort> = {}): FileShort {
 
 let activeWrapper: VueWrapper | null = null
 
-function mountFileList(props: Record<string, unknown>) {
+interface FileListProps {
+  items: FileShort[]
+  title: string
+  admin?: boolean
+  trash?: boolean
+}
+
+function mountFileList(props: FileListProps) {
   const wrapper = mount(FileList, {
     props,
     global: { plugins: [PrimeVue], stubs: { RouterLink: RouterLinkStub } },

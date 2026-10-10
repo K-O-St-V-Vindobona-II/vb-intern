@@ -1,18 +1,28 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import TransactionTable from '../TransactionTable.vue'
 import PrimeVue from 'primevue/config'
-import type { P4xTransaction, P4xCategory } from '@/types/p4x'
+import type { P4xTransaction, P4xCategory, CategoryFilterShort } from '@/types/p4x'
 
 const mockToastAdd = vi.fn()
 vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
-const mockConfirmRequire = vi.fn()
-vi.mock('primevue/useconfirm', () => ({
-  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
-}))
+const mockCreateObjectURL = vi.fn(() => 'blob:mock')
+const mockRevokeObjectURL = vi.fn()
+const originalCreateObjectURL = URL.createObjectURL
+const originalRevokeObjectURL = URL.revokeObjectURL
+
+beforeAll(() => {
+  URL.createObjectURL = mockCreateObjectURL
+  URL.revokeObjectURL = mockRevokeObjectURL
+})
+
+afterAll(() => {
+  URL.createObjectURL = originalCreateObjectURL
+  URL.revokeObjectURL = originalRevokeObjectURL
+})
 
 const mockGetTransactionRaw = vi.fn()
 const mockGetTransactionAttachment = vi.fn()
@@ -25,7 +35,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: 'transaction-uuid-1',
     booking: '2026-06-01',
     valuation: '2026-06-02',
     iban: 'AT001234',
@@ -40,6 +50,23 @@ function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransacti
     delegating_partner: null,
     p4x_category_directs: [],
     p4x_category_filters: [],
+    ...overrides,
+  }
+}
+
+function buildFilter(overrides: Partial<CategoryFilterShort> = {}): CategoryFilterShort {
+  return {
+    id: 'filter-uuid-1',
+    name: 'Filter A',
+    p4x_account_id: '1',
+    p4x_account_label: 'Kasse',
+    iban: null,
+    min_amount: null,
+    max_amount: null,
+    subject: null,
+    subject_mode: 'equals',
+    p4x_category_id: 'category-uuid-1',
+    hitCount: 1,
     ...overrides,
   }
 }
@@ -66,6 +93,7 @@ const stubs = {
   },
   TransactionEditor: {
     name: 'TransactionEditor',
+    props: ['transaction'],
     emits: ['changed'],
     template: '<div />',
     methods: { open: vi.fn() },
@@ -151,8 +179,8 @@ describe('TransactionTable', () => {
   it('warns about ambiguous category filters when more than one applies', () => {
     const tx = buildTransaction({
       p4x_category_filters: [
-        { id: 1, p4x_category_id: 'category-uuid-1' },
-        { id: 2, p4x_category_id: 'category-uuid-1' },
+        buildFilter({ id: 'filter-uuid-1' }),
+        buildFilter({ id: 'filter-uuid-2' }),
       ],
     })
     const wrapper = mount(TransactionTable, {
@@ -214,31 +242,74 @@ describe('TransactionTable', () => {
     wrapper.unmount()
   })
 
-  it('downloads the attachment when the paperclip icon is clicked', async () => {
-    mockGetTransactionAttachment.mockResolvedValue({ data: new Blob(['x']) })
-    const createObjectURL = vi.fn(() => 'blob:mock')
-    const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  describe('attachment download', () => {
+    let downloads: string[]
 
-    const wrapper = mount(TransactionTable, {
-      props: {
-        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
-        categories,
-      },
-      ...mountOpts,
+    beforeEach(() => {
+      downloads = []
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        downloads.push(this.download)
+      })
     })
 
-    await wrapper.find('.pi-paperclip').trigger('click')
-    await flushPromises()
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
 
-    expect(mockGetTransactionAttachment).toHaveBeenCalledWith('2', '4')
-    expect(createObjectURL).toHaveBeenCalledOnce()
-    expect(clickSpy).toHaveBeenCalledOnce()
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock')
+    const mountWithAttachment = () =>
+      mount(TransactionTable, {
+        props: {
+          transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
+          categories,
+        },
+        ...mountOpts,
+      })
 
-    clickSpy.mockRestore()
-    wrapper.unmount()
+    it('downloads the attachment under the name from the response header', async () => {
+      mockGetTransactionAttachment.mockResolvedValue({
+        data: new Blob(['x']),
+        headers: { 'content-disposition': 'attachment; filename="Beilage_4.pdf"' },
+      })
+      const wrapper = mountWithAttachment()
+
+      await wrapper.find('.pi-paperclip').trigger('click')
+      await flushPromises()
+
+      expect(mockGetTransactionAttachment).toHaveBeenCalledWith('2', '4')
+      expect(downloads).toEqual(['Beilage_4.pdf'])
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock')
+      wrapper.unmount()
+    })
+
+    it('falls back to a name built from the transaction id without a header', async () => {
+      mockGetTransactionAttachment.mockResolvedValue({ data: new Blob(['x']), headers: {} })
+      const wrapper = mountWithAttachment()
+
+      await wrapper.find('.pi-paperclip').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual(['Beilage_4.pdf'])
+      wrapper.unmount()
+    })
+
+    it('tells the user when the attachment cannot be downloaded', async () => {
+      mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
+      const wrapper = mountWithAttachment()
+
+      await wrapper.find('.pi-paperclip').trigger('click')
+      await flushPromises()
+
+      expect(downloads).toEqual([])
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          severity: 'error',
+          detail: 'Anhang konnte nicht heruntergeladen werden.',
+        }),
+      )
+      wrapper.unmount()
+    })
   })
 
   it('does not show admin-only category/partner edit icons or actions for non-admins', async () => {
@@ -285,7 +356,7 @@ describe('TransactionTable', () => {
 
   it('shows the single matching category filter without a warning', () => {
     const tx = buildTransaction({
-      p4x_category_filters: [{ id: 1, p4x_category_id: 'category-uuid-1' }],
+      p4x_category_filters: [buildFilter({ id: 'filter-uuid-1' })],
     })
     const wrapper = mount(TransactionTable, {
       props: { transactions: [tx], categories },
@@ -380,34 +451,9 @@ describe('TransactionTable', () => {
     wrapper.unmount()
   })
 
-  it('tells the user when the attachment cannot be downloaded', async () => {
-    mockGetTransactionAttachment.mockRejectedValue(new Error('boom'))
-    const createObjectURL = vi.fn(() => 'blob:mock')
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() })
-    const wrapper = mount(TransactionTable, {
-      props: {
-        transactions: [buildTransaction({ id: '4', p4x_account_id: '2', has_attachment: true })],
-        categories,
-      },
-      ...mountOpts,
-    })
-
-    await wrapper.find('.pi-paperclip').trigger('click')
-    await flushPromises()
-
-    expect(createObjectURL).not.toHaveBeenCalled()
-    expect(mockToastAdd).toHaveBeenCalledWith(
-      expect.objectContaining({
-        severity: 'error',
-        detail: 'Anhang konnte nicht heruntergeladen werden.',
-      }),
-    )
-    wrapper.unmount()
-  })
-
   it('jumps to the first and last page', async () => {
     const wrapper = mount(TransactionTable, {
-      props: { transactions: [buildTransaction()], categories, total: 30, perPage: 10, page: 2 },
+      props: { transactions: [buildTransaction()], categories, total: 50, perPage: 10, page: 2 },
       ...mountOpts,
     })
     const buttons = wrapper.findAll('.tx-pager button')
@@ -415,7 +461,203 @@ describe('TransactionTable', () => {
     expect(wrapper.emitted('pageChange')?.[0]).toEqual([1])
 
     await buttons[3]!.trigger('click') // last
-    expect(wrapper.emitted('pageChange')?.[1]).toEqual([3])
+    expect(wrapper.emitted('pageChange')?.[1]).toEqual([5])
     wrapper.unmount()
+  })
+
+  describe('pagination', () => {
+    it.each([
+      [25, 10, 1, 'Seite 1 / 3', 'Transaktionen 1 bis 10'],
+      [25, 10, 3, 'Seite 3 / 3', 'Transaktionen 21 bis 25'],
+      [20, 10, 2, 'Seite 2 / 2', 'Transaktionen 11 bis 20'],
+    ])(
+      'shows %i transactions at %i per page on page %i as "%s" and "%s"',
+      (total, perPage, page, pageLabel, rangeLabel) => {
+        const wrapper = mount(TransactionTable, {
+          props: { transactions: [buildTransaction()], categories, total, perPage, page },
+          ...mountOpts,
+        })
+
+        expect(wrapper.find('.page-info').text()).toBe(pageLabel)
+        expect(wrapper.find('.tx-range').text().replace(/\s+/g, ' ')).toBe(rangeLabel)
+        wrapper.unmount()
+      },
+    )
+
+    it('follows a changed total without being mounted again', async () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [buildTransaction()], categories, total: 20, perPage: 10, page: 1 },
+        ...mountOpts,
+      })
+      expect(wrapper.find('.page-info').text()).toBe('Seite 1 / 2')
+
+      await wrapper.setProps({ total: 45 })
+
+      expect(wrapper.find('.page-info').text()).toBe('Seite 1 / 5')
+      wrapper.unmount()
+    })
+  })
+
+  it('names the sender of a positive amount "Absender"', () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ amount: 7 })], categories },
+      ...mountOpts,
+    })
+
+    expect(wrapper.find('.dir-positive').text()).toBe('Absender')
+    wrapper.unmount()
+  })
+
+  it('shows the amount of a direct category only when the amount is split', () => {
+    const tx = buildTransaction({
+      p4x_category_directs: [
+        { id: 'direct-uuid-1', p4x_category_id: 'category-uuid-1', amount: 10 },
+      ],
+    })
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [tx], categories },
+      ...mountOpts,
+    })
+
+    expect(wrapper.find('.category-badges').text()).toContain('Spende')
+    expect(wrapper.find('.category-badges').text()).not.toContain('(')
+    wrapper.unmount()
+  })
+
+  it('shows no comment line in the expanded row without a comment', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: { transactions: [buildTransaction({ comment: null })], categories },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+
+    expect(wrapper.text()).not.toContain('Kommentar:')
+    wrapper.unmount()
+  })
+
+  it('offers every row action as a real button with an accessible name', async () => {
+    const wrapper = mount(TransactionTable, {
+      props: {
+        transactions: [buildTransaction({ has_attachment: true })],
+        categories,
+        admin: true,
+      },
+      ...mountOpts,
+    })
+    await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+
+    const names = wrapper
+      .findAll('button')
+      .map((b) => b.attributes('aria-label') ?? b.text())
+      .filter((name) => name !== '')
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Anhang herunterladen',
+        'Partner bearbeiten',
+        'Kategorisierung bearbeiten',
+        'Rohdaten anzeigen',
+        'Kommentar und Anhang bearbeiten',
+      ]),
+    )
+    wrapper.unmount()
+  })
+
+  describe('what a row shows', () => {
+    const fullTransaction = () =>
+      buildTransaction({
+        id: 'transaction-uuid-8',
+        booking: '2026-06-01',
+        valuation: '2026-06-02',
+        iban: 'AT611904300234573201',
+        amount: 42.5,
+        subject: 'Mitgliedsbeitrag Juni',
+        p4x_account_cn: 'Kasse Wien',
+        p4x_account_iban: 'AT483200000012345864',
+        partner: { type: 'member', id: 'member-uuid-5', cn: 'Max Mustermann' },
+        delegating_partner: { type: 'contact', id: 'contact-uuid-7', cn: 'Firma GmbH' },
+      })
+
+    it('shows booking date, partner with delegating partner and amount in the row', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      const cells = wrapper
+        .findAll('tbody tr:first-child td')
+        .map((c) => c.text().replace(/\s+/g, ' '))
+      expect(cells.join(' | ')).toContain('1. Juni 2026')
+      expect(wrapper.find('.delegating').text()).toContain('Firma GmbH')
+      expect(cells.at(-1)).toContain('42,50')
+      wrapper.unmount()
+    })
+
+    it('shows account, IBAN, subject and value date in the expanded row, each in its own field', async () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+      await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+
+      const items = Object.fromEntries(
+        wrapper.findAll('.detail-item').map((item) => {
+          const [label, ...value] = item.text().split(':')
+          return [label, value.join(':').trim()]
+        }),
+      )
+      expect(items['Konto']).toBe('Kasse Wien (AT483200000012345864)')
+      expect(items['IBAN']).toBe('AT611904300234573201')
+      expect(items['Betreff']).toBe('Mitgliedsbeitrag Juni')
+      expect(items['Wertstellung']).toBe('2. Juni 2026')
+      wrapper.unmount()
+    })
+
+    it('makes the booking date sortable', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      const header = wrapper.findAll('th').find((th) => th.text().includes('Buchungsdatum'))
+      expect(header?.classes()).toContain('p-datatable-sortable-column')
+      wrapper.unmount()
+    })
+
+    it('shows the total number of transactions, not the page size', () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories, total: 25, perPage: 10, page: 1 },
+        ...mountOpts,
+      })
+
+      expect(wrapper.find('.tx-count').text()).toBe('25 Transaktionen gefunden')
+      wrapper.unmount()
+    })
+
+    it('hands the row to the editors it opens', async () => {
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories, admin: true },
+        ...mountOpts,
+      })
+      await wrapper.find('.p-datatable-row-toggle-button').trigger('click')
+      await wrapper.find('.admin-action').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'TransactionEditor' }).props('transaction')).toEqual(
+        fullTransaction(),
+      )
+      wrapper.unmount()
+    })
+
+    it('shows the booking date as that day in a browser west of UTC (regression)', () => {
+      vi.stubEnv('TZ', 'America/Los_Angeles')
+      const wrapper = mount(TransactionTable, {
+        props: { transactions: [fullTransaction()], categories },
+        ...mountOpts,
+      })
+
+      expect(wrapper.find('tbody tr').text()).toContain('1. Juni 2026')
+      vi.unstubAllEnvs()
+      wrapper.unmount()
+    })
   })
 })

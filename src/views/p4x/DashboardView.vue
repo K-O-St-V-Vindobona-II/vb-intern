@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import { useAuthStore } from '@/stores/auth'
 import { useP4xStore } from '@/stores/p4x'
 import p4xService from '@/services/p4xService'
@@ -8,14 +9,15 @@ import type { DashboardData, P4xAccount } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import TransactionTable from './components/TransactionTable.vue'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
 import Menu from 'primevue/menu'
+import Message from 'primevue/message'
 
 const INACTIVE_THRESHOLD_DAYS = 730
 
 const router = useRouter()
 const authStore = useAuthStore()
 const p4xStore = useP4xStore()
+const toast = useToast()
 
 const loading = ref(true)
 const loadFailed = ref(false)
@@ -54,7 +56,12 @@ const reloadWarnings = async () => {
       data.value.warnings_category = resp.data.warnings_category
     }
   } catch {
-    /* empty */
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Warnungen konnten nicht neu geladen werden.',
+      life: 4000,
+    })
   }
 }
 
@@ -158,7 +165,7 @@ const toggleMenu = (event: Event, accountId: string) => {
       <div v-for="account in activeAccounts" :key="account.id" class="account-card">
         <div class="account-row">
           <div class="account-info">
-            <i v-tooltip="'Details'" class="pi pi-info-circle clickable" />
+            <i class="pi pi-info-circle" />
             <span class="account-label">{{ account.label }}</span>
           </div>
           <div class="account-right">
@@ -184,9 +191,9 @@ const toggleMenu = (event: Event, accountId: string) => {
     </div>
 
     <div v-if="inactiveAccounts.length" class="inactive-toggle">
-      <span class="toggle-link" @click="p4xStore.toggleInactive()">
+      <button type="button" class="toggle-link" @click="p4xStore.toggleInactive()">
         {{ p4xStore.showInactive ? 'verberge' : 'zeige' }} inaktive Konten
-      </span>
+      </button>
       <div v-if="p4xStore.showInactive" class="inactive-section">
         <small class="inactive-hint">
           Konten gelten als inaktiv, wenn länger als {{ INACTIVE_THRESHOLD_DAYS }} Tage keine
@@ -309,6 +316,10 @@ const toggleMenu = (event: Event, accountId: string) => {
   margin: 0.5rem 0;
 }
 .toggle-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
   color: var(--p-text-muted-color);
   cursor: pointer;
   font-size: 0.85rem;
@@ -334,8 +345,5 @@ const toggleMenu = (event: Event, accountId: string) => {
 }
 .warnings-section {
   margin-top: 2rem;
-}
-.clickable {
-  cursor: pointer;
 }
 </style>

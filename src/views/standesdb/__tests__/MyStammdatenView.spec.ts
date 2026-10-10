@@ -8,7 +8,7 @@ function buildSelfServiceDetail(
   overrides: Partial<MemberSelfServiceDetail> = {},
 ): MemberSelfServiceDetail {
   return {
-    id: 1,
+    id: '11111111-1111-1111-1111-111111111111',
     cn: 'Max Mustermann',
     vortitel: null,
     vorname: 'Max',
@@ -135,6 +135,26 @@ describe('MyStammdatenView', () => {
     expect(wrapper.findComponent({ name: 'Message' }).exists()).toBe(true)
   })
 
+  it('sends a cleared text field as null, not an empty string', async () => {
+    mockGetMySelfServiceData.mockResolvedValue({
+      data: buildSelfServiceDetail({ arbeitgeber: 'Firma GmbH' }),
+    })
+    mockSubmitMyChangeRequest.mockResolvedValue({ data: { status: 'submitted' } })
+    const wrapper = mount(MyStammdatenView, mountOpts)
+    await flushPromises()
+
+    const inputs = wrapper.findAll('input[type="text"]')
+    const arbeitgeberInput = inputs.find(
+      (i) => (i.element as HTMLInputElement).value === 'Firma GmbH',
+    )!
+    await arbeitgeberInput.setValue('')
+    await findButtonByText(wrapper, 'Antrag einreichen').trigger('click')
+    await flushPromises()
+
+    const payload = mockSubmitMyChangeRequest.mock.calls[0]![0]
+    expect(payload.arbeitgeber).toBeNull()
+  })
+
   it('shows an info toast when submitting produces no changes', async () => {
     mockSubmitMyChangeRequest.mockResolvedValue({ data: { status: 'no_changes' } })
     const wrapper = mount(MyStammdatenView, mountOpts)
@@ -204,5 +224,70 @@ describe('MyStammdatenView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Maximal 64 Zeichen.')
+  })
+
+  it('names every field of the form in German in the validation summary', async () => {
+    const labels: Record<string, string> = {
+      vortitel: 'Vortitel',
+      vorname: 'Vorname',
+      nachname: 'Nachname',
+      nachname_geburt: 'Geburtsname',
+      nachtitel: 'Nachtitel',
+      couleurname: 'Couleurname',
+      email: 'E-Mail',
+      url: 'URI',
+      mkv_ogv_url: 'MKV/OGV-Link',
+      rufnummer_mobil: 'Rufnummer (mobil)',
+      rufnummer_privat: 'Rufnummer (privat)',
+      rufnummer_beruf: 'Rufnummer (beruflich)',
+      zustellungen: 'Zustellung',
+      adresse_privat_anschrift: 'Privatadresse (Anschrift)',
+      adresse_privat_plz: 'Privatadresse (PLZ)',
+      adresse_privat_ort: 'Privatadresse (Ort)',
+      adresse_privat_land: 'Privatadresse (Land)',
+      adresse_beruf_anschrift: 'Berufsadresse (Anschrift)',
+      adresse_beruf_plz: 'Berufsadresse (PLZ)',
+      adresse_beruf_ort: 'Berufsadresse (Ort)',
+      adresse_beruf_land: 'Berufsadresse (Land)',
+      arbeitgeber: 'Arbeitgeber',
+      taetigkeit: 'Tätigkeit',
+      mitgliedschaften: 'Weitere Mitgliedschaften',
+      verbandchargen: 'Verbandschargen',
+    }
+    mockSubmitMyChangeRequest.mockRejectedValue({
+      response: {
+        status: 422,
+        data: {
+          detail: Object.keys(labels).map((field) => ({
+            loc: ['body', field],
+            msg: `ungültig (${field})`,
+          })),
+        },
+      },
+    })
+    const wrapper = mount(MyStammdatenView, mountOpts)
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'Antrag einreichen').trigger('click')
+    await flushPromises()
+
+    const lines = wrapper.findAll('li').map((li) => li.text())
+    Object.entries(labels).forEach(([field, label]) => {
+      expect(lines).toContain(`${label}: ungültig (${field})`)
+    })
+  })
+
+  it('connects every label of a text field to a control', async () => {
+    const wrapper = mount(MyStammdatenView, mountOpts)
+    await flushPromises()
+
+    const labels = wrapper.findAll('label[for]')
+    expect(labels).toHaveLength(25)
+    labels.forEach((label) => {
+      expect(
+        wrapper.find(`#${label.attributes('for')}`).exists(),
+        `no control for label "${label.text()}"`,
+      ).toBe(true)
+    })
   })
 })

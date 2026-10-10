@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import { formatDateLong } from '@/utils/formatters'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
 import type { FeeMember } from '@/types/p4x'
 import Amount from './components/Amount.vue'
 import FeeMemberCriteriaInfoBox from './components/FeeMemberCriteriaInfoBox.vue'
@@ -31,20 +32,25 @@ const searchFeeMembers = async (query: string): Promise<SearchResult[]> => {
   return resp.data.data
 }
 
+let latestLoad = 0
+
 const loadMember = async (id: string) => {
+  const load = ++latestLoad
   loading.value = true
   try {
     const resp = await p4xService.getFeeMember(id)
-    member.value = resp.data
+    if (load === latestLoad) member.value = resp.data
   } catch {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: 'Beitragskonto konnte nicht geladen werden.',
-      life: 5000,
-    })
+    if (load === latestLoad) {
+      toast.add({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Beitragskonto konnte nicht geladen werden.',
+        life: 5000,
+      })
+    }
   } finally {
-    loading.value = false
+    if (load === latestLoad) loading.value = false
   }
 }
 
@@ -60,17 +66,7 @@ const doExport = async () => {
   exporting.value = true
   try {
     const resp = await p4xService.exportFeeMember(member.value.id)
-
-    const disposition = resp.headers['content-disposition'] ?? ''
-    const match = disposition.match(/filename="?([^"]+)"?/)
-    const filename = match ? match[1] : `Beitragskonto_${member.value.id}.xlsx`
-
-    const url = URL.createObjectURL(resp.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = downloadBlobResponse(resp, `Beitragskonto_${member.value.id}.xlsx`)
 
     toast.add({
       severity: 'success',
@@ -175,10 +171,10 @@ onMounted(async () => {
       </div>
 
       <div v-if="showOverview && member.balance?.progress?.length" class="progress-section">
-        <div class="progress-toggle" @click="showProgress = !showProgress">
+        <button type="button" class="progress-toggle" @click="showProgress = !showProgress">
           <i :class="showProgress ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" />
           Verlauf
-        </div>
+        </button>
         <div v-if="showProgress" class="progress-list">
           <table class="progress-table">
             <thead>
@@ -267,6 +263,12 @@ onMounted(async () => {
   text-align: left;
 }
 .progress-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
   cursor: pointer;
   font-weight: 500;
   display: flex;

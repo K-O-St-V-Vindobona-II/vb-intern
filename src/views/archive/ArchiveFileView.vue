@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
-import { formatSize, formatDateTime, formatApiError } from '@/utils/formatters'
+import { formatSize, formatDateTime, formatApiError, getApiErrorStatus } from '@/utils/formatters'
 import type { FileDetail } from '@/types/archive'
 import DirPath from '@/components/archive/DirPath.vue'
 import FileIcon from '@/components/archive/FileIcon.vue'
@@ -27,6 +27,9 @@ const loadError = ref(false)
 
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
 
+// Same limit as the API.
+const MAX_DESCRIPTION_LENGTH = 128
+
 const editVisible = ref(false)
 const editDescription = ref('')
 
@@ -35,20 +38,25 @@ const doDownload = () => {
   triggerDownload(file.value.id, `${file.value.name}.${file.value.extension}`)
 }
 
-const loadFile = async () => {
-  loading.value = true
-  loadError.value = false
+// Reads the file of the current address in place. Also used after a change (description,
+// comments): the page stays mounted, so the scroll position and the comment form survive.
+// Answers arrive in any order: a slow answer for the file opened before must not replace
+// the one on screen, and its 404 must not send the user to "not found".
+let latestFileRequestId = 0
+
+const refreshFile = async () => {
+  const requestId = ++latestFileRequestId
   try {
-    const id = String(route.params['id'])
-    const resp = await archiveService.getFileDetail(id)
+    const resp = await archiveService.getFileDetail(String(route.params['id']))
+    if (requestId !== latestFileRequestId) return
     file.value = resp.data
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404 || status === 403) {
+    if (requestId !== latestFileRequestId) return
+    if ([403, 404].includes(getApiErrorStatus(err) ?? 0)) {
       router.replace({ name: 'not-found' })
       return
     }
-    loadError.value = true
+    loadError.value = !file.value
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -56,8 +64,17 @@ const loadFile = async () => {
       life: 5000,
     })
   } finally {
-    loading.value = false
+    if (requestId === latestFileRequestId) loading.value = false
   }
+}
+
+// Opening another file (and the retry button): the old file goes away while the new one
+// loads.
+const loadFile = async () => {
+  file.value = null
+  loadError.value = false
+  loading.value = true
+  await refreshFile()
 }
 
 const openEdit = () => {
@@ -69,15 +86,16 @@ const saveDescription = async () => {
   if (!file.value) return
   try {
     await archiveService.updateFile(file.value.id, {
-      description: editDescription.value || null,
+      description: editDescription.value.trim() || null,
     })
     editVisible.value = false
-    await loadFile()
-  } catch {
+    await refreshFile()
+  } catch (err: unknown) {
     toast.add({
       severity: 'error',
       summary: 'Fehler',
-      life: 3000,
+      detail: formatApiError(err, 'Beschreibung konnte nicht gespeichert werden.'),
+      life: 5000,
     })
   }
 }
@@ -103,7 +121,7 @@ watch(
 </script>
 
 <template>
-  <div v-if="!loading && file" class="archive-file">
+  <div v-if="file" class="archive-file">
     <div class="file-header">
       <h2>Archiv</h2>
       <p class="file-subtitle">Archiv-Datei</p>
@@ -111,7 +129,15 @@ watch(
 
     <!-- Download Card -->
     <div class="download-section">
-      <div class="download-link" @click="doDownload">
+      <div
+        class="download-link"
+        role="button"
+        tabindex="0"
+        :aria-label="`${file.name}.${file.extension} herunterladen`"
+        @click="doDownload"
+        @keydown.enter.prevent="doDownload"
+        @keydown.space.prevent="doDownload"
+      >
         <Card class="download-card">
           <template #title>
             <div class="download-title">{{ file.name }}.{{ file.extension }}</div>
@@ -162,6 +188,7 @@ watch(
             severity="secondary"
             text
             size="small"
+            aria-label="Beschreibung bearbeiten"
             @click="openEdit"
           />
         </div>
@@ -169,7 +196,12 @@ watch(
     </Card>
 
     <!-- Comments -->
-    <FileComments :file-id="file.id" :comments="file.comments" :admin="admin" @changed="loadFile" />
+    <FileComments
+      :file-id="file.id"
+      :comments="file.comments"
+      :admin="admin"
+      @changed="refreshFile"
+    />
 
     <!-- Back to dir -->
     <div class="back-row">
@@ -182,11 +214,18 @@ watch(
       header="Beschreibung bearbeiten"
       modal
       :style="{ width: '400px' }"
+      :breakpoints="{ '600px': '95vw' }"
     >
-      <InputText v-model="editDescription" style="width: 100%" />
+      <label for="edit-file-description" class="edit-label">Beschreibung</label>
+      <InputText
+        id="edit-file-description"
+        v-model="editDescription"
+        :maxlength="MAX_DESCRIPTION_LENGTH"
+        fluid
+      />
       <template #footer>
         <Button label="Abbrechen" severity="secondary" @click="editVisible = false" />
-        <Button label="Speichern" severity="danger" @click="saveDescription" />
+        <Button label="Speichern" @click="saveDescription" />
       </template>
     </Dialog>
   </div>
@@ -240,6 +279,12 @@ watch(
 .file-path-row {
   text-align: center;
   margin: 1rem 0;
+}
+.edit-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
 }
 .info-card {
   max-width: 600px;

@@ -16,7 +16,7 @@ vi.mock('@/router', () => ({
 
 function buildUser(permissions: string[]): User {
   return {
-    id: 1,
+    id: 'user-uuid-1',
     cn: 'Max Mustermann',
     default_image: null,
     org_id: 'vbw',
@@ -24,19 +24,32 @@ function buildUser(permissions: string[]): User {
     permissions,
     google_linked: false,
     chroniclemail: false,
+    is_fee_member: false,
     session_idle_timeout: 1800,
   }
 }
 
-type MenuItems = ReturnType<typeof useNavigation>['mainMenuItems']['value']
+// mainMenuItems.value is inferred as a deep union of differently-shaped literals
+// (a group has icon+items, a leaf has command, a separator has neither). A
+// structural stand-in with every field optional lets findItem/findChildItem walk
+// any depth of that tree without casting a child node to the shape of a
+// top-level group, which never has a `command`.
+interface MenuNode {
+  label?: string
+  icon?: string
+  visible?: boolean
+  class?: string
+  separator?: boolean
+  command?: () => unknown
+  items?: MenuNode[]
+}
 
-function findItem(items: MenuItems, label: string) {
+function findItem(items: MenuNode[], label: string): MenuNode | undefined {
   return items.find((item) => item.label === label)
 }
 
-function findChildItem(group: MenuItems[number] | undefined, label: string) {
-  const items = (group?.items ?? []) as MenuItems
-  return findItem(items, label)
+function findChildItem(group: MenuNode | undefined, label: string): MenuNode | undefined {
+  return findItem(group?.items ?? [], label)
 }
 
 describe('useNavigation', () => {
@@ -170,13 +183,13 @@ describe('useNavigation', () => {
       const { mainMenuItems } = useNavigation()
 
       let commandCount = 0
-      const invokeAllCommands = (items: typeof mainMenuItems.value): void => {
+      const invokeAllCommands = (items: MenuNode[]): void => {
         for (const item of items) {
           if (item.command) {
             commandCount++
             item.command()
           }
-          if (item.items) invokeAllCommands(item.items as typeof mainMenuItems.value)
+          if (item.items) invokeAllCommands(item.items)
         }
       }
       invokeAllCommands(mainMenuItems.value)

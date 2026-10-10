@@ -93,8 +93,9 @@ export interface MemberDetail {
   parent_id: string | null
   parent_cn: string
   default_image: string | null
-  chroniclemail: boolean
-  auth_locked: boolean
+  // null when the API withholds the account status from this viewer.
+  chroniclemail: boolean | null
+  auth_locked: boolean | null
   email: string | null
   email_verified_at: string | null
   url: string | null
@@ -141,8 +142,19 @@ export interface MemberDetail {
 
 export type MemberFormData = Omit<
   MemberDetail,
-  'id' | 'cn' | 'org_label' | 'state_label' | 'default_image' | 'email_verified_at' | 'tree'
->
+  | 'id'
+  | 'cn'
+  | 'org_label'
+  | 'state_label'
+  | 'default_image'
+  | 'email_verified_at'
+  | 'tree'
+  | 'chroniclemail'
+  | 'auth_locked'
+> & {
+  chroniclemail: boolean
+  auth_locked: boolean
+}
 
 // Self-service subset of MemberFormData - "echte Stammdaten" only. An
 // explicit interface (not a derived Omit<MemberFormData, ...>) on purpose:
@@ -302,6 +314,17 @@ export interface ExportConfig {
   orgs: OrgRef[]
   states: StateRef[]
   flags: Record<string, string>
+}
+
+// Body of POST /standesdb/export: the matrix keys are "{org_id}_{state_id}" and
+// "{org_id}_contacts".
+export interface ExportRequestPayload {
+  module: string
+  selections: Record<string, boolean>
+  include_disabled_delivery: boolean
+  include_dead: boolean
+  include_common_contacts: boolean
+  only_without_email: boolean
 }
 
 export interface SearchResult {

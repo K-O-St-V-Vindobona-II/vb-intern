@@ -4,6 +4,7 @@ import type {
   ReferenceData,
   RolesListResponse,
   ExportConfig,
+  ExportRequestPayload,
   KeysListResponse,
   MemberDetail,
   MemberDismissed,
@@ -35,8 +36,8 @@ export default {
     return api.get<ExportConfig>('/standesdb/export/config')
   },
 
-  downloadExport(data: Record<string, unknown>) {
-    return api.post('/standesdb/export', data, {
+  downloadExport(data: ExportRequestPayload) {
+    return api.post<Blob>('/standesdb/export', data, {
       responseType: 'blob',
     })
   },
@@ -46,7 +47,7 @@ export default {
   },
 
   downloadKeysList() {
-    return api.get('/standesdb/keys/download', {
+    return api.get<Blob>('/standesdb/keys/download', {
       responseType: 'blob',
     })
   },
@@ -56,7 +57,7 @@ export default {
   },
 
   getMember(id: string) {
-    return api.get<MemberDetail | MemberDismissed>(`/standesdb/members/${id}`)
+    return api.get<MemberDetail | MemberDismissed>(`/standesdb/members/${encodeURIComponent(id)}`)
   },
 
   createMember(data: Record<string, unknown>) {
@@ -64,13 +65,13 @@ export default {
   },
 
   updateMember(id: string, data: Record<string, unknown>) {
-    return api.put(`/standesdb/members/${id}`, data)
+    return api.put(`/standesdb/members/${encodeURIComponent(id)}`, data)
   },
 
   searchParent(memberId: string, q: string) {
     return api.get<{
       data: { id: string; cn: string }[]
-    }>(`/standesdb/members/${memberId}/searchparent`, {
+    }>(`/standesdb/members/${encodeURIComponent(memberId)}/searchparent`, {
       params: { q },
     })
   },
@@ -94,7 +95,9 @@ export default {
   },
 
   getChangeRequest(id: string) {
-    return api.get<MemberChangeRequestDetail>(`/standesdb/member-change-requests/${id}`)
+    return api.get<MemberChangeRequestDetail>(
+      `/standesdb/member-change-requests/${encodeURIComponent(id)}`,
+    )
   },
 
   // expectedUpdatedAt is the updated_at of the request as the reviewer saw it;
@@ -104,14 +107,17 @@ export default {
     fieldDecisions: Record<string, 'approved' | 'rejected'>,
     expectedUpdatedAt: string,
   ) {
-    return api.post<{ status: string }>(`/standesdb/member-change-requests/${id}/decide`, {
-      field_decisions: fieldDecisions,
-      expected_updated_at: expectedUpdatedAt,
-    })
+    return api.post<{ status: string }>(
+      `/standesdb/member-change-requests/${encodeURIComponent(id)}/decide`,
+      {
+        field_decisions: fieldDecisions,
+        expected_updated_at: expectedUpdatedAt,
+      },
+    )
   },
 
   getContact(id: string) {
-    return api.get<ContactDetail>(`/standesdb/contacts/${id}`)
+    return api.get<ContactDetail>(`/standesdb/contacts/${encodeURIComponent(id)}`)
   },
 
   createContact(data: Record<string, unknown>) {
@@ -119,11 +125,11 @@ export default {
   },
 
   updateContact(id: string, data: Record<string, unknown>) {
-    return api.put(`/standesdb/contacts/${id}`, data)
+    return api.put(`/standesdb/contacts/${encodeURIComponent(id)}`, data)
   },
 
   deleteContact(id: string) {
-    return api.delete(`/standesdb/contacts/${id}`)
+    return api.delete(`/standesdb/contacts/${encodeURIComponent(id)}`)
   },
 
   getMemberAuthActivity(memberId: string) {
@@ -131,7 +137,7 @@ export default {
       auth_lastlogin: string | null
       auth_lastsignal: string | null
       auth_lastlogout: string | null
-    }>(`/standesdb/members/${memberId}/auth-activity`)
+    }>(`/standesdb/members/${encodeURIComponent(memberId)}/auth-activity`)
   },
 
   getChangelog(
@@ -153,21 +159,21 @@ export default {
       total: number
       page: number
       page_size: number
-    }>(`/standesdb/${segment}/${id}/changelog`, { params })
+    }>(`/standesdb/${segment}/${encodeURIComponent(id)}/changelog`, { params })
   },
 
   getMemberImages(memberId: string) {
     return api.get<{
       owner: ImageOwnerRef
       images: StandesdbImage[]
-    }>(`/standesdb/members/${memberId}/images`)
+    }>(`/standesdb/members/${encodeURIComponent(memberId)}/images`)
   },
 
   getContactImages(contactId: string) {
     return api.get<{
       owner: ImageOwnerRef
       images: StandesdbImage[]
-    }>(`/standesdb/contacts/${contactId}/images`)
+    }>(`/standesdb/contacts/${encodeURIComponent(contactId)}/images`)
   },
 
   uploadImage(ownerType: string, ownerId: string, file: File, description: string | null) {
@@ -175,7 +181,7 @@ export default {
     formData.append('file', file)
     if (description) formData.append('description', description)
     const plural = ownerType === 'member' ? 'members' : 'contacts'
-    return api.post(`/standesdb/${plural}/${ownerId}/images`, formData, {
+    return api.post(`/standesdb/${plural}/${encodeURIComponent(ownerId)}/images`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
@@ -187,12 +193,17 @@ export default {
     data: { description: string | null; default: boolean },
   ) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
-    return api.put(`/standesdb/${plural}/${ownerId}/images/${imageId}`, data)
+    return api.put(
+      `/standesdb/${plural}/${encodeURIComponent(ownerId)}/images/${encodeURIComponent(imageId)}`,
+      data,
+    )
   },
 
   deleteImage(ownerType: string, ownerId: string, imageId: string) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
-    return api.delete(`/standesdb/${plural}/${ownerId}/images/${imageId}`)
+    return api.delete(
+      `/standesdb/${plural}/${encodeURIComponent(ownerId)}/images/${encodeURIComponent(imageId)}`,
+    )
   },
 
   getOwnImages() {
@@ -212,17 +223,20 @@ export default {
   },
 
   updateOwnImage(imageId: string, data: { description: string | null; default: boolean }) {
-    return api.put(`/standesdb/members/me/images/${imageId}`, data)
+    return api.put(`/standesdb/members/me/images/${encodeURIComponent(imageId)}`, data)
   },
 
   deleteOwnImage(imageId: string) {
-    return api.delete(`/standesdb/members/me/images/${imageId}`)
+    return api.delete(`/standesdb/members/me/images/${encodeURIComponent(imageId)}`)
   },
 
   getImageUrl(ownerType: string, ownerId: string, imageId: string, thumb = false) {
     const plural = ownerType === 'member' ? 'members' : 'contacts'
-    return api.get<{ url: string }>(`/standesdb/${plural}/${ownerId}/images/${imageId}/url`, {
-      params: thumb ? { thumb: true } : undefined,
-    })
+    return api.get<{ url: string }>(
+      `/standesdb/${plural}/${encodeURIComponent(ownerId)}/images/${encodeURIComponent(imageId)}/url`,
+      {
+        params: thumb ? { thumb: true } : undefined,
+      },
+    )
   },
 }

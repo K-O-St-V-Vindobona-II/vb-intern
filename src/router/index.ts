@@ -10,6 +10,11 @@ import { registerChunkReload } from './chunkReload'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
+// A route parameter that ends up in an API path must be a UUID: vue-router decodes "%2F"
+// inside a free parameter, and the browser then resolves the ".." segments of the request
+// path, so a crafted link could send the request to another API route.
+const UUID = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -109,12 +114,12 @@ const router = createRouter({
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/dirs/:id',
+          path: `archive/dirs/:id(${UUID})`,
           name: 'archive-dir',
           component: () => import('../views/archive/ArchiveDirView.vue'),
         },
         {
-          path: 'archive/files/:id',
+          path: `archive/files/:id(${UUID})`,
           name: 'archive-file',
           component: () => import('../views/archive/ArchiveFileView.vue'),
         },
@@ -137,12 +142,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/members/:id',
+          path: `standesdb/members/:id(${UUID})`,
           name: 'standesdb-member-show',
           component: () => import('../views/standesdb/MemberShowView.vue'),
         },
         {
-          path: 'standesdb/members/:id/edit',
+          path: `standesdb/members/:id(${UUID})/edit`,
           name: 'standesdb-member-edit',
           component: () => import('../views/standesdb/MemberEditView.vue'),
           meta: {
@@ -163,7 +168,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/change-requests/:id',
+          path: `standesdb/change-requests/:id(${UUID})`,
           name: 'standesdb-change-request-review',
           component: () => import('../views/standesdb/ChangeRequestReviewView.vue'),
           meta: {
@@ -184,12 +189,12 @@ const router = createRouter({
           },
         },
         {
-          path: 'standesdb/contacts/:id',
+          path: `standesdb/contacts/:id(${UUID})`,
           name: 'standesdb-contact-show',
           component: () => import('../views/standesdb/ContactShowView.vue'),
         },
         {
-          path: 'standesdb/contacts/:id/edit',
+          path: `standesdb/contacts/:id(${UUID})/edit`,
           name: 'standesdb-contact-edit',
           component: () => import('../views/standesdb/ContactEditView.vue'),
           meta: {
@@ -202,12 +207,12 @@ const router = createRouter({
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/members/:id/images',
+          path: `standesdb/members/:id(${UUID})/images`,
           name: 'standesdb-member-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
         {
-          path: 'standesdb/contacts/:id/images',
+          path: `standesdb/contacts/:id(${UUID})/images`,
           name: 'standesdb-contact-images',
           component: () => import('../views/standesdb/ImageGalleryView.vue'),
         },
@@ -222,7 +227,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-month/:year(\\d+)/:month(\\d+)',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-month/:year(20\\d{2}|2100)/:month(0?[1-9]|1[0-2])`,
           name: 'p4x-transactions-month',
           component: () => import('../views/p4x/TransactionsByMonthView.vue'),
           meta: {
@@ -230,7 +235,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-partner',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-partner`,
           name: 'p4x-transactions-partner',
           component: () => import('../views/p4x/TransactionsByPartnerView.vue'),
           meta: {
@@ -238,7 +243,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/accounts/:accountId/transactions/by-category',
+          path: `p4x/accounts/:accountId(${UUID})/transactions/by-category`,
           name: 'p4x-transactions-category',
           component: () => import('../views/p4x/TransactionsByCategoryView.vue'),
           meta: {
@@ -246,7 +251,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id?',
+          path: `p4x/fee-members/:id(${UUID})?`,
           name: 'p4x-fee-member',
           component: () => import('../views/p4x/FeeMemberView.vue'),
           meta: {
@@ -254,7 +259,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/fee-members/:id/edit',
+          path: `p4x/fee-members/:id(${UUID})/edit`,
           name: 'p4x-fee-member-edit',
           component: () => import('../views/p4x/FeeMemberFormView.vue'),
           meta: {
@@ -288,7 +293,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:id/edit',
+          path: `p4x/admin/accounts/:id(${UUID})/edit`,
           name: 'p4x-account-edit',
           component: () => import('../views/p4x/AccountFormView.vue'),
           meta: {
@@ -296,7 +301,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId/import',
+          path: `p4x/admin/accounts/:accountId(${UUID})/import`,
           name: 'p4x-account-import',
           component: () => import('../views/p4x/ImportView.vue'),
           meta: {
@@ -304,7 +309,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/accounts/:accountId/transactions/by-filter',
+          path: `p4x/admin/accounts/:accountId(${UUID})/transactions/by-filter`,
           name: 'p4x-transactions-filter',
           component: () => import('../views/p4x/TransactionsByFilterView.vue'),
           meta: {
@@ -328,7 +333,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/categories/:id/edit',
+          path: `p4x/admin/categories/:id(${UUID})/edit`,
           name: 'p4x-category-edit',
           component: () => import('../views/p4x/CategoryFormView.vue'),
           meta: {
@@ -352,7 +357,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id/edit',
+          path: `p4x/admin/category-filters/:id(${UUID})/edit`,
           name: 'p4x-filter-edit',
           component: () => import('../views/p4x/CategoryFilterFormView.vue'),
           meta: {
@@ -360,7 +365,7 @@ const router = createRouter({
           },
         },
         {
-          path: 'p4x/admin/category-filters/:id/filter2direct',
+          path: `p4x/admin/category-filters/:id(${UUID})/filter2direct`,
           name: 'p4x-filter2direct',
           component: () => import('../views/p4x/Filter2DirectView.vue'),
           meta: {
@@ -384,19 +389,6 @@ const router = createRouter({
           },
         },
 
-        // --- Placeholder routes ---
-        {
-          path: 'archive',
-          name: 'archive',
-          component: () => import('../views/PlaceholderView.vue'),
-          meta: { moduleName: 'Archiv' },
-        },
-        {
-          path: 'information',
-          name: 'information',
-          component: () => import('../views/PlaceholderView.vue'),
-          meta: { moduleName: 'Information' },
-        },
         {
           path: 'tracking/sent-emails',
           name: 'tracking-sent-emails',
@@ -416,7 +408,7 @@ const router = createRouter({
           meta: { requiredPermissions: ['systemAdmin'] },
         },
         {
-          path: 'tracking/activity/members/:memberId([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+          path: `tracking/activity/members/:memberId(${UUID})`,
           name: 'tracking-activity-member',
           component: () => import('../views/tracking/ActivityLogMemberDayView.vue'),
           props: true,

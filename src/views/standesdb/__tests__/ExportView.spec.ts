@@ -1,26 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
 import ExportView from '../ExportView.vue'
+import exportViewSource from '../ExportView.vue?raw'
 import PrimeVue from 'primevue/config'
-import ToastService from 'primevue/toastservice'
-import { createRouter, createMemoryHistory } from 'vue-router'
 
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-})
-
-const mockGetExportConfig = vi.fn().mockResolvedValue({
+const buildExportConfig = () => ({
   data: {
     modules: [
       { id: 'mailing-liste', label: 'Mailing-Liste' },
@@ -43,11 +27,13 @@ const mockGetExportConfig = vi.fn().mockResolvedValue({
   },
 })
 
-const mockDownloadExport = vi.fn().mockResolvedValue({
+const buildDownload = () => ({
   data: new Blob(['test']),
   headers: { 'content-disposition': 'attachment; filename=mailing-liste_2026-06-23.txt' },
 })
 
+const mockGetExportConfig = vi.fn()
+const mockDownloadExport = vi.fn()
 vi.mock('@/services/standesdbService', () => ({
   default: {
     getExportConfig: (...args: unknown[]) => mockGetExportConfig(...args),
@@ -55,42 +41,43 @@ vi.mock('@/services/standesdbService', () => ({
   },
 }))
 
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: vi.fn(() => ({
-    user: { permissions: ['standesdbExport'] },
-    token: 'test-token',
-  })),
-}))
-
 const mockToastAdd = vi.fn()
 vi.mock('primevue/usetoast', () => ({
   useToast: vi.fn(() => ({ add: mockToastAdd })),
 }))
 
-const router = createRouter({
-  history: createMemoryHistory(),
-  routes: [{ path: '/standesdb/export', name: 'standesdb-export', component: ExportView }],
-})
+const mockCreateObjectURL = vi.fn(() => 'blob:mock')
+const mockRevokeObjectURL = vi.fn()
 
 const mountView = async () => {
-  await router.push('/standesdb/export')
-  await router.isReady()
-  const w = mount(ExportView, {
-    global: {
-      plugins: [PrimeVue, ToastService, router, createPinia()],
-    },
-  })
+  const w = mount(ExportView, { global: { plugins: [PrimeVue] } })
   await flushPromises()
-  await vi.dynamicImportSettled()
   return w
 }
 
+const findButton = (w: ReturnType<typeof mount>, text: string) =>
+  w.findAll('button').find((b) => b.text() === text)!
+
 describe('ExportView', () => {
+  let clickSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
-    setActivePinia(createPinia())
-    mockGetExportConfig.mockClear()
-    mockDownloadExport.mockClear()
-    mockToastAdd.mockClear()
+    vi.clearAllMocks()
+    mockGetExportConfig.mockReset()
+    mockDownloadExport.mockReset()
+    mockGetExportConfig.mockResolvedValue(buildExportConfig())
+    mockDownloadExport.mockResolvedValue(buildDownload())
+    // jsdom implements neither the object-URL functions nor the navigation a click on a
+    // download link would trigger.
+    URL.createObjectURL = mockCreateObjectURL
+    URL.revokeObjectURL = mockRevokeObjectURL
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    clickSpy.mockRestore()
+    Reflect.deleteProperty(URL, 'createObjectURL')
+    Reflect.deleteProperty(URL, 'revokeObjectURL')
   })
 
   it('renders page title', async () => {
@@ -149,66 +136,86 @@ describe('ExportView', () => {
   it('exports with the selected module, matrix selections and flags', async () => {
     const w = await mountView()
 
-    const vbwButton = w.findAll('button').find((b) => b.text() === 'VBW')!
-    await vbwButton.trigger('click')
+    await findButton(w, 'VBW').trigger('click')
 
     const checkboxes = w.findAllComponents({ name: 'Checkbox' })
     await checkboxes[6]!.vm.$emit('update:modelValue', true) // include_disabled_delivery
 
-    const exportButton = w.findAll('button').find((b) => b.text() === 'Export starten')!
-    await exportButton.trigger('click')
+    await findButton(w, 'Export starten').trigger('click')
     await flushPromises()
 
-    expect(mockDownloadExport).toHaveBeenCalledWith(
+    expect(mockDownloadExport).toHaveBeenCalledWith({
+      module: 'mailing-liste',
+      selections: {
+        vbw_fu: true,
+        vbn_fu: false,
+        vbw_bu: true,
+        vbn_bu: false,
+        vbw_contacts: false,
+        vbn_contacts: false,
+      },
+      include_disabled_delivery: true,
+      include_dead: false,
+      include_common_contacts: false,
+      only_without_email: false,
+    })
+  })
+
+  it('uses the filename from the content-disposition header', async () => {
+    const w = await mountView()
+
+    await findButton(w, 'Export starten').trigger('click')
+    await flushPromises()
+
+    expect(mockCreateObjectURL).toHaveBeenCalledOnce()
+    expect(clickSpy).toHaveBeenCalledOnce()
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:mock')
+    expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        module: 'mailing-liste',
-        selections: expect.objectContaining({ vbw_fu: true, vbw_bu: true }),
-        include_disabled_delivery: true,
+        severity: 'success',
+        summary: 'Export erstellt',
+        detail: 'mailing-liste_2026-06-23.txt wurde heruntergeladen.',
       }),
     )
   })
 
-  it('uses the filename from the content-disposition header', async () => {
-    const createObjectURL = vi.fn(() => 'blob:mock')
-    const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL })
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-
+  it('regression: reads the name from a quoted header that also carries the RFC 5987 form', async () => {
+    mockDownloadExport.mockResolvedValue({
+      data: new Blob(['x']),
+      headers: {
+        'content-disposition':
+          'attachment; filename="excel-liste-komplett_2026-09-25.xlsx"; filename*=UTF-8\'\'excel-liste-komplett_2026-09-25.xlsx',
+      },
+    })
     const w = await mountView()
-    const exportButton = w.findAll('button').find((b) => b.text() === 'Export starten')!
-    await exportButton.trigger('click')
+
+    await findButton(w, 'Export starten').trigger('click')
     await flushPromises()
 
-    expect(createObjectURL).toHaveBeenCalledOnce()
-    expect(clickSpy).toHaveBeenCalledOnce()
     expect(mockToastAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: 'success', summary: 'Export erstellt' }),
+      expect.objectContaining({
+        detail: 'excel-liste-komplett_2026-09-25.xlsx wurde heruntergeladen.',
+      }),
     )
-
-    clickSpy.mockRestore()
   })
 
   it('falls back to a generated filename without a content-disposition header', async () => {
     mockDownloadExport.mockResolvedValueOnce({ data: new Blob(['x']), headers: {} })
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
 
     const w = await mountView()
-    const exportButton = w.findAll('button').find((b) => b.text() === 'Export starten')!
-    await exportButton.trigger('click')
+    await findButton(w, 'Export starten').trigger('click')
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ detail: expect.stringMatching(/export_\d{4}-\d{2}-\d{2}/) }),
     )
-    clickSpy.mockRestore()
   })
 
   it('shows an error toast when the export fails', async () => {
     mockDownloadExport.mockRejectedValueOnce(new Error('boom'))
     const w = await mountView()
 
-    const exportButton = w.findAll('button').find((b) => b.text() === 'Export starten')!
-    await exportButton.trigger('click')
+    await findButton(w, 'Export starten').trigger('click')
     await flushPromises()
 
     expect(mockToastAdd).toHaveBeenCalledWith(
@@ -216,9 +223,22 @@ describe('ExportView', () => {
     )
   })
 
+  it('does not start a second export while one is running', async () => {
+    let releaseExport: (value: unknown) => void = () => {}
+    mockDownloadExport.mockReturnValueOnce(new Promise((resolve) => (releaseExport = resolve)))
+    const w = await mountView()
+
+    await findButton(w, 'Export starten').trigger('click')
+    await findButton(w, 'Export starten').trigger('click')
+    releaseExport(buildDownload())
+    await flushPromises()
+
+    expect(mockDownloadExport).toHaveBeenCalledTimes(1)
+  })
+
   it('toggles all states (but not contacts) for an org via the org preset button', async () => {
     const w = await mountView()
-    const vbwButton = w.findAll('button').find((b) => b.text() === 'VBW')!
+    const vbwButton = findButton(w, 'VBW')
 
     await vbwButton.trigger('click')
     let checkboxes = w.findAllComponents({ name: 'Checkbox' })
@@ -235,7 +255,7 @@ describe('ExportView', () => {
 
   it('toggles a single state across all orgs via the matrix link', async () => {
     const w = await mountView()
-    const fuxLink = w.findAll('a').find((a) => a.text() === 'Fux')!
+    const fuxLink = w.findAll('.matrix-link').find((b) => b.text() === 'Fux')!
 
     await fuxLink.trigger('click')
     const checkboxes = w.findAllComponents({ name: 'Checkbox' })
@@ -246,17 +266,88 @@ describe('ExportView', () => {
 
   it('toggles contacts across all orgs via the preset button and the matrix link', async () => {
     const w = await mountView()
-    const kontakteButton = w.findAll('button').find((b) => b.text() === 'Kontakte')!
 
-    await kontakteButton.trigger('click')
+    await findButton(w, 'Kontakte').trigger('click')
     let checkboxes = w.findAllComponents({ name: 'Checkbox' })
     expect(checkboxes[4]!.props('modelValue')).toBe(true) // vbw_contacts
     expect(checkboxes[5]!.props('modelValue')).toBe(true) // vbn_contacts
 
-    const kontakteLink = w.findAll('a').find((a) => a.text() === 'Kontakte')!
+    const kontakteLink = w.findAll('.matrix-link').find((b) => b.text() === 'Kontakte')!
     await kontakteLink.trigger('click')
     checkboxes = w.findAllComponents({ name: 'Checkbox' })
     expect(checkboxes[4]!.props('modelValue')).toBe(false)
     expect(checkboxes[5]!.props('modelValue')).toBe(false)
+  })
+
+  describe('a load that fails', () => {
+    it('regression: says so instead of showing a bare heading', async () => {
+      mockGetExportConfig.mockRejectedValue({ response: { status: 500 } })
+
+      const w = await mountView()
+
+      expect(w.text()).toContain('Die Export-Einstellungen konnten nicht geladen werden.')
+      expect(w.text()).not.toContain('Export starten')
+    })
+
+    it('loads the settings after "Erneut versuchen"', async () => {
+      mockGetExportConfig.mockRejectedValueOnce({ response: { status: 500 } })
+      const w = await mountView()
+
+      await findButton(w, 'Erneut versuchen').trigger('click')
+      await flushPromises()
+
+      expect(w.text()).toContain('Export starten')
+      expect(w.text()).not.toContain('konnten nicht geladen werden')
+    })
+  })
+
+  describe('keyboard and assistive technology', () => {
+    it('regression: offers the matrix row toggles as buttons', async () => {
+      const w = await mountView()
+
+      const toggles = w.findAll('.matrix-link')
+
+      expect(toggles.map((t) => t.element.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON'])
+      expect(toggles.map((t) => t.text())).toEqual(['Fux', 'Bursch', 'Kontakte'])
+      expect(w.findAll('a')).toHaveLength(0)
+    })
+
+    it('regression: names every matrix checkbox by its row and its org', async () => {
+      const w = await mountView()
+
+      const names = w
+        .findAll('.matrix-table input[type="checkbox"]')
+        .map((i) => i.attributes('aria-label'))
+
+      expect(names).toEqual([
+        'Fux VBW',
+        'Fux VBN',
+        'Bursch VBW',
+        'Bursch VBN',
+        'Kontakte VBW',
+        'Kontakte VBN',
+      ])
+    })
+
+    it('regression: labels the format select by the title of its step', async () => {
+      const w = await mountView()
+
+      const title = w.find('#export-format-title')
+
+      expect(w.find('.module-select [aria-labelledby="export-format-title"]').exists()).toBe(true)
+      expect(title.text()).toContain('Export-Format')
+      const badges = w.findAll('.step-badge')
+      expect(badges).toHaveLength(3)
+      expect(badges.every((b) => b.attributes('aria-hidden') === 'true')).toBe(true)
+    })
+  })
+
+  it('regression: the step badge takes its text colour from the theme, not from a fixed white', () => {
+    // A fixed #fff on --p-primary-color is 1.9:1 in the dark scheme (light green primary); the
+    // contrast token of the theme flips to the dark surface colour there.
+    const badgeRule = /\.step-badge\s*\{[^}]*\}/.exec(exportViewSource)?.[0] ?? ''
+
+    expect(badgeRule).toContain('color: var(--p-primary-contrast-color)')
+    expect(badgeRule).not.toMatch(/color:\s*#(?:fff|ffffff)\b/i)
   })
 })

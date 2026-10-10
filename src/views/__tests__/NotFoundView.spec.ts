@@ -22,6 +22,7 @@ describe('NotFoundView.vue', () => {
       global: { plugins: [PrimeVue] },
     })
     const btn = wrapper.findComponent({ name: 'Button' })
+    expect(btn.text()).toBe('Zurück zur Startseite')
     await btn.trigger('click')
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
   })

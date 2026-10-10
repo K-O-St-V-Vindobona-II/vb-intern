@@ -27,6 +27,11 @@ const { result, loadFailed, load, reload } = usePaginatedTransactions(
 
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
 
+const partnerLabelParts = computed(() => {
+  const parts = selectedPartner.value?.label.split(':') ?? []
+  return { type: parts[0] ?? '', name: parts.slice(1).join(':').trim() }
+})
+
 const searchPartners = async (query: string): Promise<SearchResult[]> => {
   const resp = await p4xService.searchPartners(query)
   return resp.data
@@ -38,16 +43,6 @@ const onPartnerSelect = (item: SearchResult) => {
 }
 
 const onPageChange = (page: number) => load(page)
-
-const partnerTypeLabel = (): string => {
-  if (!selectedPartner.value) return ''
-  return selectedPartner.value.label.split(':')[0] ?? ''
-}
-
-const partnerName = (): string => {
-  if (!selectedPartner.value) return ''
-  return selectedPartner.value.label.split(':').slice(1).join(':').trim()
-}
 
 const loadCategories = async () => {
   categoriesLoadFailed.value = false
@@ -92,8 +87,8 @@ onMounted(loadCategories)
     <Card v-if="selectedPartner && result" class="info-card">
       <template #content>
         <div class="info-row">
-          <strong>{{ partnerTypeLabel() }}:</strong>
-          {{ partnerName() }}
+          <strong>{{ partnerLabelParts.type }}:</strong>
+          {{ partnerLabelParts.name }}
         </div>
       </template>
     </Card>
@@ -117,13 +112,6 @@ onMounted(loadCategories)
 </template>
 
 <style scoped>
-.load-error {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
 .tx-partner-view {
   max-width: 1100px;
   margin: 0 auto;
@@ -139,6 +127,13 @@ onMounted(loadCategories)
 .center-block {
   display: flex;
   justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 .search-container {

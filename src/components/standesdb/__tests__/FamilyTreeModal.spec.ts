@@ -11,7 +11,7 @@ vi.mock('vue-router', () => ({
 
 function buildNode(overrides: Partial<TreeNode> = {}): TreeNode {
   return {
-    id: 1,
+    id: '1',
     cn: 'Max Mustermann',
     gruender: false,
     org_id: 'vbw',
@@ -27,9 +27,9 @@ const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 
 describe('FamilyTreeModal', () => {
   it('shows the ancestry chain and the current member', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Großvater' }), buildNode({ id: 2, cn: 'Vater' })]
+    const ancestry = [buildNode({ id: '1', cn: 'Großvater' }), buildNode({ id: '2', cn: 'Vater' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 2 },
+      props: { visible: true, ancestry, children: [], memberId: '2' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -44,9 +44,9 @@ describe('FamilyTreeModal', () => {
   })
 
   it('does not show a caret for the current member itself', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Großvater' }), buildNode({ id: 2, cn: 'Ich' })]
+    const ancestry = [buildNode({ id: '1', cn: 'Großvater' }), buildNode({ id: '2', cn: 'Ich' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 2 },
+      props: { visible: true, ancestry, children: [], memberId: '2' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -58,10 +58,10 @@ describe('FamilyTreeModal', () => {
 
   it('auto-collapses children that have their own children when opened', async () => {
     const children = [
-      buildNode({ id: 3, cn: 'Sohn', children: [buildNode({ id: 4, cn: 'Enkel' })] }),
+      buildNode({ id: '3', cn: 'Sohn', children: [buildNode({ id: '4', cn: 'Enkel' })] }),
     ]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: false, ancestry: [], children, memberId: 1 },
+      props: { visible: false, ancestry: [], children, memberId: '1' },
       ...mountOpts,
     })
     await wrapper.setProps({ visible: true })
@@ -72,9 +72,9 @@ describe('FamilyTreeModal', () => {
   })
 
   it('toggles a collapsed ancestor and hides the deeper ancestry rows', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Großvater' }), buildNode({ id: 2, cn: 'Vater' })]
+    const ancestry = [buildNode({ id: '1', cn: 'Großvater' }), buildNode({ id: '2', cn: 'Vater' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 2 },
+      props: { visible: true, ancestry, children: [], memberId: '2' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -88,9 +88,9 @@ describe('FamilyTreeModal', () => {
   })
 
   it('navigates to the clicked member and closes the dialog', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Großvater' })]
+    const ancestry = [buildNode({ id: '1', cn: 'Großvater' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 1 },
+      props: { visible: true, ancestry, children: [], memberId: '1' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -98,15 +98,15 @@ describe('FamilyTreeModal', () => {
     const name = document.querySelector('.tree-name') as HTMLElement
     name.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
-    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-member-show', params: { id: 1 } })
+    expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-member-show', params: { id: '1' } })
     expect(wrapper.emitted('update:visible')).toEqual([[false]])
     wrapper.unmount()
   })
 
   it('marks deceased or dismissed ancestors with the inactive class', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Verstorben', verstorben: true })]
+    const ancestry = [buildNode({ id: '1', cn: 'Verstorben', verstorben: true })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 99 },
+      props: { visible: true, ancestry, children: [], memberId: '99' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -116,9 +116,9 @@ describe('FamilyTreeModal', () => {
   })
 
   it('renders a TreeBranch for each child', async () => {
-    const children = [buildNode({ id: 5, cn: 'Kind A' }), buildNode({ id: 6, cn: 'Kind B' })]
+    const children = [buildNode({ id: '5', cn: 'Kind A' }), buildNode({ id: '6', cn: 'Kind B' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry: [], children, memberId: 1 },
+      props: { visible: true, ancestry: [], children, memberId: '1' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -129,7 +129,7 @@ describe('FamilyTreeModal', () => {
 
   it('forwards the dialog visibility update event', async () => {
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry: [], children: [], memberId: 1 },
+      props: { visible: true, ancestry: [], children: [], memberId: '1' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()
@@ -141,9 +141,9 @@ describe('FamilyTreeModal', () => {
   })
 
   it('renders the ancestry caret and names as buttons that state what they do', async () => {
-    const ancestry = [buildNode({ id: 1, cn: 'Großvater' }), buildNode({ id: 2, cn: 'Ich' })]
+    const ancestry = [buildNode({ id: '1', cn: 'Großvater' }), buildNode({ id: '2', cn: 'Ich' })]
     const wrapper = mount(FamilyTreeModal, {
-      props: { visible: true, ancestry, children: [], memberId: 2 },
+      props: { visible: true, ancestry, children: [], memberId: '2' },
       ...mountOpts,
     })
     await wrapper.vm.$nextTick()

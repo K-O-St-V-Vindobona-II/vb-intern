@@ -18,6 +18,7 @@ const router = useRouter()
 const { hasPermission } = usePermission()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const treeDialogVisible = ref(false)
 const member = ref<MemberDetail | null>(null)
 const isDismissed = ref(false)
@@ -100,6 +101,7 @@ const actionSeverity = (action: string) => {
 
 const loadMember = async (id: string) => {
   loading.value = true
+  loadFailed.value = false
   member.value = null
   isDismissed.value = false
   dismissedData.value = null
@@ -120,6 +122,7 @@ const loadMember = async (id: string) => {
       router.replace({ name: 'not-found' })
       return
     }
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -130,6 +133,8 @@ watch(
   (id) => loadMember(String(id)),
   { immediate: true },
 )
+
+const retry = () => loadMember(String(route.params['id']))
 
 const orgLabel = (orgId: string | null, label: string | null | undefined) =>
   label ?? (orgId ? orgId.toUpperCase() : '–')
@@ -149,8 +154,16 @@ const capitalize = (s: string | null | undefined) =>
 
 <template>
   <div class="member-show">
-    <!-- DSGVO: entlassenes Mitglied -->
-    <template v-if="isDismissed && dismissedData">
+    <div v-if="loadFailed" class="page-header">
+      <h2 class="page-title">Standesdatenbank</h2>
+      <Message severity="error" :closable="false">
+        Die Daten konnten nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="retry" />
+    </div>
+
+    <!-- dismissed member (data protection) -->
+    <template v-else-if="isDismissed && dismissedData">
       <div class="dismissed-page">
         <div class="page-header">
           <h2 class="page-title">Standesdatenbank</h2>
@@ -180,8 +193,8 @@ const capitalize = (s: string | null | undefined) =>
       </div>
     </template>
 
-    <!-- Vollständige Anzeige -->
-    <template v-if="!loading && member">
+    <!-- full profile -->
+    <template v-else-if="!loading && member">
       <div class="page-header">
         <h2 class="page-title">Standesdatenbank</h2>
         <h3 class="page-subtitle">Mitglied</h3>
@@ -215,16 +228,16 @@ const capitalize = (s: string | null | undefined) =>
             v-if="canEdit"
             label="Bearbeiten"
             icon="pi pi-pencil"
-            severity="danger"
+            severity="primary"
             size="small"
             @click="router.push({ name: 'standesdb-member-edit', params: { id: member!.id } })"
           />
         </div>
       </div>
 
-      <!-- Zwei-Spalten-Layout wie Legacy-App -->
+      <!-- two-column layout -->
       <div class="two-col">
-        <!-- LINKE SPALTE -->
+        <!-- left column -->
         <div class="col">
           <div class="show-field">
             <label>Verbindung</label>
@@ -386,7 +399,7 @@ const capitalize = (s: string | null | undefined) =>
             </div>
           </div>
 
-          <!-- Ehrungen -->
+          <!-- honours -->
           <div v-if="member.badges.length" class="show-section">
             <label class="section-label">Ehrungen</label>
             <DataTable :value="member.badges" striped-rows size="small" class="compact-table">
@@ -408,7 +421,7 @@ const capitalize = (s: string | null | undefined) =>
             </DataTable>
           </div>
 
-          <!-- Schlüssel -->
+          <!-- keys -->
           <div v-if="member.keys.length" class="show-section">
             <label class="section-label">Schlüssel</label>
             <DataTable :value="member.keys" striped-rows size="small" class="compact-table">
@@ -421,7 +434,7 @@ const capitalize = (s: string | null | undefined) =>
           </div>
         </div>
 
-        <!-- RECHTE SPALTE -->
+        <!-- right column -->
         <div class="col">
           <div class="show-field">
             <label>E-Mail</label>
@@ -596,14 +609,14 @@ const capitalize = (s: string | null | undefined) =>
             </div>
           </div>
 
-          <div class="show-field show-field--check">
+          <div v-if="member.chroniclemail !== null" class="show-field show-field--check">
             <span class="check-icon" :class="member.chroniclemail ? 'active' : ''">
               {{ member.chroniclemail ? '☑' : '☐' }}
             </span>
             <span>Chroniclemails aktiviert</span>
           </div>
 
-          <div class="show-field show-field--check">
+          <div v-if="member.auth_locked !== null" class="show-field show-field--check">
             <span class="check-icon" :class="member.auth_locked ? 'active' : ''">
               {{ member.auth_locked ? '☑' : '☐' }}
             </span>
@@ -612,7 +625,7 @@ const capitalize = (s: string | null | undefined) =>
         </div>
       </div>
 
-      <!-- Chargen-Tabelle: volle Breite -->
+      <!-- roles table: full width -->
       <div v-if="member.roles_history.length" class="show-section full-width-section">
         <label class="section-label">Chargen, Funktionen, Kommissionen</label>
         <DataTable
@@ -646,7 +659,7 @@ const capitalize = (s: string | null | undefined) =>
         </DataTable>
       </div>
 
-      <!-- Footer-Aktionen -->
+      <!-- footer actions -->
       <div class="footer-actions">
         <Button
           label="Zur Suche"
@@ -666,13 +679,13 @@ const capitalize = (s: string | null | undefined) =>
           v-if="canEdit"
           label="Bearbeiten"
           icon="pi pi-pencil"
-          severity="danger"
+          severity="primary"
           size="small"
           @click="router.push({ name: 'standesdb-member-edit', params: { id: member!.id } })"
         />
       </div>
 
-      <!-- Stammbaum Modal -->
+      <!-- family tree modal -->
       <FamilyTreeModal
         v-model:visible="treeDialogVisible"
         :ancestry="member.tree?.ancestry ?? []"

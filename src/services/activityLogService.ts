@@ -7,19 +7,26 @@ import type {
 
 export default {
   async listDaysWithActivity(year: number, month: number): Promise<ActivityDayGroup[]> {
-    const { data } = await api.get('/tracking/activity', { params: { year, month } })
-    return data
-  },
-
-  async getForMemberDay(memberId: string, day: string): Promise<ActivityMemberDayDetail> {
-    const { data } = await api.get(`/tracking/activity/members/${encodeURIComponent(memberId)}`, {
-      params: { day },
+    const { data } = await api.get<ActivityDayGroup[]>('/tracking/activity', {
+      params: { year, month },
     })
     return data
   },
 
+  async getForMemberDay(memberId: string, day: string): Promise<ActivityMemberDayDetail> {
+    const { data } = await api.get<ActivityMemberDayDetail>(
+      `/tracking/activity/members/${encodeURIComponent(memberId)}`,
+      {
+        params: { day },
+      },
+    )
+    return data
+  },
+
   async getEntry(id: string): Promise<ActivityLogDetail> {
-    const { data } = await api.get(`/tracking/activity/${encodeURIComponent(id)}`)
+    const { data } = await api.get<ActivityLogDetail>(
+      `/tracking/activity/${encodeURIComponent(id)}`,
+    )
     return data
   },
 }

@@ -30,7 +30,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: 'transaction-uuid-1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
@@ -70,7 +70,7 @@ const categories: P4xCategory[] = [
 
 function buildFilter(overrides: Partial<CategoryFilterShort> = {}): CategoryFilterShort {
   return {
-    id: 1,
+    id: 'filter-uuid-1',
     name: 'Filter A',
     p4x_account_id: '1',
     p4x_account_label: 'Kasse',
@@ -177,6 +177,7 @@ describe('CategoryDirectEditor', () => {
     await flushPromises()
 
     expect(document.querySelector('.filter-table')?.textContent).toContain('3')
+    expect(document.querySelector('.filter-table .category-badge')?.textContent).toContain('Spende')
     expect(document.querySelector('.filter-details')).toBeFalsy()
 
     const detailIcon = document.querySelector('.pi-info-circle') as HTMLElement
@@ -184,11 +185,14 @@ describe('CategoryDirectEditor', () => {
     await flushPromises()
 
     expect(document.querySelector('.filter-details')?.textContent).toContain('beginnt mit:')
+    expect(document.querySelector('.filter-details .category-badge')?.textContent).toContain(
+      'Spende',
+    )
     wrapper.unmount()
   })
 
   it('navigates to filter edit and filter2direct from the icon row', async () => {
-    const tx = buildTransaction({ p4x_category_filters: [buildFilter({ id: 7 })] })
+    const tx = buildTransaction({ p4x_category_filters: [buildFilter({ id: 'filter-uuid-7' })] })
     const wrapper = mount(CategoryDirectEditor, {
       props: { transaction: tx, categories },
       ...mountOpts,
@@ -198,11 +202,17 @@ describe('CategoryDirectEditor', () => {
 
     const editIcon = document.querySelector('.pi-pencil') as HTMLElement
     editIcon.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter-edit', params: { id: 7 } })
+    expect(mockPush).toHaveBeenCalledWith({
+      name: 'p4x-filter-edit',
+      params: { id: 'filter-uuid-7' },
+    })
 
     const hammerIcon = document.querySelector('.pi-hammer') as HTMLElement
     hammerIcon.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-filter2direct', params: { id: 7 } })
+    expect(mockPush).toHaveBeenCalledWith({
+      name: 'p4x-filter2direct',
+      params: { id: 'filter-uuid-7' },
+    })
     wrapper.unmount()
   })
 
@@ -215,7 +225,7 @@ describe('CategoryDirectEditor', () => {
     vm.open()
     await flushPromises()
 
-    const form = (wrapper.vm as unknown as { form: { cat0: number | null; amt0: number } }).form
+    const form = (wrapper.vm as unknown as { form: { cat0: string | null; amt0: number } }).form
     form.cat0 = null
     form.amt0 = 4
     await flushPromises()
@@ -229,14 +239,17 @@ describe('CategoryDirectEditor', () => {
 
   it('saves the direct categorization and emits changed', async () => {
     const updated = buildTransaction({
-      id: 5,
+      id: 'transaction-uuid-5',
       p4x_category_directs: [
         { id: 'direct-uuid-1', p4x_category_id: 'category-uuid-1', amount: 10 },
       ],
     })
     mockSetCategoryDirect.mockResolvedValue({ data: updated })
     const wrapper = mount(CategoryDirectEditor, {
-      props: { transaction: buildTransaction({ id: 5, amount: 10 }), categories },
+      props: {
+        transaction: buildTransaction({ id: 'transaction-uuid-5', amount: 10 }),
+        categories,
+      },
       ...mountOpts,
     })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -252,7 +265,7 @@ describe('CategoryDirectEditor', () => {
     saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockSetCategoryDirect).toHaveBeenCalledWith(5, [
+    expect(mockSetCategoryDirect).toHaveBeenCalledWith('transaction-uuid-5', [
       { p4x_category_id: 'category-uuid-1', amount: 10 },
       { p4x_category_id: null, amount: 0 },
       { p4x_category_id: null, amount: 0 },
@@ -263,7 +276,7 @@ describe('CategoryDirectEditor', () => {
 
   it('asks for confirmation before deleting, and deletes nothing without accepting it', async () => {
     const wrapper = mount(CategoryDirectEditor, {
-      props: { transaction: buildTransaction({ id: 5 }), categories },
+      props: { transaction: buildTransaction({ id: 'transaction-uuid-5' }), categories },
       ...mountOpts,
     })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -279,10 +292,10 @@ describe('CategoryDirectEditor', () => {
   })
 
   it('deletes the direct categorization and emits changed once the confirmation is accepted', async () => {
-    const updated = buildTransaction({ id: 5, p4x_category_directs: [] })
+    const updated = buildTransaction({ id: 'transaction-uuid-5', p4x_category_directs: [] })
     mockUnsetCategoryDirect.mockResolvedValue({ data: updated })
     const wrapper = mount(CategoryDirectEditor, {
-      props: { transaction: buildTransaction({ id: 5 }), categories },
+      props: { transaction: buildTransaction({ id: 'transaction-uuid-5' }), categories },
       ...mountOpts,
     })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -292,7 +305,7 @@ describe('CategoryDirectEditor', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockUnsetCategoryDirect).toHaveBeenCalledWith(5)
+    expect(mockUnsetCategoryDirect).toHaveBeenCalledWith('transaction-uuid-5')
     expect(wrapper.emitted('changed')).toEqual([[updated]])
     wrapper.unmount()
   })
@@ -351,10 +364,10 @@ describe('CategoryDirectEditor', () => {
 
     const form = (
       wrapper.vm as unknown as {
-        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+        form: { cat0: string | null; amt0: number; cat1: string | null; amt1: number }
       }
     ).form
-    form.cat0 = 1
+    form.cat0 = 'category-uuid-1'
     form.amt0 = 5
     form.cat1 = null
     form.amt1 = 5
@@ -377,10 +390,10 @@ describe('CategoryDirectEditor', () => {
 
     const form = (
       wrapper.vm as unknown as {
-        form: { cat0: number | null; amt0: number; cat2: number | null; amt2: number }
+        form: { cat0: string | null; amt0: number; cat2: string | null; amt2: number }
       }
     ).form
-    form.cat0 = 1
+    form.cat0 = 'category-uuid-1'
     form.amt0 = 5
     form.cat2 = null
     form.amt2 = 5
@@ -403,12 +416,12 @@ describe('CategoryDirectEditor', () => {
 
     const form = (
       wrapper.vm as unknown as {
-        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+        form: { cat0: string | null; amt0: number; cat1: string | null; amt1: number }
       }
     ).form
-    form.cat0 = 1
+    form.cat0 = 'category-uuid-1'
     form.amt0 = 15
-    form.cat1 = 2
+    form.cat1 = 'category-uuid-2'
     form.amt1 = -5
     await flushPromises()
 
@@ -429,12 +442,12 @@ describe('CategoryDirectEditor', () => {
 
     const form = (
       wrapper.vm as unknown as {
-        form: { cat0: number | null; amt0: number; cat1: number | null; amt1: number }
+        form: { cat0: string | null; amt0: number; cat1: string | null; amt1: number }
       }
     ).form
-    form.cat0 = 1
+    form.cat0 = 'category-uuid-1'
     form.amt0 = -15
-    form.cat1 = 2
+    form.cat1 = 'category-uuid-2'
     form.amt1 = 5
     await flushPromises()
 
@@ -456,20 +469,20 @@ describe('CategoryDirectEditor', () => {
     const form = (
       wrapper.vm as unknown as {
         form: {
-          cat0: number | null
+          cat0: string | null
           amt0: number
-          cat1: number | null
+          cat1: string | null
           amt1: number
-          cat2: number | null
+          cat2: string | null
           amt2: number
         }
       }
     ).form
-    form.cat0 = 1
+    form.cat0 = 'category-uuid-1'
     form.amt0 = 5
-    form.cat1 = 2
+    form.cat1 = 'category-uuid-2'
     form.amt1 = 3
-    form.cat2 = 1
+    form.cat2 = 'category-uuid-1'
     form.amt2 = 2
     await flushPromises()
 
@@ -656,5 +669,62 @@ describe('CategoryDirectEditor', () => {
       expect(details).toContain('IBAN (Gegenstelle): AT611904300234573201')
       wrapper.unmount()
     })
+  })
+
+  it('offers the categories sorted by name', async () => {
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: buildTransaction(), categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const options = wrapper.findComponent({ name: 'Select' }).props('options') as Array<{
+      label: string
+    }>
+    expect(options.map((o) => o.label)).toEqual(['beitrag (Beitrag)', 'spende (Spende)'])
+    wrapper.unmount()
+  })
+
+  it('collapses the filter details again when the dialog is reopened', async () => {
+    const tx = buildTransaction({ p4x_category_filters: [buildFilter({ subject: 'Hallo' })] })
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: tx, categories },
+      ...mountOpts,
+    })
+    const vm = wrapper.vm as unknown as { open: () => void }
+    vm.open()
+    await flushPromises()
+    ;(document.querySelector('.pi-info-circle') as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await flushPromises()
+    expect(document.querySelector('.filter-details')).toBeTruthy()
+
+    clickDialogButton('Schließen')
+    await flushPromises()
+    vm.open()
+    await flushPromises()
+
+    expect(document.querySelector('.filter-details')).toBeFalsy()
+    wrapper.unmount()
+  })
+
+  it('makes the three filter actions real buttons with an accessible name', async () => {
+    const tx = buildTransaction({ p4x_category_filters: [buildFilter()] })
+    const wrapper = mount(CategoryDirectEditor, {
+      props: { transaction: tx, categories },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const buttons = Array.from(document.querySelectorAll('.filter-table button'))
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Details',
+      'Filter bearbeiten',
+      'Treffer zu Direktkategorisierung umwandeln',
+    ])
+    wrapper.unmount()
   })
 })

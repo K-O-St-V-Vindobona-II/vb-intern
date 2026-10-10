@@ -45,6 +45,16 @@ describe('CategoryListView', () => {
     wrapper.unmount()
   })
 
+  it('names the icon button that opens a category', async () => {
+    mockGetCategories.mockResolvedValue({ data: [buildCategory()] })
+    const wrapper = mount(CategoryListView, mountOpts)
+    await flushPromises()
+
+    const names = wrapper.findAll('tbody button').map((button) => button.attributes('aria-label'))
+    expect(names).toEqual(['Bearbeiten'])
+    wrapper.unmount()
+  })
+
   it('navigates to the create-category view', async () => {
     mockGetCategories.mockResolvedValue({ data: [] })
     const wrapper = mount(CategoryListView, mountOpts)

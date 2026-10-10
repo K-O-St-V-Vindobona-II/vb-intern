@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import FuzzyDatePicker from '../FuzzyDatePicker.vue'
 import PrimeVue from 'primevue/config'
 
-const mountWith = (props: Record<string, any>) =>
+const mountWith = (props: InstanceType<typeof FuzzyDatePicker>['$props']) =>
   mount(FuzzyDatePicker, {
     props,
     global: { plugins: [PrimeVue] },

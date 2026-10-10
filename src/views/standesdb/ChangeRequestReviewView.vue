@@ -23,7 +23,7 @@ const toast = useToast()
 const loading = ref(true)
 const submitting = ref(false)
 const request = ref<MemberChangeRequestDetail | null>(null)
-const decisions = ref<Record<string, Decision>>({})
+const decisions = ref<Record<string, Decision | null>>({})
 let loadRequestId = 0
 
 const decisionOptions = [
@@ -58,6 +58,11 @@ const decisionPayload = computed<Record<string, Decision> | null>(() => {
   return payload
 })
 const allDecided = computed(() => decisionPayload.value !== null)
+
+const decisionTag = (field: string) =>
+  decisions.value[field] === 'approved'
+    ? { value: 'Genehmigt', severity: 'success' as const }
+    : { value: 'Abgelehnt', severity: 'danger' as const }
 
 const setAllDecisions = (decision: Decision) => {
   if (!request.value) return
@@ -205,12 +210,13 @@ const submitDecision = async () => {
               :options="decisionOptions"
               option-label="label"
               option-value="value"
+              :aria-label="`Entscheidung für ${data.field}`"
               @update:model-value="decisions[data.field] = $event"
             />
             <Tag
               v-else
-              :value="decisions[data.field] === 'approved' ? 'Genehmigt' : 'Abgelehnt'"
-              :severity="decisions[data.field] === 'approved' ? 'success' : 'danger'"
+              :value="decisionTag(data.field).value"
+              :severity="decisionTag(data.field).severity"
             />
           </template>
         </Column>

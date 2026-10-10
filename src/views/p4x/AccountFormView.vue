@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatApiError } from '@/utils/formatters'
+import { formatApiError, toLocalDateStr } from '@/utils/formatters'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
@@ -42,7 +42,7 @@ const load = async () => {
           iban: account.iban,
           bic: account.bic ?? '',
           label: account.label ?? '',
-          init_date: account.init_date ? new Date(account.init_date) : null,
+          init_date: account.init_date ? new Date(`${account.init_date}T00:00:00`) : null,
           init_balance: account.init_balance,
         }
       } else {
@@ -64,7 +64,7 @@ const save = async () => {
       iban: form.value.iban,
       bic: form.value.bic,
       label: form.value.label,
-      init_date: form.value.init_date ? form.value.init_date.toISOString().slice(0, 10) : '',
+      init_date: form.value.init_date ? toLocalDateStr(form.value.init_date) : '',
       init_balance: form.value.init_balance,
     }
 

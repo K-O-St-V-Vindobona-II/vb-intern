@@ -14,14 +14,31 @@ export function toLocalDateStr(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// One shared formatter: constructing an Intl.NumberFormat costs about 60 microseconds, and the
+// p4x tables format one or two amounts per row on every render.
+const euroFormatter = new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' })
+
+export function formatEuro(amount: number): string {
+  return euroFormatter.format(amount)
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+// A bare "YYYY-MM-DD" names a calendar day, not an instant: new Date() reads it as UTC midnight,
+// which the browser then shows as the day before in every timezone west of UTC. It is read as
+// local midnight instead; strings with a time and an offset stay instants.
+function parseDateValue(dt: string): Date {
+  return new Date(DATE_ONLY.test(dt) ? `${dt}T00:00:00` : dt)
+}
+
 export function formatDate(dt: string | null): string {
   if (!dt) return ''
-  return new Date(dt).toLocaleDateString('de-AT')
+  return parseDateValue(dt).toLocaleDateString('de-AT')
 }
 
 export function formatDateTime(dt: string | null): string {
   if (!dt) return ''
-  return new Date(dt).toLocaleDateString('de-AT', {
+  return parseDateValue(dt).toLocaleDateString('de-AT', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -35,7 +52,7 @@ export function formatDateTime(dt: string | null): string {
 // pads). Used by the p4x views for account/transaction/import dates.
 export function formatDateLong(dt: string | null, fallback = '-'): string {
   if (!dt) return fallback
-  return new Date(dt).toLocaleDateString('de-AT', {
+  return parseDateValue(dt).toLocaleDateString('de-AT', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -65,6 +82,14 @@ export function getApiErrorStatus(e: unknown): number | undefined {
 
 export function getApiErrorDetail(e: unknown): unknown {
   return (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+}
+
+// Normalises the value of a text input for the API: surrounding blanks are
+// dropped and an empty (or blank) value becomes null. A cleared PrimeVue input
+// holds "", which is not the same as "no value" for the API's validators.
+export function trimmedOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed === '' ? null : trimmed
 }
 
 export function formatSize(bytes: number): string {

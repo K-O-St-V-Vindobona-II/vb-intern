@@ -108,10 +108,9 @@ const confirmProcess = () => {
       </template>
     </Card>
 
-    <div v-if="warningsCount > 0" class="warning-box">
-      <i class="pi pi-exclamation-triangle" />
+    <Message v-if="warningsCount > 0" severity="warn" :closable="false" class="warning-box">
       Es gibt {{ warningsCount }} offene Warnungen. Konvertierung ist nicht möglich.
-    </div>
+    </Message>
 
     <Card v-if="filter" class="filter-card">
       <template #content>
@@ -218,15 +217,7 @@ const confirmProcess = () => {
   margin-bottom: 0;
 }
 .warning-box {
-  background: var(--p-red-50);
-  border: 1px solid var(--p-red-200);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  color: var(--p-red-700);
   margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 .filter-card {
   margin-bottom: 1.5rem;

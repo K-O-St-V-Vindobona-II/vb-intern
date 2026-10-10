@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import api from '@/services/api'
+import { refreshAccessToken } from '@/services/sessionRefresh'
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'] as const
 const EXPIRY_CHECK_INTERVAL_MS = 60_000
@@ -37,8 +37,7 @@ export function useSessionManager() {
 
   const proactiveRefresh = async () => {
     try {
-      const { data } = await api.post('/auth/refresh')
-      authStore.setToken(data.access_token)
+      authStore.setToken(await refreshAccessToken())
       scheduleProactiveRefresh()
     } catch {
       performLogout()

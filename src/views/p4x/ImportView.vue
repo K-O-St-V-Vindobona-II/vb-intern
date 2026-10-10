@@ -56,6 +56,19 @@ const onFileChange = (e: Event) => {
   selectedFile.value = input.files?.[0] ?? null
 }
 
+const refreshAccount = async () => {
+  try {
+    await loadAccount()
+  } catch {
+    toast.add({
+      severity: 'warn',
+      summary: 'Konto nicht aktualisiert',
+      detail: 'Der Import war erfolgreich, die Kontodaten konnten aber nicht neu geladen werden.',
+      life: 6000,
+    })
+  }
+}
+
 const doImport = async () => {
   if (!selectedFile.value) return
   importing.value = true
@@ -64,8 +77,8 @@ const doImport = async () => {
     const resp = await p4xService.importTransactions(accountId, selectedFile.value)
     result.value = resp.data
     if (resp.data.given.parsed) {
-      await loadAccount()
       toast.add({ severity: 'success', summary: 'Import abgeschlossen', life: 3000 })
+      await refreshAccount()
     } else {
       toast.add({
         severity: 'error',
@@ -154,19 +167,20 @@ const doImport = async () => {
     </div>
 
     <div class="upload-section">
-      <input
-        ref="fileInputRef"
-        type="file"
-        accept=".json"
-        class="hidden-input"
-        :disabled="importing"
-        @change="onFileChange"
-      />
-      <div class="file-picker" @click="fileInputRef?.click()">
+      <label class="file-picker" for="import-file-input">
+        <input
+          id="import-file-input"
+          ref="fileInputRef"
+          type="file"
+          accept=".json"
+          class="visually-hidden-input"
+          :disabled="importing"
+          @change="onFileChange"
+        />
         <i :class="['pi', selectedFile ? 'pi-file' : 'pi-cloud-upload', 'picker-icon']" />
         <span v-if="selectedFile" class="file-name">{{ selectedFile.name }}</span>
         <span v-else class="picker-label">JSON-Datei auswählen</span>
-      </div>
+      </label>
       <Button
         label="Transaktionen importieren"
         icon="pi pi-upload"
@@ -244,8 +258,16 @@ const doImport = async () => {
   align-items: center;
   gap: 0.75rem;
 }
-.hidden-input {
-  display: none;
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .file-picker {
   display: flex;
@@ -261,6 +283,10 @@ const doImport = async () => {
 .file-picker:hover {
   border-color: var(--p-primary-400);
   background: var(--p-primary-50);
+}
+.file-picker:has(:focus-visible) {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
 }
 .picker-icon {
   font-size: 1.3rem;

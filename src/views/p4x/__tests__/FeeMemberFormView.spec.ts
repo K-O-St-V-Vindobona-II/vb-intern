@@ -68,8 +68,10 @@ describe('FeeMemberFormView', () => {
     const wrapper = mount(FeeMemberFormView, mountOpts)
     await flushPromises()
 
-    const commentInput = wrapper.findAll('input[type="text"]').at(-1)
+    const commentInput = wrapper.findAll<HTMLInputElement>('input[type="text"]').at(-1)
     expect(commentInput?.element.value).toBe('')
+    expect(wrapper.findComponent({ name: 'FormAmount' }).props('modelValue')).toBe(0)
+    expect(wrapper.findComponent({ name: 'DatePicker' }).props('modelValue')).toBeNull()
     wrapper.unmount()
   })
 
@@ -143,6 +145,37 @@ describe('FeeMemberFormView', () => {
     wrapper.unmount()
   })
 
+  it('loads init_date as the local calendar date, not shifted by the browser timezone (regression)', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_init_date: '2021-05-15' }) })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    const picker = wrapper.findComponent({ name: 'DatePicker' })
+    const modelValue = picker.props('modelValue') as Date
+    expect(modelValue.getFullYear()).toBe(2021)
+    expect(modelValue.getMonth()).toBe(4)
+    expect(modelValue.getDate()).toBe(15)
+    wrapper.unmount()
+  })
+
+  it('sends a date picked in the form back as the same calendar date, not shifted to UTC (regression)', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    mockUpdateFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    const picker = wrapper.findComponent({ name: 'DatePicker' })
+    await picker.vm.$emit('update:modelValue', new Date(2021, 4, 15))
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateFeeMember).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ p4x_init_date: '2021-05-15' }),
+    )
+    wrapper.unmount()
+  })
+
   it('navigates back to the member view without saving on cancel', async () => {
     mockGetFeeMember.mockResolvedValue({ data: buildMember() })
     const wrapper = mount(FeeMemberFormView, mountOpts)
@@ -152,6 +185,58 @@ describe('FeeMemberFormView', () => {
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-fee-member', params: { id: '1' } })
     expect(mockUpdateFeeMember).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('saves an empty date as an empty string and a blank comment as null', async () => {
+    mockGetFeeMember.mockResolvedValue({
+      data: buildMember({ p4x_init_date: null, p4x_comment: '   ' }),
+    })
+    mockUpdateFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateFeeMember).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ p4x_init_date: '', p4x_comment: null }),
+    )
+    wrapper.unmount()
+  })
+
+  it('sends the freed flag as it is set in the form', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_freed: true }) })
+    mockUpdateFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'Checkbox' }).props('modelValue')).toBe(true)
+
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateFeeMember).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ p4x_freed: true }),
+    )
+    wrapper.unmount()
+  })
+
+  it('sends the init balance entered in the form', async () => {
+    mockGetFeeMember.mockResolvedValue({ data: buildMember({ p4x_init_balance: null }) })
+    mockUpdateFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberFormView, mountOpts)
+    await flushPromises()
+
+    await wrapper.findComponent({ name: 'FormAmount' }).vm.$emit('update:modelValue', -12.5)
+    clickButton('Speichern')
+    await flushPromises()
+
+    expect(mockUpdateFeeMember).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ p4x_init_balance: -12.5 }),
+    )
     wrapper.unmount()
   })
 })

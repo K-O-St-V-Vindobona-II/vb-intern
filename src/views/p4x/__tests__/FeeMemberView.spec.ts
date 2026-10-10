@@ -125,6 +125,17 @@ describe('FeeMemberView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast instead of silently doing nothing when loading from the route id fails', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    expect(wrapper.find('.member-detail').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('shows balance counts and sums when a balance is present', async () => {
     mockRoute.params = { id: '1' }
     mockGetFeeMember.mockResolvedValue({ data: buildMember() })
@@ -183,6 +194,19 @@ describe('FeeMemberView', () => {
     wrapper.unmount()
   })
 
+  it('shows an error toast instead of silently doing nothing when loading a selected member fails', async () => {
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    mockGetFeeMember.mockRejectedValue(new Error('boom'))
+
+    const search = wrapper.findComponent({ name: 'SearchField' })
+    await search.vm.$emit('select', { id: '5', label: 'Erika Beispiel', type: 'member' })
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    wrapper.unmount()
+  })
+
   it('forwards the query to searchFeeMembers via the search-fn prop', async () => {
     mockSearchFeeMembers.mockResolvedValue({
       data: { data: [{ id: 1, label: 'Max', type: 'member' }] },
@@ -212,6 +236,16 @@ describe('FeeMemberView', () => {
 
     await wrapper.find('.progress-toggle').trigger('click')
     expect(wrapper.find('.progress-list').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('offers the progress toggle as a button', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValue({ data: buildMember() })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.find('.progress-toggle').element.tagName).toBe('BUTTON')
     wrapper.unmount()
   })
 
@@ -448,6 +482,43 @@ describe('FeeMemberView', () => {
     expect(rowTexts.find((t) => t.startsWith('4 verrechnete Beiträge'))).toContain('40,00')
     expect(rowTexts.find((t) => t.startsWith('3 geleistete Zahlungen'))).toContain('30,00')
     expect(rowTexts.find((t) => t.startsWith('Endstand'))).toContain('20,00')
+    wrapper.unmount()
+  })
+
+  it('shows the member picked last when an earlier, slower load finishes afterwards', async () => {
+    let resolveSlow: (value: unknown) => void = () => {}
+    mockGetFeeMember.mockReturnValueOnce(new Promise((resolve) => (resolveSlow = resolve)))
+    mockGetFeeMember.mockResolvedValueOnce({ data: buildMember({ id: '6', cn: 'Berta Zweite' }) })
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    const search = wrapper.findComponent({ name: 'SearchField' })
+
+    await search.vm.$emit('select', { id: '5', label: 'Anna Erste', type: 'member' })
+    await search.vm.$emit('select', { id: '6', label: 'Berta Zweite', type: 'member' })
+    await flushPromises()
+    resolveSlow({ data: buildMember({ id: '5', cn: 'Anna Erste' }) })
+    await flushPromises()
+
+    expect(wrapper.find('.member-name').text()).toBe('Berta Zweite')
+    wrapper.unmount()
+  })
+
+  it('keeps the loading state until the member picked last has arrived', async () => {
+    mockRoute.params = { id: '1' }
+    mockGetFeeMember.mockResolvedValueOnce({ data: buildMember() })
+    let resolveEarlier: (value: unknown) => void = () => {}
+    mockGetFeeMember.mockReturnValueOnce(new Promise((resolve) => (resolveEarlier = resolve)))
+    mockGetFeeMember.mockReturnValueOnce(new Promise(() => {}))
+    const wrapper = mount(FeeMemberView, mountOpts)
+    await flushPromises()
+    const search = wrapper.findComponent({ name: 'SearchField' })
+
+    await search.vm.$emit('select', { id: '5', label: 'Anna Erste', type: 'member' })
+    await search.vm.$emit('select', { id: '6', label: 'Berta Zweite', type: 'member' })
+    resolveEarlier({ data: buildMember({ id: '5', cn: 'Anna Erste' }) })
+    await flushPromises()
+
+    expect(wrapper.find('.member-detail').exists()).toBe(false)
     wrapper.unmount()
   })
 })

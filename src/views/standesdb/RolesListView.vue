@@ -27,9 +27,15 @@ const semesterOptions = [
   { label: 'Wintersemester', value: 'ws' },
 ]
 
+// The association was founded in 1928; the roles list never needs a year
+// before that, and 2100 is a generous upper bound for how far ahead the
+// semester filter should let an admin plan.
+const EARLIEST_YEAR = 1928
+const LATEST_YEAR = 2100
+
 const yearOptions = computed(() => {
   const years: number[] = []
-  for (let y = 2100; y >= 1928; y--) {
+  for (let y = LATEST_YEAR; y >= EARLIEST_YEAR; y--) {
     years.push(y)
   }
   return years
@@ -97,13 +103,6 @@ const loadSemester = () => {
   })
 }
 
-const goToMember = (id: string) => {
-  router.push({
-    name: 'standesdb-member-show',
-    params: { id },
-  })
-}
-
 watch(
   () => route.params,
   () => loadFromRoute(),
@@ -158,16 +157,24 @@ watch(
             <Column field="label" header="Bezeichnung" />
             <Column header="K.Ö.St.V. Vindobona II">
               <template #body="{ data }">
-                <a v-if="data.vbw" class="member-link" @click.prevent="goToMember(data.vbw.id)">
+                <router-link
+                  v-if="data.vbw"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbw.id } }"
+                  class="member-link"
+                >
                   {{ data.vbw.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
             <Column header="K.Ö.St.V. Vindobona nova">
               <template #body="{ data }">
-                <a v-if="data.vbn" class="member-link" @click.prevent="goToMember(data.vbn.id)">
+                <router-link
+                  v-if="data.vbn"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbn.id } }"
+                  class="member-link"
+                >
                   {{ data.vbn.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
           </DataTable>
@@ -184,16 +191,24 @@ watch(
             <Column field="label" header="Bezeichnung" />
             <Column header="K.Ö.St.V. Vindobona II">
               <template #body="{ data }">
-                <a v-if="data.vbw" class="member-link" @click.prevent="goToMember(data.vbw.id)">
+                <router-link
+                  v-if="data.vbw"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbw.id } }"
+                  class="member-link"
+                >
                   {{ data.vbw.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
             <Column header="K.Ö.St.V. Vindobona nova">
               <template #body="{ data }">
-                <a v-if="data.vbn" class="member-link" @click.prevent="goToMember(data.vbn.id)">
+                <router-link
+                  v-if="data.vbn"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbn.id } }"
+                  class="member-link"
+                >
                   {{ data.vbn.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
           </DataTable>
@@ -215,16 +230,24 @@ watch(
             </Column>
             <Column header="K.Ö.St.V. Vindobona II">
               <template #body="{ data }">
-                <a v-if="data.vbw" class="member-link" @click.prevent="goToMember(data.vbw.id)">
+                <router-link
+                  v-if="data.vbw"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbw.id } }"
+                  class="member-link"
+                >
                   {{ data.vbw.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
             <Column header="K.Ö.St.V. Vindobona nova">
               <template #body="{ data }">
-                <a v-if="data.vbn" class="member-link" @click.prevent="goToMember(data.vbn.id)">
+                <router-link
+                  v-if="data.vbn"
+                  :to="{ name: 'standesdb-member-show', params: { id: data.vbn.id } }"
+                  class="member-link"
+                >
                   {{ data.vbn.cn }}
-                </a>
+                </router-link>
               </template>
             </Column>
           </DataTable>

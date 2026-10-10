@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Amount from '../Amount.vue'
 
@@ -13,6 +13,8 @@ describe('Amount', () => {
   it('formats a negative amount with the negative class', () => {
     const wrapper = mount(Amount, { props: { amount: -3.2 } })
     expect(wrapper.classes()).toContain('amount-negative')
+    expect(wrapper.text()).toMatch(/^-/)
+    expect(wrapper.text()).toContain('3,20')
   })
 
   it('treats zero as non-negative', () => {
@@ -26,5 +28,14 @@ describe('Amount', () => {
     })
     expect(wrapper.classes()).toContain('amount-negative-high')
     expect(wrapper.classes()).not.toContain('amount-negative')
+  })
+
+  it('does not construct a number formatter per instance', () => {
+    const constructed = vi.spyOn(Intl, 'NumberFormat')
+
+    for (let i = 0; i < 50; i++) mount(Amount, { props: { amount: i } })
+
+    expect(constructed).not.toHaveBeenCalled()
+    constructed.mockRestore()
   })
 })

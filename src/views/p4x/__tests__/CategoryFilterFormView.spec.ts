@@ -70,7 +70,6 @@ function buildFilter(overrides: Partial<CategoryFilter> = {}): CategoryFilter {
     id: '1',
     name: 'Filter A',
     p4x_account_id: 'account-uuid-1',
-    account_id: 1,
     p4x_account_label: 'Kasse',
     iban: null,
     min_amount: null,
@@ -110,14 +109,34 @@ describe('CategoryFilterFormView', () => {
   })
 
   it('pre-fills iban, amount range and subject from query params when creating', async () => {
-    mockRoute.query = { accountId: '1', iban: 'AT999', amount: '12', subject: 'Spende' }
+    mockRoute.query = { iban: 'AT999', amount: '12', subject: 'Spende' }
     const wrapper = mount(CategoryFilterFormView, mountOpts)
     await flushPromises()
 
-    const inputs = wrapper.findAll('input[type="text"]')
-    expect(inputs[0]!.element.value).toBe('') // name field stays empty
-    expect(wrapper.findComponent({ name: 'Checkbox' }).exists()).toBe(true)
-    expect(wrapper.findAllComponents({ name: 'FormAmount' })).toHaveLength(2)
+    expect(wrapper.find<HTMLInputElement>('input[maxlength="64"]').element.value).toBe('')
+    expect(wrapper.find<HTMLInputElement>('input[maxlength="25"]').element.value).toBe('AT999')
+    expect(wrapper.find<HTMLInputElement>('input[maxlength="400"]').element.value).toBe('Spende')
+    const amounts = wrapper.findAllComponents({ name: 'FormAmount' })
+    expect(amounts.map((a) => a.props('modelValue'))).toEqual([12, 12])
+    expect(wrapper.find<HTMLInputElement>('#use-min').element.checked).toBe(true)
+    expect(wrapper.find<HTMLInputElement>('#use-max').element.checked).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('pre-selects the account given via the accountId query param', async () => {
+    mockGetDashboard.mockResolvedValue({
+      data: {
+        accounts: [buildAccount(), buildAccount({ id: 'account-uuid-2', label: 'Kasse Graz' })],
+        categories,
+      },
+    })
+    mockRoute.query = { accountId: 'account-uuid-2' }
+    const wrapper = mount(CategoryFilterFormView, mountOpts)
+    await flushPromises()
+
+    expect(wrapper.findAllComponents({ name: 'Select' })[0]!.props('modelValue')).toBe(
+      'account-uuid-2',
+    )
     wrapper.unmount()
   })
 

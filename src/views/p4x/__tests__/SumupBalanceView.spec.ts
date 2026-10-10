@@ -34,7 +34,7 @@ describe('SumupBalanceView', () => {
 
     expect(wrapper.text()).toContain('Anzahl: 5')
     expect(wrapper.text()).toContain('Anzahl: 2')
-    expect(wrapper.find('.saldo-amount').text()).toContain('70')
+    expect(wrapper.find('.saldo-amount').text()).toContain('70,00')
     wrapper.unmount()
   })
 
@@ -73,6 +73,23 @@ describe('SumupBalanceView', () => {
     expect(mockGetSumupBalance).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
     expect(wrapper.find('.sumup-card').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows the count and the sum of the incoming and of the outgoing bookings in their own sections', async () => {
+    mockGetSumupBalance.mockResolvedValue({ data: buildBalance() })
+    const wrapper = mount(SumupBalanceView, mountOpts)
+    await flushPromises()
+
+    const sections = wrapper
+      .findAll('.section')
+      .map((section) => section.text().replace(/\s+/g, ' '))
+    const incoming = sections.find((t) => t.startsWith('Eingänge'))
+    const outgoing = sections.find((t) => t.startsWith('Ausgänge'))
+    expect(incoming).toContain('Anzahl: 5')
+    expect(incoming).toContain('100,00')
+    expect(outgoing).toContain('Anzahl: 2')
+    expect(outgoing).toContain('30,00')
     wrapper.unmount()
   })
 })

@@ -20,7 +20,7 @@ function buildReferenceData(): ReferenceData {
 
 function buildMember(overrides: Partial<MemberDetail> = {}): MemberDetail {
   return {
-    id: '1',
+    id: '11111111-1111-1111-1111-111111111111',
     cn: 'Max Mustermann',
     vortitel: null,
     vorname: 'Max',
@@ -146,7 +146,7 @@ describe('MemberEditView', () => {
     mockAuthStore.user = { org_id: 'vbw', permissions: ['standesdbVbwAdmin'] }
     mockGetReferenceData.mockResolvedValue({ data: buildReferenceData() })
     mockGetMember.mockResolvedValue({ data: buildMember() })
-    mockCreateMember.mockResolvedValue({ data: { id: '9' } })
+    mockCreateMember.mockResolvedValue({ data: { id: '99999999-9999-9999-9999-999999999999' } })
     mockUpdateMember.mockResolvedValue({})
   })
 
@@ -159,10 +159,10 @@ describe('MemberEditView', () => {
   })
 
   it('loads and pre-fills an existing member for editing', async () => {
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
-    expect(mockGetMember).toHaveBeenCalledWith('1')
+    expect(mockGetMember).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111')
     expect(wrapper.text()).toContain('Mitglied bearbeiten')
     const inputs = wrapper.findAll('input[type="text"]')
     expect(inputs.some((i) => (i.element as HTMLInputElement).value === 'Max')).toBe(true)
@@ -170,7 +170,7 @@ describe('MemberEditView', () => {
 
   it('redirects to not-found on a 404', async () => {
     mockGetMember.mockRejectedValueOnce({ response: { status: 404 } })
-    await mountAt('/standesdb/members/999/edit')
+    await mountAt('/standesdb/members/00000000-0000-0000-0000-000000000000/edit')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('not-found')
@@ -208,9 +208,34 @@ describe('MemberEditView', () => {
     expect(wrapper.text()).toContain('Grabadresse')
   })
 
+  it('fills the chronicle and lock checkboxes from the loaded member', async () => {
+    mockGetMember.mockResolvedValue({
+      data: buildMember({ chroniclemail: true, auth_locked: false }),
+    })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    // Checkbox order: Gründer, Entlassen, Verstorben, Chroniclemails, Zugang gesperrt.
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+    expect(checkboxes[3]!.props('modelValue')).toBe(true)
+    expect(checkboxes[4]!.props('modelValue')).toBe(false)
+  })
+
+  it('keeps the safe defaults when the API withholds the account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: buildMember({ chroniclemail: null, auth_locked: null }),
+    })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    const checkboxes = wrapper.findAllComponents({ name: 'Checkbox' })
+    expect(checkboxes[3]!.props('modelValue')).toBe(false)
+    expect(checkboxes[4]!.props('modelValue')).toBe(true)
+  })
+
   it('shows the MKV/OGV link field only for org vbw', async () => {
     mockGetMember.mockResolvedValue({ data: buildMember({ org_id: 'vbn' }) })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('MKV/OGV-Link')
@@ -229,25 +254,135 @@ describe('MemberEditView', () => {
     expect(payload).not.toHaveProperty('parent_cn')
     expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
     expect(router.currentRoute.value.name).toBe('standesdb-member-show')
-    expect(router.currentRoute.value.params.id).toBe('9')
+    expect(router.currentRoute.value.params['id']).toBe('99999999-9999-9999-9999-999999999999')
+  })
+
+  it('sends a cleared text field as null, not an empty string', async () => {
+    mockGetMember.mockResolvedValue({ data: buildMember({ email: 'max@verein.at' }) })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    const emailInput = wrapper.find('input[type="email"]')
+    await emailInput.setValue('')
+    const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+    await saveBtn.trigger('click')
+    await flushPromises()
+
+    const payload = mockUpdateMember.mock.calls[0]![1]
+    expect(payload.email).toBeNull()
+  })
+
+  describe('text fields and labels', () => {
+    const MEMBER_PATH = '/standesdb/members/11111111-1111-1111-1111-111111111111/edit'
+    const TEXT_FIELDS = [
+      'vortitel',
+      'vorname',
+      'nachname',
+      'nachname_geburt',
+      'nachtitel',
+      'couleurname',
+      'grabadresse',
+      'email',
+      'url',
+      'mkv_ogv_url',
+      'rufnummer_mobil',
+      'rufnummer_privat',
+      'rufnummer_beruf',
+      'adresse_privat_anschrift',
+      'adresse_privat_plz',
+      'adresse_privat_ort',
+      'adresse_privat_land',
+      'adresse_beruf_anschrift',
+      'adresse_beruf_plz',
+      'adresse_beruf_ort',
+      'adresse_beruf_land',
+      'arbeitgeber',
+      'taetigkeit',
+      'mitgliedschaften',
+      'verbandchargen',
+      'anmerkungen',
+    ] as const
+
+    const filledMember = () =>
+      buildMember({
+        verstorben: true,
+        ...Object.fromEntries(TEXT_FIELDS.map((field) => [field, 'Wert'])),
+      })
+
+    it.each(TEXT_FIELDS)('sends a blank %s as null', async (field) => {
+      mockGetMember.mockResolvedValue({ data: filledMember() })
+      const wrapper = await mountAt(MEMBER_PATH)
+      await flushPromises()
+
+      await wrapper.find(`#member-${field.replaceAll('_', '-')}`).setValue('   ')
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Speichern')!
+        .trigger('click')
+      await flushPromises()
+
+      const payload = mockUpdateMember.mock.calls[0]![1]
+      TEXT_FIELDS.forEach((other) => {
+        expect(payload[other]).toBe(other === field ? null : 'Wert')
+      })
+    })
+
+    it('connects every label of a text field to a control', async () => {
+      mockGetMember.mockResolvedValue({ data: filledMember() })
+      const wrapper = await mountAt(MEMBER_PATH)
+      await flushPromises()
+
+      const labels = wrapper.findAll('label[for]')
+      expect(labels).toHaveLength(29)
+      labels.forEach((label) => {
+        expect(
+          wrapper.find(`#${label.attributes('for')}`).exists(),
+          `no control for label "${label.text()}"`,
+        ).toBe(true)
+      })
+    })
+
+    it('drops the general messages of an earlier attempt when saving again', async () => {
+      mockUpdateMember
+        .mockRejectedValueOnce({ response: { data: { detail: ['Allgemeiner Konflikt.'] } } })
+        .mockRejectedValueOnce({ response: { data: { detail: 'Name bereits vergeben.' } } })
+      const wrapper = await mountAt(MEMBER_PATH)
+      await flushPromises()
+      const save = () =>
+        wrapper
+          .findAll('button')
+          .find((b) => b.text() === 'Speichern')!
+          .trigger('click')
+
+      await save()
+      await flushPromises()
+      expect(wrapper.text()).toContain('Allgemeiner Konflikt.')
+      await save()
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Allgemeiner Konflikt.')
+    })
   })
 
   it('updates an existing member and navigates back to its detail page', async () => {
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
     await saveBtn.trigger('click')
     await flushPromises()
 
-    expect(mockUpdateMember).toHaveBeenCalledWith('1', expect.objectContaining({ vorname: 'Max' }))
+    expect(mockUpdateMember).toHaveBeenCalledWith(
+      '11111111-1111-1111-1111-111111111111',
+      expect.objectContaining({ vorname: 'Max' }),
+    )
     expect(router.currentRoute.value.name).toBe('standesdb-member-show')
-    expect(router.currentRoute.value.params.id).toBe('1')
+    expect(router.currentRoute.value.params['id']).toBe('11111111-1111-1111-1111-111111111111')
   })
 
   it('shows a plain error toast for a string error detail', async () => {
     mockUpdateMember.mockRejectedValueOnce({ response: { data: { detail: 'Konflikt.' } } })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -265,7 +400,7 @@ describe('MemberEditView', () => {
         data: { detail: [{ loc: ['body', 'nachname'], msg: 'field required' }] },
       },
     })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -281,7 +416,7 @@ describe('MemberEditView', () => {
     mockUpdateMember.mockRejectedValueOnce({
       response: { data: { detail: ['Rollenverlauf überschneidet sich.'] } },
     })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -305,7 +440,7 @@ describe('MemberEditView', () => {
         },
       },
     })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -319,7 +454,7 @@ describe('MemberEditView', () => {
 
   it('falls back to a generic error toast when the API sends no detail', async () => {
     mockUpdateMember.mockRejectedValueOnce(new Error('network failure'))
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     const saveBtn = wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
@@ -333,7 +468,7 @@ describe('MemberEditView', () => {
 
   it('redirects to not-found on a 403', async () => {
     mockGetMember.mockRejectedValueOnce({ response: { status: 403 } })
-    await mountAt('/standesdb/members/999/edit')
+    await mountAt('/standesdb/members/00000000-0000-0000-0000-000000000000/edit')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('not-found')
@@ -341,7 +476,7 @@ describe('MemberEditView', () => {
 
   it('shows a retry state instead of a blank editable form on an unrelated load error', async () => {
     mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
-    const wrapper = await mountAt('/standesdb/members/1/edit')
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('standesdb-member-edit')
@@ -366,6 +501,7 @@ describe('MemberEditView', () => {
     expect(mockGetMember).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).not.toContain('konnte nicht geladen werden')
     expect(wrapper.text()).toContain('Mitglied bearbeiten')
+    expect(mockGetMember).toHaveBeenCalledTimes(2)
   })
 
   it('shows the same retry state for a failed reference data request and does not save', async () => {

@@ -50,32 +50,19 @@ const handleLogout = async () => {
   router.push({ name: 'login' })
 }
 
-const goToProfile = () => {
+type DrawerTarget =
+  | 'profile'
+  | 'permission-setup'
+  | 'p4x-my-fee-account'
+  | 'standesdb-my-stammdaten'
+  | 'standesdb-my-images'
+
+const navigateFromDrawer = (name: DrawerTarget) => {
   profileDrawerVisible.value = false
-  router.push({ name: 'profile' })
+  router.push({ name })
 }
 
-const goToPermissions = () => {
-  profileDrawerVisible.value = false
-  router.push({ name: 'permission-setup' })
-}
-
-const goToMyFeeAccount = () => {
-  profileDrawerVisible.value = false
-  router.push({ name: 'p4x-my-fee-account' })
-}
-
-const goToMyStammdaten = () => {
-  profileDrawerVisible.value = false
-  router.push({ name: 'standesdb-my-stammdaten' })
-}
-
-const goToMyImages = () => {
-  profileDrawerVisible.value = false
-  router.push({ name: 'standesdb-my-images' })
-}
-
-const toggleUserMenu = () => {
+const openProfileDrawer = () => {
   profileDrawerVisible.value = true
 }
 </script>
@@ -102,7 +89,7 @@ const toggleUserMenu = () => {
             class="avatar-btn"
             aria-label="Profilmenü öffnen"
             aria-haspopup="dialog"
-            @click="toggleUserMenu"
+            @click="openProfileDrawer"
           >
             <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-sm" alt="" />
             <i v-else class="pi pi-user avatar-fallback" />
@@ -123,7 +110,7 @@ const toggleUserMenu = () => {
             v-tooltip="'Meine Profilbilder verwalten'"
             class="avatar-edit-btn"
             aria-label="Meine Profilbilder verwalten"
-            @click="goToMyImages"
+            @click="navigateFromDrawer('standesdb-my-images')"
           >
             <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img-lg" alt="Profil" />
             <div v-else class="avatar-placeholder-lg">
@@ -140,25 +127,25 @@ const toggleUserMenu = () => {
         </div>
         <div class="user-card-actions">
           <span class="action-group-label">Meine Daten (Self-Service)</span>
-          <button class="user-card-action" @click="goToProfile">
+          <button class="user-card-action" @click="navigateFromDrawer('profile')">
             <i class="pi pi-user-edit" />
             Mein Benutzerkonto
           </button>
-          <button class="user-card-action" @click="goToMyStammdaten">
+          <button class="user-card-action" @click="navigateFromDrawer('standesdb-my-stammdaten')">
             <i class="pi pi-id-card" />
             Meine Stammdaten
           </button>
           <button
             v-if="authStore.user?.is_fee_member"
             class="user-card-action"
-            @click="goToMyFeeAccount"
+            @click="navigateFromDrawer('p4x-my-fee-account')"
           >
             <i class="pi pi-wallet" />
             Mein Beitragskonto
           </button>
 
           <span class="action-group-label">System</span>
-          <button class="user-card-action" @click="goToPermissions">
+          <button class="user-card-action" @click="navigateFromDrawer('permission-setup')">
             <i class="pi pi-shield" />
             Berechtigungen
           </button>

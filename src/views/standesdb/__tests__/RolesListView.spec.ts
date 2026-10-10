@@ -28,21 +28,62 @@ const mockGetRolesList = vi.fn().mockResolvedValue({
       {
         label: 'Senior',
         group: 'chc',
-        vbw: { id: 1, cn: 'Max Muster', startdate: '2025-08-01', enddate: '2026-01-31' },
+        vbw: {
+          id: '11111111-1111-1111-1111-111111111111',
+          cn: 'Max Muster',
+          startdate: '2025-08-01',
+          enddate: '2026-01-31',
+        },
         vbn: null,
       },
       {
         label: 'Consenior',
         group: 'chc',
         vbw: null,
-        vbn: { id: 2, cn: 'Anna Test', startdate: '2025-08-01', enddate: '2026-01-31' },
+        vbn: {
+          id: '22222222-2222-2222-2222-222222222222',
+          cn: 'Anna Test',
+          startdate: '2025-08-01',
+          enddate: '2026-01-31',
+        },
       },
-      { label: 'Philistersenior', group: 'philchc', vbw: null, vbn: null },
+      {
+        label: 'Philistersenior',
+        group: 'philchc',
+        vbw: {
+          id: '44444444-4444-4444-4444-444444444444',
+          cn: 'Paul Philister',
+          startdate: '2025-08-01',
+          enddate: null,
+        },
+        vbn: {
+          id: '55555555-5555-5555-5555-555555555555',
+          cn: 'Petra Philister',
+          startdate: '2025-08-01',
+          enddate: null,
+        },
+      },
       {
         label: 'Archivar',
         group: 'funktion',
-        vbw: { id: 3, cn: 'Fritz Archivar', startdate: '2020-01-01', enddate: null },
+        vbw: {
+          id: '33333333-3333-3333-3333-333333333333',
+          cn: 'Fritz Archivar',
+          startdate: '2020-01-01',
+          enddate: null,
+        },
         vbn: null,
+      },
+      {
+        label: 'Kassier',
+        group: 'funktion',
+        vbw: null,
+        vbn: {
+          id: '66666666-6666-6666-6666-666666666666',
+          cn: 'Karl Kassier',
+          startdate: '2021-01-01',
+          enddate: null,
+        },
       },
       { label: 'VG-Vorsitz', group: 'verbindungsgericht', vbw: null, vbn: null },
     ],
@@ -111,6 +152,7 @@ describe('RolesListView', () => {
 
     expect(wrapper.text()).toContain('Die Liste konnte nicht geladen werden.')
     expect(wrapper.find('table').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Chargenkabinett')
     const retry = wrapper.findAll('button').find((b) => b.text() === 'Erneut versuchen')
     expect(retry).toBeDefined()
 
@@ -154,11 +196,40 @@ describe('RolesListView', () => {
     expect(wrapper.text()).toContain('Funktion')
   })
 
-  it('renders member names as clickable links', async () => {
+  it('renders member names as real, keyboard-focusable links, not click-only spans', async () => {
     const { wrapper } = await mountView()
     const links = wrapper.findAll('.member-link')
     expect(links.length).toBeGreaterThan(0)
-    expect(links[0].text()).toContain('Max Muster')
+    expect(links[0]!.text()).toContain('Max Muster')
+    // a real href, not @click.prevent on a plain <a>, is what makes the
+    // link reachable by keyboard and screen readers (regression).
+    expect(links[0]!.attributes('href')).toBe(
+      '/standesdb/members/11111111-1111-1111-1111-111111111111',
+    )
+  })
+
+  it('links every member cell of the three tables to the page of that member', async () => {
+    const { wrapper } = await mountView()
+
+    expect(wrapper.findAll('.member-link').map((a) => a.attributes('href'))).toEqual([
+      '/standesdb/members/11111111-1111-1111-1111-111111111111',
+      '/standesdb/members/22222222-2222-2222-2222-222222222222',
+      '/standesdb/members/44444444-4444-4444-4444-444444444444',
+      '/standesdb/members/55555555-5555-5555-5555-555555555555',
+      '/standesdb/members/33333333-3333-3333-3333-333333333333',
+      '/standesdb/members/66666666-6666-6666-6666-666666666666',
+    ])
+  })
+
+  it('navigates to the member page when a member link is clicked', async () => {
+    const { wrapper, router } = await mountView()
+    const links = wrapper.findAll('.member-link')
+
+    await links[0]!.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('standesdb-member-show')
+    expect(router.currentRoute.value.params['id']).toBe('11111111-1111-1111-1111-111111111111')
   })
 
   it('navigates to semester URL when semester selected', async () => {

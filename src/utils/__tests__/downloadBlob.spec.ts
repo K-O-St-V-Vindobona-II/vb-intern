@@ -14,8 +14,8 @@ function makeResponse(headers: Record<string, string>): AxiosResponse<Blob> {
 
 describe('downloadBlobResponse', () => {
   let clickSpy: ReturnType<typeof vi.spyOn>
-  let createObjectURLSpy: ReturnType<typeof vi.fn>
-  let revokeObjectURLSpy: ReturnType<typeof vi.fn>
+  let createObjectURLSpy: ReturnType<typeof vi.fn<typeof URL.createObjectURL>>
+  let revokeObjectURLSpy: ReturnType<typeof vi.fn<typeof URL.revokeObjectURL>>
 
   beforeEach(() => {
     clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})

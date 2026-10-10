@@ -4,7 +4,7 @@ defineProps<{ label: string }>()
 
 <template>
   <span class="warning-label">
-    <i class="pi pi-exclamation-triangle" />
+    <i class="pi pi-exclamation-triangle" aria-hidden="true" />
     {{ label }}
   </span>
 </template>

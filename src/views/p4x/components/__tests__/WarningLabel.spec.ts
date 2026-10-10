@@ -12,4 +12,11 @@ describe('WarningLabel', () => {
     const wrapper = mount(WarningLabel, { props: { label: 'Warnung' } })
     expect(wrapper.find('.pi-exclamation-triangle').exists()).toBe(true)
   })
+
+  it('hides the decorative icon from assistive technology, the text carries the warning', () => {
+    const wrapper = mount(WarningLabel, { props: { label: 'Kein Partner gesetzt!' } })
+
+    expect(wrapper.find('.pi-exclamation-triangle').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.text()).toBe('Kein Partner gesetzt!')
+  })
 })

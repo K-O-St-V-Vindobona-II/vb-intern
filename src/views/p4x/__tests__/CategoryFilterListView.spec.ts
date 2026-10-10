@@ -60,8 +60,20 @@ describe('CategoryFilterListView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Kategorie-Filter (1)')
-    expect(wrapper.text()).toContain('Filter A')
-    expect(wrapper.text()).toContain('4')
+    const cells = wrapper.findAll('tbody tr')[0]!.findAll('td')
+    expect(cells[1]!.text()).toBe('4')
+    expect(cells[2]!.text()).toBe('Filter A')
+    expect(cells[3]!.text()).toContain('Spende')
+    wrapper.unmount()
+  })
+
+  it('names the three icon buttons of a filter row', async () => {
+    mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter()] })
+    const wrapper = mount(CategoryFilterListView, mountOpts)
+    await flushPromises()
+
+    const names = wrapper.findAll('tbody button').map((button) => button.attributes('aria-label'))
+    expect(names).toEqual(['Details', 'Bearbeiten', 'Filter zu Direktzuordnung'])
     wrapper.unmount()
   })
 

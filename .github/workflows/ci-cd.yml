@@ -130,6 +130,46 @@ jobs:
 
           docker rm -f vb-intern-smoke
 
+      # config.js is executable JavaScript built from four environment variables: the entrypoint
+      # has to refuse a value that is missing, malformed or could end the string it is written
+      # into. The first run is the positive control, so a refusal below cannot come from the
+      # container setup instead of the value.
+      - name: Refuse bad runtime values
+        run: |
+          base=(
+            "API_BASE_URL=https://api.example.test"
+            "GOOGLE_CLIENT_ID=client-1.apps.googleusercontent.com"
+            "PASSWORD_MIN_LENGTH=12"
+            "APP_ENVIRONMENT=test"
+          )
+
+          # "nginx -t" only tests the configuration, but the image's entrypoint runs its hooks
+          # first, and only for a command that starts with "nginx".
+          start() {
+            local override="$1" args=() pair
+            for pair in "${base[@]}"; do
+              [ "${pair%%=*}" = "${override%%=*}" ] || args+=(-e "$pair")
+            done
+            [ -z "$override" ] || args+=(-e "$override")
+            docker run --rm --read-only --cap-drop=all \
+              --tmpfs /run:mode=1777 --tmpfs /tmp:mode=1777 \
+              "${args[@]}" vb-intern:smoke-test nginx -t >/dev/null 2>&1
+          }
+
+          start "" || { echo "The container did not start with valid values"; exit 1; }
+
+          for bad in \
+            "API_BASE_URL=" "API_BASE_URL=api.example.test" "API_BASE_URL=https://x.test/a'b" \
+            "API_BASE_URL=https://x.test/a b" 'API_BASE_URL=https://x.test/$(id)' \
+            "GOOGLE_CLIENT_ID=a'b" "GOOGLE_CLIENT_ID=a b" \
+            "PASSWORD_MIN_LENGTH=" "PASSWORD_MIN_LENGTH=twelve" "PASSWORD_MIN_LENGTH=0" \
+            "APP_ENVIRONMENT=" "APP_ENVIRONMENT=staging"; do
+            if start "$bad"; then
+              echo "The container started with ${bad}"
+              exit 1
+            fi
+          done
+
   release-image:
     name: Build & Push Image
     needs: [lint, quality, security, smoke-test-readonly]

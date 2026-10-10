@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePaginatedTransactions } from '@/composables/usePaginatedTransactions'
 import p4xService from '@/services/p4xService'
@@ -21,6 +21,8 @@ const { result, loadFailed, load, reload } = usePaginatedTransactions(
   selectedFilterId,
   (filterId, page) => p4xService.getTransactionsByFilter(accountId, filterId, page),
 )
+
+const filterOptions = computed(() => filters.value.map((f) => ({ label: f.name, value: f.id })))
 
 const onFilterChange = () => load()
 
@@ -48,8 +50,6 @@ const loadSetup = async () => {
 }
 
 onMounted(loadSetup)
-
-const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.id }))
 </script>
 
 <template>
@@ -68,7 +68,7 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
       <div class="search-container">
         <Select
           v-model="selectedFilterId"
-          :options="filterOptions()"
+          :options="filterOptions"
           option-label="label"
           option-value="value"
           placeholder="Filter wählen..."
@@ -102,13 +102,6 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
 </template>
 
 <style scoped>
-.load-error {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
-}
 .tx-filter-view {
   max-width: 1100px;
   margin: 0 auto;
@@ -124,6 +117,13 @@ const filterOptions = () => filters.value.map((f) => ({ label: f.name, value: f.
 .center-block {
   display: flex;
   justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.load-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 .search-container {

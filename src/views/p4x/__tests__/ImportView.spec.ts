@@ -111,8 +111,30 @@ describe('ImportView', () => {
     expect(mockToastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'Import abgeschlossen' }),
     )
-    expect(wrapper.text()).toContain('Neuimportierte Transaktionen')
-    expect(wrapper.text()).toContain('6')
+    const rows = wrapper.findAll('.summary-row').map((row) => row.text().replace(/\s+/g, ' '))
+    expect(rows).toEqual([
+      'Insgesamt hochgeladene Transaktionen:10',
+      'Bereits existierende Transaktionen:4',
+      'Neuimportierte Transaktionen:6',
+    ])
+    wrapper.unmount()
+  })
+
+  it('locks the file field while an import is running', async () => {
+    mockImportTransactions.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(ImportView, mountOpts)
+    await flushPromises()
+    const input = wrapper.find('input[type="file"]')
+    Object.defineProperty(input.element, 'files', { value: [buildFile()] })
+    await input.trigger('change')
+    expect((input.element as HTMLInputElement).disabled).toBe(false)
+
+    Array.from(document.querySelectorAll('button'))
+      .find((b) => b.textContent?.includes('Transaktionen importieren'))!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect((input.element as HTMLInputElement).disabled).toBe(true)
     wrapper.unmount()
   })
 
@@ -182,6 +204,43 @@ describe('ImportView', () => {
     expect(mockGetDashboard).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).not.toContain('konnten nicht geladen werden')
     expect(wrapper.find('.account-card').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('associates the file picker label with the file input for keyboard/screen-reader access (regression)', async () => {
+    const wrapper = mount(ImportView, mountOpts)
+    await flushPromises()
+
+    const input = wrapper.find('input[type="file"]')
+    const label = wrapper.find('label.file-picker')
+    expect(label.exists()).toBe(true)
+    expect(label.attributes('for')).toBe(input.attributes('id'))
+    wrapper.unmount()
+  })
+
+  it('reports a successful import as such when only the reload of the account fails', async () => {
+    mockImportTransactions.mockResolvedValue({ data: buildImportResult() })
+    const wrapper = mount(ImportView, mountOpts)
+    await flushPromises()
+    mockGetDashboard.mockRejectedValueOnce(new Error('boom'))
+
+    const input = wrapper.find('input[type="file"]')
+    Object.defineProperty(input.element, 'files', { value: [buildFile()] })
+    await input.trigger('change')
+    const button = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Transaktionen importieren'),
+    )!
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'success', summary: 'Import abgeschlossen' }),
+    )
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'warn', summary: 'Konto nicht aktualisiert' }),
+    )
+    expect(mockToastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }))
+    expect(wrapper.find('.result-card').exists()).toBe(true)
     wrapper.unmount()
   })
 })

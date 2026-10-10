@@ -1,11 +1,12 @@
-import { mount, flushPromises } from '@vue/test-utils'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { ref } from 'vue'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
 import PrimeVue from 'primevue/config'
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -22,9 +23,19 @@ vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({ push: mockPush })),
 }))
 
+interface TestUser {
+  id?: number
+  vorname?: string
+  nachname?: string
+  cn?: string
+  email?: string
+  default_image?: string | null
+  is_fee_member?: boolean
+}
+
 const mockLogout = vi.fn()
-const mockAuthStore = {
-  user: null as any,
+const mockAuthStore: { user: TestUser | null; logout: typeof mockLogout } = {
+  user: null,
   logout: mockLogout,
 }
 
@@ -49,11 +60,27 @@ vi.mock('@/services/standesdbService', () => ({
 
 vi.mock('@/composables/useSessionManager', () => ({
   useSessionManager: vi.fn(() => ({
-    loginTime: { value: '25.06.2026, 10:00' },
+    loginTime: ref('25.06.2026, 10:00'),
   })),
 }))
 
+// Every wrapper is unmounted in afterEach, not at the end of its own test: a
+// failing assertion would otherwise skip the manual unmount and leave a
+// component attached to document.body for the following tests.
+let mounted: VueWrapper[] = []
+
+function mountNavbar(options: { attachTo?: HTMLElement } = {}): VueWrapper {
+  const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, ...options })
+  mounted.push(wrapper)
+  return wrapper
+}
+
 describe('AppNavbar.vue', () => {
+  afterEach(() => {
+    mounted.forEach((wrapper) => wrapper.unmount())
+    mounted = []
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthStore.user = null
@@ -61,12 +88,12 @@ describe('AppNavbar.vue', () => {
   })
 
   it('renders the logo text', () => {
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     expect(wrapper.text()).toContain('VB intern')
   })
 
   it('hides avatar button when not logged in', () => {
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     expect(wrapper.find('.avatar-btn').exists()).toBe(false)
   })
 
@@ -77,12 +104,12 @@ describe('AppNavbar.vue', () => {
       cn: 'Maria Muster',
       default_image: null,
     }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     expect(wrapper.find('.avatar-btn').exists()).toBe(true)
   })
 
   it('navigates to home on logo click', async () => {
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     await wrapper.find('.logo-container').trigger('click')
     expect(mockPush).toHaveBeenCalledWith({ name: 'home' })
   })
@@ -95,14 +122,13 @@ describe('AppNavbar.vue', () => {
       cn: 'Maria Muster',
       default_image: 'image-uuid-3',
     }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     await flushPromises()
 
     expect(mockGetImageUrl).toHaveBeenCalledWith('member', 5, 'image-uuid-3', true)
     const img = wrapper.find('.avatar-img-sm')
     expect(img.exists()).toBe(true)
     expect(img.attributes('src')).toBe('https://cdn.test/avatar.jpg')
-    wrapper.unmount()
   })
 
   it('falls back to the placeholder icon when the avatar fails to load', async () => {
@@ -113,17 +139,16 @@ describe('AppNavbar.vue', () => {
       cn: 'Maria Muster',
       default_image: 'image-uuid-3',
     }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    const wrapper = mountNavbar()
     await flushPromises()
 
     expect(wrapper.find('.avatar-img-sm').exists()).toBe(false)
     expect(wrapper.find('.avatar-fallback').exists()).toBe(true)
-    wrapper.unmount()
   })
 
   it('does not request an avatar when no default_image is set', async () => {
     mockAuthStore.user = { vorname: 'Maria', nachname: 'Muster', cn: 'Maria Muster' }
-    mount(AppNavbar, { global: { plugins: [PrimeVue] } })
+    mountNavbar()
     await flushPromises()
 
     expect(mockGetImageUrl).not.toHaveBeenCalled()
@@ -131,10 +156,7 @@ describe('AppNavbar.vue', () => {
 
   it('logs out, closes the drawer and navigates to login', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const logoutBtn = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -145,15 +167,11 @@ describe('AppNavbar.vue', () => {
 
     expect(mockLogout).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith({ name: 'login' })
-    wrapper.unmount()
   })
 
   it('navigates to the profile page and closes the drawer', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const profileBtn = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -163,15 +181,11 @@ describe('AppNavbar.vue', () => {
     await flushPromises()
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'profile' })
-    wrapper.unmount()
   })
 
   it('navigates to "Meine Stammdaten", unconditionally visible for every authenticated user', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const stammdatenBtn = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -182,15 +196,11 @@ describe('AppNavbar.vue', () => {
     await flushPromises()
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-stammdaten' })
-    wrapper.unmount()
   })
 
   it('navigates to the permission-setup page and closes the drawer', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const permissionsBtn = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -200,30 +210,22 @@ describe('AppNavbar.vue', () => {
     await flushPromises()
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'permission-setup' })
-    wrapper.unmount()
   })
 
   it('hides "Mein Beitragskonto" when the user is not fee-obligated', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: false }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const found = Array.from(document.querySelectorAll('button')).some((b) =>
       b.textContent?.includes('Mein Beitragskonto'),
     )
     expect(found).toBe(false)
-    wrapper.unmount()
   })
 
   it('shows "Mein Beitragskonto" and navigates there when the user is fee-obligated', async () => {
     mockAuthStore.user = { cn: 'Maria Muster', default_image: null, is_fee_member: true }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const feeAccountBtn = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -234,33 +236,27 @@ describe('AppNavbar.vue', () => {
     await flushPromises()
 
     expect(mockPush).toHaveBeenCalledWith({ name: 'p4x-my-fee-account' })
-    wrapper.unmount()
   })
 
   it('falls back through vorname/nachname when cn is missing', async () => {
     mockAuthStore.user = { vorname: 'Maria', nachname: 'Muster', default_image: null }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     expect(document.body.textContent).toContain('Maria Muster')
-    wrapper.unmount()
   })
 
   it('falls back to email when no name is available', async () => {
     mockAuthStore.user = { email: 'maria@vb.at', default_image: null }
-    const wrapper = mount(AppNavbar, { global: { plugins: [PrimeVue] }, attachTo: document.body })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     expect(document.body.textContent).toContain('maria@vb.at')
-    wrapper.unmount()
   })
 
   it('navigates to the own image gallery when the drawer avatar is clicked', async () => {
     mockAuthStore.user = { id: 7, cn: 'Maria Muster', default_image: null }
-    const wrapper = mount(AppNavbar, {
-      global: { plugins: [PrimeVue] },
-      attachTo: document.body,
-    })
+    const wrapper = mountNavbar({ attachTo: document.body })
     await wrapper.find('.avatar-btn').trigger('click')
 
     const avatarEditBtn = document.querySelector('.avatar-edit-btn') as HTMLButtonElement
@@ -272,6 +268,13 @@ describe('AppNavbar.vue', () => {
     // standesdb-member-images/:id route) - see ImageGalleryView.vue's
     // isOwnRoute handling.
     expect(mockPush).toHaveBeenCalledWith({ name: 'standesdb-my-images' })
-    wrapper.unmount()
+  })
+
+  it('shows the login time of the current session in the profile drawer', async () => {
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
+    const wrapper = mountNavbar({ attachTo: document.body })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    expect(document.body.textContent).toContain('Angemeldet seit 25.06.2026, 10:00')
   })
 })

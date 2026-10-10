@@ -7,7 +7,7 @@ import { useArchiveStore } from '@/stores/archive'
 import { useArchiveDownload } from '@/composables/useArchiveDownload'
 import archiveService from '@/services/archiveService'
 import type { DirDetail } from '@/types/archive'
-import { formatApiError, formatSize } from '@/utils/formatters'
+import { formatApiError, formatSize, getApiErrorStatus } from '@/utils/formatters'
 import Button from 'primevue/button'
 import DirPath from '@/components/archive/DirPath.vue'
 import DirList from '@/components/archive/DirList.vue'
@@ -59,28 +59,49 @@ const previewUrl = ref<string | null>(null)
 const admin = computed(() => authStore.user?.permissions?.includes('archiveAdmin') ?? false)
 const extensionStatsExpanded = ref(false)
 
+// The hover preview is loaded asynchronously: an answer that arrives after the mouse has
+// left the row (or entered another one) must not put an image on the screen that nothing
+// hides any more.
+let latestPreviewRequestId = 0
+
 const onPreview = async (id: string | null) => {
+  const requestId = ++latestPreviewRequestId
   if (!id) {
     previewUrl.value = null
     return
   }
-  previewUrl.value = await loadPresignedUrl(id, 'lg')
+  const url = await loadPresignedUrl(id, 'lg')
+  if (requestId !== latestPreviewRequestId) return
+  previewUrl.value = url
 }
 
-const loadDir = async () => {
-  loading.value = true
-  loadError.value = false
+// Reads the directory of the current address in place. Also used after a change in a child
+// component: the page stays mounted, so the scroll position, the search field, the open
+// admin panel and the forms in it survive. Answers arrive in any order: a slow answer for
+// the directory opened before must not replace the one on screen, and its 404 must not
+// send the user to "not found".
+let latestDirRequestId = 0
+
+const requestCurrentDir = () => {
+  const id = typeof route.params['id'] === 'string' ? route.params['id'] : null
+  return id ? archiveService.getDirDetail(id) : archiveService.getDirRoot()
+}
+
+const isGoneOrForbidden = (err: unknown) => [403, 404].includes(getApiErrorStatus(err) ?? 0)
+
+const refreshDir = async () => {
+  const requestId = ++latestDirRequestId
   try {
-    const id = typeof route.params['id'] === 'string' ? route.params['id'] : null
-    const resp = id ? await archiveService.getDirDetail(id) : await archiveService.getDirRoot()
+    const resp = await requestCurrentDir()
+    if (requestId !== latestDirRequestId) return
     dir.value = resp.data
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404 || status === 403) {
+    if (requestId !== latestDirRequestId) return
+    if (isGoneOrForbidden(err)) {
       router.replace({ name: 'not-found' })
       return
     }
-    loadError.value = true
+    loadError.value = !dir.value
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -88,8 +109,17 @@ const loadDir = async () => {
       life: 5000,
     })
   } finally {
-    loading.value = false
+    if (requestId === latestDirRequestId) loading.value = false
   }
+}
+
+// Opening another directory (and the retry button): the old directory goes away while the
+// new one loads.
+const loadDir = async () => {
+  dir.value = null
+  loadError.value = false
+  loading.value = true
+  await refreshDir()
 }
 
 watch(
@@ -102,7 +132,7 @@ watch(
 </script>
 
 <template>
-  <div v-if="!loading && dir" class="archive-dir">
+  <div v-if="dir" class="archive-dir">
     <div class="dir-header">
       <h2>Archiv</h2>
       <p class="dir-subtitle">Archiv-Verzeichnis</p>
@@ -122,9 +152,9 @@ watch(
       </template>
     </Card>
 
-    <ClipboardBar v-if="admin" :target-dir-id="dir.id" @moved="loadDir" />
+    <ClipboardBar v-if="admin" :target-dir-id="dir.id" @moved="refreshDir" />
 
-    <img v-if="previewUrl" :src="previewUrl" class="hover-preview" />
+    <img v-if="previewUrl" :src="previewUrl" alt="" class="hover-preview" />
 
     <!-- Dir Info -->
     <Card class="dir-info-card">
@@ -160,13 +190,19 @@ watch(
         </div>
 
         <div v-if="!dir.id && dir.stats?.by_extension.length" class="stats-by-extension">
-          <div class="stats-toggle" @click="extensionStatsExpanded = !extensionStatsExpanded">
+          <button
+            type="button"
+            class="stats-toggle"
+            :aria-expanded="extensionStatsExpanded"
+            @click="extensionStatsExpanded = !extensionStatsExpanded"
+          >
             <i
               :class="extensionStatsExpanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
               class="stats-caret"
+              aria-hidden="true"
             />
             <span>Nach Dateityp</span>
-          </div>
+          </button>
           <div v-if="extensionStatsExpanded" class="stats-by-extension-wrap">
             <table>
               <thead>
@@ -194,30 +230,28 @@ watch(
             :orgs="dir.sets.orgs"
             :states="dir.sets.states"
           />
-          <template v-if="admin">
-            <PermissionViewer
-              v-model="dir.permissions.own"
-              title="Eigene Berechtigung"
-              :orgs="dir.sets.orgs"
-              :states="dir.sets.states"
-              :recursive="dir.recursive_permissions"
-            />
-            <PermissionViewer
-              v-model="dir.permissions.parent"
-              title="Eltern-Berechtigung"
-              :orgs="dir.sets.orgs"
-              :states="dir.sets.states"
-            />
-            <DirEditor
-              :sets="dir.sets"
-              :dir-id="dir.id"
-              :dir-name="dir.name"
-              :dir-description="dir.description"
-              :dir-permissions="dir.permissions.own"
-              :dir-recursive="dir.recursive_permissions"
-              @saved="loadDir"
-            />
-          </template>
+          <PermissionViewer
+            v-model="dir.permissions.own"
+            title="Eigene Berechtigung"
+            :orgs="dir.sets.orgs"
+            :states="dir.sets.states"
+            :recursive="dir.recursive_permissions"
+          />
+          <PermissionViewer
+            v-model="dir.permissions.parent"
+            title="Eltern-Berechtigung"
+            :orgs="dir.sets.orgs"
+            :states="dir.sets.states"
+          />
+          <DirEditor
+            :sets="dir.sets"
+            :dir-id="dir.id"
+            :dir-name="dir.name"
+            :dir-description="dir.description"
+            :dir-permissions="dir.permissions.own"
+            :dir-recursive="dir.recursive_permissions"
+            @saved="refreshDir"
+          />
         </div>
       </template>
     </Card>
@@ -230,13 +264,13 @@ watch(
       :items="dir.content.subdirs.insight"
       title="Verzeichnisse"
       :admin="admin"
-      @changed="loadDir"
+      @changed="refreshDir"
     />
     <FileList
       :items="dir.content.files.insight"
       title="Dateien"
       :admin="admin"
-      @changed="loadDir"
+      @changed="refreshDir"
       @preview="onPreview"
     />
 
@@ -247,9 +281,9 @@ watch(
           <template #title>
             <div class="admin-header">
               <span>Administration</span>
-              <a class="admin-toggle" @click="archiveStore.showAdmin = false">
+              <button type="button" class="admin-toggle" @click="archiveStore.showAdmin = false">
                 Administration verbergen
-              </a>
+              </button>
             </div>
           </template>
           <template #content>
@@ -257,18 +291,18 @@ watch(
               :items="dir.content.subdirs.admin"
               title="Verzeichnisse ohne Berechtigung"
               admin
-              @changed="loadDir"
+              @changed="refreshDir"
             />
             <FileList
               :items="dir.content.files.admin"
               :title="dir.id ? 'Dateien ohne Berechtigung' : 'Unsortierte Uploads'"
               admin
-              @changed="loadDir"
+              @changed="refreshDir"
               @preview="onPreview"
             />
 
             <div class="create-dir-row">
-              <DirEditor :sets="dir.sets" :parent-id="dir.id" create @saved="loadDir" />
+              <DirEditor :sets="dir.sets" :parent-id="dir.id" create @saved="refreshDir" />
             </div>
 
             <DirList
@@ -276,21 +310,23 @@ watch(
               title="Gelöschte Verzeichnisse"
               admin
               trash
-              @changed="loadDir"
+              @changed="refreshDir"
             />
             <FileList
               :items="dir.content.files.trashed"
               title="Gelöschte Dateien"
               admin
               trash
-              @changed="loadDir"
+              @changed="refreshDir"
               @preview="onPreview"
             />
           </template>
         </Card>
       </div>
       <div v-else class="admin-toggle-row">
-        <a class="admin-toggle" @click="archiveStore.showAdmin = true"> Administration </a>
+        <button type="button" class="admin-toggle" @click="archiveStore.showAdmin = true">
+          Administration
+        </button>
       </div>
     </div>
   </div>
@@ -364,6 +400,11 @@ watch(
 .stats-toggle {
   display: flex;
   align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
   user-select: none;
   font-size: 0.9rem;
@@ -414,8 +455,12 @@ watch(
   gap: 0.25rem 1rem;
 }
 .admin-toggle {
+  background: none;
+  border: none;
+  padding: 0;
   color: var(--p-primary-color);
   cursor: pointer;
+  font: inherit;
   font-size: 0.9rem;
 }
 .admin-toggle:hover {

@@ -35,10 +35,10 @@ function buildComment(overrides: Partial<Comment> = {}): Comment {
 
 const mountOpts = { global: { plugins: [PrimeVue] }, attachTo: document.body }
 
-function findButtonByText(text: string): HTMLElement {
+function findButtonByText(text: string): HTMLButtonElement {
   return Array.from(document.querySelectorAll('button')).find((b) =>
     b.textContent?.includes(text),
-  ) as HTMLElement
+  ) as HTMLButtonElement
 }
 
 describe('FileComments', () => {
@@ -49,14 +49,14 @@ describe('FileComments', () => {
   })
 
   it('shows no comment list when there are none', () => {
-    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '1', comments: [] }, ...mountOpts })
     expect(wrapper.find('.comments-title').exists()).toBe(false)
     wrapper.unmount()
   })
 
   it('renders each comment with author and content', () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 1, comments: [buildComment({ content: 'Toller Schnappschuss' })] },
+      props: { fileId: '1', comments: [buildComment({ content: 'Toller Schnappschuss' })] },
       ...mountOpts,
     })
     expect(wrapper.text()).toContain('Kommentar von Max')
@@ -66,7 +66,7 @@ describe('FileComments', () => {
 
   it('does not show a delete button for non-admins', () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 1, comments: [buildComment()] },
+      props: { fileId: '1', comments: [buildComment()] },
       ...mountOpts,
     })
     expect(wrapper.find('.comment-header button').exists()).toBe(false)
@@ -75,7 +75,7 @@ describe('FileComments', () => {
 
   it('shows a delete button for admins', () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 1, comments: [buildComment()], admin: true },
+      props: { fileId: '1', comments: [buildComment()], admin: true },
       ...mountOpts,
     })
     expect(wrapper.find('.comment-header button').exists()).toBe(true)
@@ -83,7 +83,7 @@ describe('FileComments', () => {
   })
 
   it('disables saving until the comment is between 5 and 1000 characters', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '1', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -100,7 +100,7 @@ describe('FileComments', () => {
   })
 
   it('saves a new comment and emits changed', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '9', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -112,14 +112,14 @@ describe('FileComments', () => {
     findButtonByText('Speichern').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockCreateComment).toHaveBeenCalledWith(9, { content: 'Ein gültiger Kommentar' })
+    expect(mockCreateComment).toHaveBeenCalledWith('9', { content: 'Ein gültiger Kommentar' })
     expect(wrapper.emitted('changed')).toHaveLength(1)
     wrapper.unmount()
   })
 
   it('shows an error toast when saving a comment fails', async () => {
     mockCreateComment.mockRejectedValueOnce(new Error('failed'))
-    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '9', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -137,7 +137,7 @@ describe('FileComments', () => {
 
   it('asks for confirmation and deletes the comment on accept', async () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
+      props: { fileId: '9', comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
       ...mountOpts,
     })
 
@@ -147,7 +147,7 @@ describe('FileComments', () => {
     await mockConfirmRequire.mock.calls[0]![0].accept()
     await flushPromises()
 
-    expect(mockDeleteComment).toHaveBeenCalledWith(9, 'comment-uuid-3')
+    expect(mockDeleteComment).toHaveBeenCalledWith('9', 'comment-uuid-3')
     expect(wrapper.emitted('changed')).toHaveLength(1)
     wrapper.unmount()
   })
@@ -155,7 +155,7 @@ describe('FileComments', () => {
   it('shows an error toast when deleting a comment fails', async () => {
     mockDeleteComment.mockRejectedValueOnce(new Error('failed'))
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
+      props: { fileId: '9', comments: [buildComment({ id: 'comment-uuid-3' })], admin: true },
       ...mountOpts,
     })
 
@@ -168,7 +168,7 @@ describe('FileComments', () => {
   })
 
   it('counts the trimmed text: whitespace padding does not make a too-short comment valid', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '1', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -182,7 +182,7 @@ describe('FileComments', () => {
   })
 
   it('sends the trimmed comment text', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '9', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -194,7 +194,7 @@ describe('FileComments', () => {
     findButtonByText('Speichern').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(mockCreateComment).toHaveBeenCalledWith(9, { content: 'Ein gültiger Kommentar' })
+    expect(mockCreateComment).toHaveBeenCalledWith('9', { content: 'Ein gültiger Kommentar' })
     wrapper.unmount()
   })
 
@@ -204,7 +204,7 @@ describe('FileComments', () => {
     [1000, false],
     [1001, true],
   ])('with %i characters the save button is disabled: %s', async (length, disabled) => {
-    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '1', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -218,7 +218,7 @@ describe('FileComments', () => {
   })
 
   it('disables saving above 1000 characters', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 1, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '1', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -237,7 +237,7 @@ describe('FileComments', () => {
     mockCreateComment.mockRejectedValueOnce(apiError('Kommentar muss 5-1000 Zeichen lang sein.'))
     mockDeleteComment.mockRejectedValueOnce(apiError('Keine Berechtigung.'))
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment()], admin: true },
+      props: { fileId: '9', comments: [buildComment()], admin: true },
       ...mountOpts,
     })
 
@@ -264,7 +264,7 @@ describe('FileComments', () => {
 
   it('names the icon-only delete button and the textarea for assistive technology', async () => {
     const wrapper = mount(FileComments, {
-      props: { fileId: 9, comments: [buildComment()], admin: true },
+      props: { fileId: '9', comments: [buildComment()], admin: true },
       ...mountOpts,
     })
     expect(wrapper.find('.comment-header button').attributes('aria-label')).toBe(
@@ -282,7 +282,7 @@ describe('FileComments', () => {
     const payload = '<img src=x onerror="window.__xss = 1"><b>fett</b>'
     const wrapper = mount(FileComments, {
       props: {
-        fileId: 9,
+        fileId: '9',
         comments: [buildComment({ content: payload, author: '<script>window.__xss = 1</script>' })],
       },
       ...mountOpts,
@@ -297,7 +297,7 @@ describe('FileComments', () => {
   })
 
   it('closes the dialog on cancel without saving', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '9', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
 
@@ -310,7 +310,7 @@ describe('FileComments', () => {
   })
 
   it('starts every dialog with an empty text', async () => {
-    const wrapper = mount(FileComments, { props: { fileId: 9, comments: [] }, ...mountOpts })
+    const wrapper = mount(FileComments, { props: { fileId: '9', comments: [] }, ...mountOpts })
     await findButtonByText('Kommentar hinzufügen').click()
     await flushPromises()
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement

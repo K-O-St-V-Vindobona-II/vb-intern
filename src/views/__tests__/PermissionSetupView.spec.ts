@@ -4,6 +4,11 @@ import PermissionSetupView from '../PermissionSetupView.vue'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 
+const mockToastAdd = vi.fn()
+vi.mock('primevue/usetoast', () => ({
+  useToast: vi.fn(() => ({ add: mockToastAdd })),
+}))
+
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
@@ -109,11 +114,34 @@ describe('PermissionSetupView', () => {
 
   it('renders a dev-superuser notice once when set', async () => {
     mockGetPermissionRules.mockResolvedValue({
-      data: { rules: MOCK_RULES, dev_superuser_cn: 'Michael Alexander Schimpl v/o Kopernikus' },
+      data: { rules: MOCK_RULES, dev_superuser_cn: 'Erika Musterfrau v/o Testa' },
     })
     const w = await mountView()
     expect(w.text()).toContain(
-      'Michael Alexander Schimpl v/o Kopernikus hat in der dev-Umgebung automatisch alle Berechtigungen.',
+      'Erika Musterfrau v/o Testa hat in der dev-Umgebung automatisch alle Berechtigungen.',
+    )
+    expect(w.findAll('.dev-superuser-notice')).toHaveLength(1)
+  })
+
+  it('shows the API text in a toast when the rules cannot be loaded', async () => {
+    mockGetPermissionRules.mockRejectedValue({ response: { data: { detail: 'Kein Zugriff' } } })
+    const w = await mountView()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'error', summary: 'Kein Zugriff' }),
+    )
+    expect(w.findAll('tbody tr').filter((row) => row.text().includes('Admin'))).toHaveLength(0)
+  })
+
+  it('falls back to a fixed text when the failure carries no API text', async () => {
+    mockGetPermissionRules.mockRejectedValue(new Error('network'))
+    await mountView()
+
+    expect(mockToastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        summary: 'Berechtigungen konnten nicht geladen werden.',
+      }),
     )
   })
 })

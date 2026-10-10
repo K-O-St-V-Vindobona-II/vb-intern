@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatEuro } from '@/utils/formatters'
 
 const props = defineProps<{ amount: number; colorClass?: string }>()
 
-const formatter = new Intl.NumberFormat('de-AT', {
-  style: 'currency',
-  currency: 'EUR',
-})
-
-const formatted = computed(() => formatter.format(props.amount))
+const formatted = computed(() => formatEuro(props.amount))
 // colorClass lets callers opt into a finer-grained severity (e.g. the
 // four-step balance scale in FeeBalancesView.vue) without changing the
 // default binary green/red behaviour every other caller relies on.

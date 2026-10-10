@@ -41,57 +41,66 @@ export default {
     id: string,
     data: { iban: string; bic: string; label: string; init_date: string; init_balance: number },
   ) {
-    return api.put<P4xAccount>(`/p4x/admin/accounts/${id}`, data)
+    return api.put<P4xAccount>(`/p4x/admin/accounts/${encodeURIComponent(id)}`, data)
   },
 
   deleteAccount(id: string) {
-    return api.delete(`/p4x/admin/accounts/${id}`)
+    return api.delete(`/p4x/admin/accounts/${encodeURIComponent(id)}`)
   },
 
   importTransactions(accountId: string, file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post<ImportResult>(`/p4x/admin/accounts/${accountId}/import`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return api.post<ImportResult>(
+      `/p4x/admin/accounts/${encodeURIComponent(accountId)}/import`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    )
   },
 
   getTransactionsByMonth(accountId: string, year: number, month: number, page = 1) {
     return api.get<PaginatedTransactions>(
-      `/p4x/accounts/${accountId}/transactions/by-month/${year}/${month}`,
+      `/p4x/accounts/${encodeURIComponent(accountId)}/transactions/by-month/${year}/${month}`,
       { params: { page } },
     )
   },
 
   getTransactionsByPartner(accountId: string, type: string, partnerId: string, page = 1) {
     return api.get<PaginatedTransactions>(
-      `/p4x/accounts/${accountId}/transactions/by-partner/${type}/${partnerId}`,
+      `/p4x/accounts/${encodeURIComponent(accountId)}/transactions/by-partner/${encodeURIComponent(type)}/${encodeURIComponent(partnerId)}`,
       { params: { page } },
     )
   },
 
   getTransactionsByCategory(accountId: string, categoryId: string, page = 1) {
     return api.get<PaginatedTransactions>(
-      `/p4x/accounts/${accountId}/transactions/by-category/${categoryId}`,
+      `/p4x/accounts/${encodeURIComponent(accountId)}/transactions/by-category/${encodeURIComponent(categoryId)}`,
       { params: { page } },
     )
   },
 
   getTransactionsByFilter(accountId: string, filterId: string, page = 1) {
     return api.get<PaginatedTransactions>(
-      `/p4x/admin/accounts/${accountId}/transactions/by-filter/${filterId}`,
+      `/p4x/admin/accounts/${encodeURIComponent(accountId)}/transactions/by-filter/${encodeURIComponent(filterId)}`,
       { params: { page } },
     )
   },
 
   getTransactionRaw(accountId: string, transactionId: string) {
-    return api.get<{ raw: string }>(`/p4x/accounts/${accountId}/transactions/raw/${transactionId}`)
+    return api.get<{ raw: string }>(
+      `/p4x/accounts/${encodeURIComponent(accountId)}/transactions/raw/${encodeURIComponent(transactionId)}`,
+    )
   },
 
   getTransactionAttachment(accountId: string, transactionId: string) {
-    return api.get(`/p4x/accounts/${accountId}/transactions/attachment/${transactionId}`, {
-      responseType: 'blob',
-    })
+    return api.get(
+      `/p4x/accounts/${encodeURIComponent(accountId)}/transactions/attachment/${encodeURIComponent(transactionId)}`,
+      {
+        responseType: 'blob',
+      },
+    )
   },
 
   searchPartners(q: string) {
@@ -99,11 +108,14 @@ export default {
   },
 
   setTransactionPartner(transactionId: string, data: object) {
-    return api.post(`/p4x/admin/transactions/${transactionId}/set-partner`, data)
+    return api.post(
+      `/p4x/admin/transactions/${encodeURIComponent(transactionId)}/set-partner`,
+      data,
+    )
   },
 
   updateTransaction(transactionId: string, formData: FormData) {
-    return api.put(`/p4x/admin/transactions/${transactionId}`, formData, {
+    return api.put(`/p4x/admin/transactions/${encodeURIComponent(transactionId)}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
@@ -125,11 +137,11 @@ export default {
     id: string,
     data: { name: string; label: string; background_color: string; text_color: string },
   ) {
-    return api.put<CategoryWithUsage>(`/p4x/admin/categories/${id}`, data)
+    return api.put<CategoryWithUsage>(`/p4x/admin/categories/${encodeURIComponent(id)}`, data)
   },
 
   deleteCategory(id: string) {
-    return api.delete(`/p4x/admin/categories/${id}`)
+    return api.delete(`/p4x/admin/categories/${encodeURIComponent(id)}`)
   },
 
   getCategoryFilters() {
@@ -141,27 +153,32 @@ export default {
   },
 
   updateCategoryFilter(id: string, data: object) {
-    return api.put<CategoryFilter>(`/p4x/admin/category-filters/${id}`, data)
+    return api.put<CategoryFilter>(`/p4x/admin/category-filters/${encodeURIComponent(id)}`, data)
   },
 
   deleteCategoryFilter(id: string) {
-    return api.delete(`/p4x/admin/category-filters/${id}`)
+    return api.delete(`/p4x/admin/category-filters/${encodeURIComponent(id)}`)
   },
 
   getFilter2DirectPreview(filterId: string) {
-    return api.get(`/p4x/admin/category-filters/${filterId}/filter2direct`)
+    return api.get(`/p4x/admin/category-filters/${encodeURIComponent(filterId)}/filter2direct`)
   },
 
   processFilter2Direct(filterId: string) {
-    return api.post(`/p4x/admin/category-filters/${filterId}/filter2direct`)
+    return api.post(`/p4x/admin/category-filters/${encodeURIComponent(filterId)}/filter2direct`)
   },
 
   setCategoryDirect(transactionId: string, data: object[]) {
-    return api.post(`/p4x/admin/transactions/${transactionId}/set-category-direct`, data)
+    return api.post(
+      `/p4x/admin/transactions/${encodeURIComponent(transactionId)}/set-category-direct`,
+      data,
+    )
   },
 
   unsetCategoryDirect(transactionId: string) {
-    return api.delete(`/p4x/admin/transactions/${transactionId}/unset-category-direct`)
+    return api.delete(
+      `/p4x/admin/transactions/${encodeURIComponent(transactionId)}/unset-category-direct`,
+    )
   },
 
   getFeeConfig() {
@@ -173,7 +190,7 @@ export default {
   },
 
   deleteFee(start: string) {
-    return api.delete<P4xFee[]>(`/p4x/admin/fee-config/${start}`)
+    return api.delete<P4xFee[]>(`/p4x/admin/fee-config/${encodeURIComponent(start)}`)
   },
 
   searchFeeMembers(q: string) {
@@ -183,11 +200,11 @@ export default {
   },
 
   getFeeMember(id: string) {
-    return api.get<FeeMember>(`/p4x/fee-members/${id}`)
+    return api.get<FeeMember>(`/p4x/fee-members/${encodeURIComponent(id)}`)
   },
 
   exportFeeMember(id: string) {
-    return api.get(`/p4x/fee-members/${id}/export`, { responseType: 'blob' })
+    return api.get(`/p4x/fee-members/${encodeURIComponent(id)}/export`, { responseType: 'blob' })
   },
 
   getOwnFeeMember() {
@@ -199,7 +216,7 @@ export default {
   },
 
   updateFeeMember(id: string, data: object) {
-    return api.post<FeeMember>(`/p4x/admin/fee-members/${id}`, data)
+    return api.post<FeeMember>(`/p4x/admin/fee-members/${encodeURIComponent(id)}`, data)
   },
 
   getFeeBalances() {

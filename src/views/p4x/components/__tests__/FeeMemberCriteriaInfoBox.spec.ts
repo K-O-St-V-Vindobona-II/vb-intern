@@ -27,4 +27,33 @@ describe('FeeMemberCriteriaInfoBox', () => {
 
     expect(wrapper.find('.criteria-info-content').exists()).toBe(false)
   })
+
+  it('is a real button that reports whether it is expanded', async () => {
+    const wrapper = mount(FeeMemberCriteriaInfoBox)
+    const toggle = wrapper.find('button.criteria-info-toggle')
+
+    expect(toggle.exists()).toBe(true)
+    expect(toggle.attributes('type')).toBe('button')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.criteria-info-icon').attributes('aria-hidden')).toBe('true')
+
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+  })
+
+  it('states the full criterion for a fee-liable member and what the balance list adds', async () => {
+    const wrapper = mount(FeeMemberCriteriaInfoBox)
+    await wrapper.find('.criteria-info-toggle').trigger('click')
+
+    const paragraphs = wrapper.findAll('.criteria-info-content p').map((p) => p.text())
+    expect(paragraphs).toHaveLength(2)
+    expect(paragraphs[0]).toBe(
+      'Als beitragspflichtig gilt, wer bei der K.Ö.St.V. Vindobona II als Urphilister geführt wird, nicht entlassen und nicht verstorben ist.',
+    )
+    expect(paragraphs[1]).toContain(
+      'Die Saldenliste zeigt zusätzlich nur jene beitragspflichtigen Mitglieder',
+    )
+    expect(paragraphs[1]).toContain('(Initialdatum)')
+  })
 })

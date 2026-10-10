@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
@@ -13,13 +13,23 @@ const router = useRouter()
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const items = ref<MemberChangeRequestSummary[]>([])
+
+const emptyText = computed(() =>
+  loadFailed.value
+    ? 'Änderungsanträge konnten nicht geladen werden.'
+    : 'Keine offenen Änderungsanträge.',
+)
+
+const orgLabel = (orgId: string | null) => (orgId ?? '-').toUpperCase()
 
 onMounted(async () => {
   try {
     const resp = await standesdbService.listChangeRequests()
     items.value = resp.data.items
   } catch {
+    loadFailed.value = true
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -48,17 +58,18 @@ const openRequest = (item: MemberChangeRequestSummary) => {
       scrollable
       data-key="id"
       class="requests-table"
+      selection-mode="single"
       @row-click="(e: { data: MemberChangeRequestSummary }) => openRequest(e.data)"
     >
-      <template #empty>Keine offenen Änderungsanträge.</template>
+      <template #empty>{{ emptyText }}</template>
       <Column field="member_cn" header="Mitglied" />
-      <Column field="member_org_id" header="Organisation" class="col-org">
+      <Column field="member_org_id" header="Organisation">
         <template #body="{ data }">
-          <Tag :value="(data.member_org_id ?? '-').toUpperCase()" severity="info" />
+          <Tag :value="orgLabel(data.member_org_id)" severity="info" />
         </template>
       </Column>
-      <Column field="field_count" header="Felder" class="col-count" />
-      <Column field="created_at" header="Eingereicht am" class="col-date">
+      <Column field="field_count" header="Felder" />
+      <Column field="created_at" header="Eingereicht am">
         <template #body="{ data }">
           {{ data.created_at ? formatDateTime(data.created_at) : '-' }}
         </template>
@@ -91,11 +102,5 @@ const openRequest = (item: MemberChangeRequestSummary) => {
 
 .requests-table :deep(.p-datatable-tbody > tr) {
   cursor: pointer;
-}
-
-.col-org,
-.col-count,
-.col-date {
-  white-space: nowrap;
 }
 </style>

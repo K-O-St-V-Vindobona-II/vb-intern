@@ -126,12 +126,14 @@ const router = createRouter({
       component: { template: '<div />' },
     },
     { path: '/standesdb', name: 'standesdb-dashboard', component: { template: '<div />' } },
+    { path: '/not-found', name: 'not-found', component: { template: '<div />' } },
   ],
 })
 
 describe('MemberShowView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    mockGetMember.mockReset()
     mockGetMember.mockResolvedValue({ data: fullMemberData })
     mockGetMemberAuthActivity.mockClear()
   })
@@ -183,6 +185,36 @@ describe('MemberShowView', () => {
   it('hides the email-verified line when the email was never verified', async () => {
     const w = await mountView()
     expect(w.text()).not.toContain('Email verifiziert')
+  })
+
+  it('shows the chronicle and sign-in lock rows with their state when the API returns them', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: true, auth_locked: false },
+    })
+    const w = await mountView()
+
+    expect(w.text()).toContain('☑Chroniclemails aktiviert')
+    expect(w.text()).toContain('☐Zugang gesperrt')
+  })
+
+  it('shows an unchecked row, not a hidden one, for a false account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: false, auth_locked: true },
+    })
+    const w = await mountView()
+
+    expect(w.text()).toContain('☐Chroniclemails aktiviert')
+    expect(w.text()).toContain('☑Zugang gesperrt')
+  })
+
+  it('hides the chronicle and sign-in lock rows when the API withholds the account status', async () => {
+    mockGetMember.mockResolvedValue({
+      data: { ...fullMemberData, chroniclemail: null, auth_locked: null },
+    })
+    const w = await mountView()
+
+    expect(w.text()).not.toContain('Chroniclemails aktiviert')
+    expect(w.text()).not.toContain('Zugang gesperrt')
   })
 
   it('renders phone as tel link', async () => {
@@ -328,5 +360,33 @@ describe('MemberShowView', () => {
     } finally {
       mockAuthStore.user.permissions = original
     }
+  })
+
+  it('redirects to not-found on a 404', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 404 } })
+    await mountView()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('redirects to not-found on a 403', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 403 } })
+    await mountView()
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('shows a retry state instead of a blank page on an unrelated load error', async () => {
+    mockGetMember.mockRejectedValueOnce({ response: { status: 500 } })
+    const w = await mountView()
+
+    expect(router.currentRoute.value.name).toBe('standesdb-member-show')
+    expect(w.text()).not.toContain('Max Muster')
+    const retryBtn = w.findAll('button').find((b) => b.text() === 'Erneut versuchen')
+    expect(retryBtn).toBeTruthy()
+
+    await retryBtn!.trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('Max Muster v/o Testikus')
+    expect(mockGetMember).toHaveBeenCalledTimes(2)
   })
 })

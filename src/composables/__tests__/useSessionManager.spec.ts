@@ -2,16 +2,23 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, nextTick } from 'vue'
 import { useSessionManager } from '../useSessionManager'
+import type { User } from '@/types/member'
+import { REFRESH_TIMEOUT_MS } from '@/services/sessionRefresh'
 
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: vi.fn(() => ({ push: mockPush })),
 }))
 
+// The composable under test only ever reads `user.session_idle_timeout`, so
+// the mock is narrowed to that one field instead of the full `User` shape -
+// still fully typed, without pretending to model fields this suite never uses.
+type MockUser = Pick<User, 'session_idle_timeout'> | null
+
 const mockLogout = vi.fn().mockResolvedValue(undefined)
 const mockAuthStore = {
   token: null as string | null,
-  user: { session_idle_timeout: 30 } as any,
+  user: { session_idle_timeout: 30 } as MockUser,
   logout: mockLogout,
   setToken: vi.fn((newToken: string) => {
     mockAuthStore.token = newToken
@@ -65,13 +72,15 @@ describe('useSessionManager', () => {
     vi.useRealTimers()
   })
 
-  it('parses login time from JWT iat claim', () => {
+  it('parses login time from JWT iat claim and shows it in the browser timezone', () => {
+    vi.stubEnv('TZ', 'Europe/Vienna')
     const iat = Math.floor(new Date('2026-06-25T10:00:00Z').getTime() / 1000)
     mockAuthStore.token = makeJwt({ iat, exp: iat + 3600, sub: 'test' })
 
     const { result } = mountComposable()
 
-    expect(result.loginTime.value).toContain('25.06.2026')
+    expect(result.loginTime.value).toBe('25.06.2026, 12:00')
+    vi.unstubAllEnvs()
   })
 
   it('attempts refresh when token expires instead of logging out', async () => {
@@ -84,7 +93,9 @@ describe('useSessionManager', () => {
     await nextTick()
 
     const api = (await import('@/services/api')).default
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
   })
 
   it('auto-logs out after idle timeout', async () => {
@@ -148,7 +159,9 @@ describe('useSessionManager', () => {
     await nextTick()
 
     const api = (await import('@/services/api')).default
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
   })
 
   it('cleans up timers and listeners on unmount', () => {
@@ -194,12 +207,36 @@ describe('useSessionManager', () => {
 
     mountComposable()
 
-    vi.advanceTimersByTime(120_000)
-    await nextTick()
+    await vi.advanceTimersByTimeAsync(120_000)
 
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
     expect(mockAuthStore.setToken).toHaveBeenCalledWith(refreshedToken)
     expect(mockLogout).not.toHaveBeenCalled()
+  })
+
+  it('schedules the next refresh for the new token after a successful proactive refresh', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mockAuthStore.token = makeJwt({ iat: now, exp: now + 120, sub: 'test' })
+    const firstRefresh = makeJwt({ iat: now, exp: now + 120 + 600, sub: 'test' })
+    const laterRefresh = makeJwt({ iat: now, exp: now + 120 + 36_000, sub: 'test' })
+    const api = (await import('@/services/api')).default
+    vi.mocked(api.post).mockClear()
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { access_token: firstRefresh } })
+      .mockResolvedValue({ data: { access_token: laterRefresh } })
+
+    mountComposable()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.post).toHaveBeenCalledTimes(1)
+
+    // The new token is due 600 s after the first refresh (inside the idle
+    // timeout of 30 minutes), not earlier.
+    await vi.advanceTimersByTimeAsync(500_000)
+    expect(api.post).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(200_000)
+    expect(api.post).toHaveBeenCalledTimes(2)
   })
 
   it('defaults idle timeout to 30 minutes when user has no setting', async () => {

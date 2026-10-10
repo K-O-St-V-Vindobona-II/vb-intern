@@ -9,8 +9,8 @@ import Amount from './components/Amount.vue'
 import FormAmount from './components/FormAmount.vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
 import DatePicker from 'primevue/datepicker'
+import Message from 'primevue/message'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -28,7 +28,7 @@ const newFee = ref({
 const selectedDate = ref(new Date(now.getFullYear(), now.getMonth()))
 
 const formatMonth = (start: string): string => {
-  const d = new Date(start)
+  const d = new Date(`${start}T00:00:00`)
   return `ab: ${d.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' })}`
 }
 
@@ -62,16 +62,16 @@ const save = async () => {
   }
 }
 
-const deleteFee = (start: string) => {
+const deleteFee = (fee: P4xFee) => {
   confirm.require({
-    message: `Beitragseintrag "${formatMonth(start)}" wirklich entfernen?`,
+    message: `Beitragseintrag "${formatMonth(fee.start)}" wirklich entfernen?`,
     header: 'Eintrag entfernen',
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Abbrechen', severity: 'secondary' },
     acceptProps: { label: 'Entfernen', severity: 'danger' },
     accept: async () => {
       try {
-        const resp = await p4xService.deleteFee(start)
+        const resp = await p4xService.deleteFee(fee.start)
         fees.value = resp.data
         toast.add({ severity: 'success', summary: 'Eintrag entfernt', life: 2000 })
       } catch (e: unknown) {
@@ -106,11 +106,16 @@ onMounted(load)
             v-tooltip="'Geschützte Einträge können nicht gelöscht werden.'"
             class="pi pi-trash disabled-icon"
           />
-          <i
+          <Button
             v-else
             v-tooltip="'löschen'"
-            class="pi pi-trash clickable"
-            @click="deleteFee(fee.start)"
+            icon="pi pi-trash"
+            text
+            rounded
+            size="small"
+            severity="danger"
+            aria-label="löschen"
+            @click="deleteFee(fee)"
           />
         </span>
       </div>
@@ -142,7 +147,7 @@ onMounted(load)
       </div>
       <template #footer>
         <Button label="Abbrechen" severity="secondary" @click="dialogVisible = false" />
-        <Button label="Speichern" severity="danger" @click="save" />
+        <Button label="Speichern" @click="save" />
       </template>
     </Dialog>
   </div>
@@ -174,13 +179,6 @@ onMounted(load)
 .delete-col {
   width: 2rem;
   text-align: right;
-}
-.clickable {
-  cursor: pointer;
-  color: var(--p-text-muted-color);
-}
-.clickable:hover {
-  color: var(--p-red-600);
 }
 .disabled-icon {
   color: var(--p-text-muted-color);

@@ -70,6 +70,14 @@ for the full mechanism:
 | `APP_ENVIRONMENT` | Yes | Which stage this instance represents (`development`/`test`/`qa`/`production`). |
 | `GOOGLE_CLIENT_ID` | No | Google OAuth2 client ID for "Sign in with Google". When unset, the button is hidden client-side instead of blocking boot. |
 
+The entrypoint refuses to start the container when a value is missing or
+malformed, because the values are written into JavaScript that every visitor's
+browser runs: `API_BASE_URL` has to be a plain `http://` or `https://` address
+without quotes, backslashes, angle brackets, `$`, backticks or whitespace;
+`PASSWORD_MIN_LENGTH` a positive whole number; `APP_ENVIRONMENT` one of the four
+stage names; `GOOGLE_CLIENT_ID` (when set) only letters, digits, dots,
+underscores and hyphens.
+
 Actual production/stage values (and how they're managed): see
 [`vb-deploy`'s Stages](../vb-deploy/README.md#stages).
 
@@ -164,6 +172,15 @@ Mechanismus:
 | `PASSWORD_MIN_LENGTH` | Ja | Mindest-Passwortlänge für die Live-Validierung im Formular. |
 | `APP_ENVIRONMENT` | Ja | Welche Stage diese Instanz darstellt (`development`/`test`/`qa`/`production`). |
 | `GOOGLE_CLIENT_ID` | Nein | Google-OAuth2-Client-ID für "Mit Google anmelden". Fehlt sie, wird der Button clientseitig ausgeblendet, statt den Start zu blockieren. |
+
+Das Entrypoint-Skript verweigert den Container-Start, wenn ein Wert fehlt oder
+fehlerhaft ist, weil die Werte in JavaScript geschrieben werden, das der
+Browser jedes Besuchers ausführt: `API_BASE_URL` muss eine einfache
+`http://`- oder `https://`-Adresse ohne Anführungszeichen, Backslashes,
+spitze Klammern, `$`, Backticks oder Leerraum sein; `PASSWORD_MIN_LENGTH` eine
+positive ganze Zahl; `APP_ENVIRONMENT` einer der vier Stage-Namen;
+`GOOGLE_CLIENT_ID` (falls gesetzt) nur Buchstaben, Ziffern, Punkte,
+Unterstriche und Bindestriche.
 
 Echte Production-/Stage-Werte (und wie sie verwaltet werden): siehe
 [`vb-deploy`s Stages](../vb-deploy/README.md#stages-1).

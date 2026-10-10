@@ -18,7 +18,6 @@ const accountId = String(route.params['accountId'])
 
 const categoriesLoadFailed = ref(false)
 const categories = ref<P4xCategory[]>([])
-const allCategories = ref<P4xCategory[]>([])
 const selectedCategoryId = ref<string | null>(null)
 
 const { result, loadFailed, load, reload } = usePaginatedTransactions(
@@ -26,11 +25,11 @@ const { result, loadFailed, load, reload } = usePaginatedTransactions(
   (categoryId, page) => p4xService.getTransactionsByCategory(accountId, categoryId, page),
 )
 
-const selectedCategory = computed(
-  () => allCategories.value.find((c) => c.id === selectedCategoryId.value) ?? null,
-)
-
 const isAdmin = computed(() => authStore.user?.permissions?.includes('p4xAdmin') ?? false)
+
+const selectedCategory = computed(
+  () => categories.value.find((c) => c.id === selectedCategoryId.value) ?? null,
+)
 
 const onCategoryChange = () => load()
 
@@ -40,7 +39,6 @@ const loadCategories = async () => {
   categoriesLoadFailed.value = false
   try {
     const dashResp = await p4xService.getDashboard()
-    allCategories.value = dashResp.data.categories
     categories.value = dashResp.data.categories
   } catch {
     categoriesLoadFailed.value = true
@@ -98,7 +96,7 @@ onMounted(loadCategories)
     <TransactionTable
       v-if="result"
       :transactions="result.items"
-      :categories="allCategories"
+      :categories="categories"
       :total="result.total"
       :page="result.page"
       :per-page="result.per_page"
@@ -118,9 +116,6 @@ onMounted(loadCategories)
   max-width: 1100px;
   margin: 0 auto;
 }
-.category-error {
-  margin-bottom: 1.5rem;
-}
 .page-header {
   text-align: center;
   margin-bottom: 1rem;
@@ -132,6 +127,13 @@ onMounted(loadCategories)
 .center-block {
   display: flex;
   justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.category-error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 .search-container {

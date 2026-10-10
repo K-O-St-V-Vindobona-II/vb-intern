@@ -1,19 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
 import { toLocalDateStr } from '@/utils/formatters'
-import type { ExportConfig, StateRef } from '@/types/standesdb'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
+import type { ExportConfig, ExportRequestPayload } from '@/types/standesdb'
 import Card from 'primevue/card'
 import Select from 'primevue/select'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Message from 'primevue/message'
+
+interface MatrixRow {
+  id: string
+  label: string
+  type: 'state' | 'contacts'
+}
 
 const toast = useToast()
 
 const loading = ref(true)
+const loadFailed = ref(false)
 const exporting = ref(false)
 const config = ref<ExportConfig | null>(null)
 
@@ -24,6 +33,17 @@ const flags = ref({
   include_dead: false,
   include_common_contacts: false,
   only_without_email: false,
+})
+
+const matrixRows = computed<MatrixRow[]>(() => {
+  if (!config.value) return []
+  const rows: MatrixRow[] = config.value.states.map((s) => ({
+    id: s.id,
+    label: s.label,
+    type: 'state',
+  }))
+  rows.push({ id: 'contacts', label: 'Kontakte', type: 'contacts' })
+  return rows
 })
 
 const initMatrix = () => {
@@ -38,74 +58,43 @@ const initMatrix = () => {
   matrixState.value = m
 }
 
-const toggleOrg = (orgId: string) => {
-  if (!config.value) return
-  const keys = config.value.states.map((s) => `${orgId}_${s.id}`)
+// Switches a group of matrix cells: all on, or all off when they were all on already.
+const toggleKeys = (keys: string[]) => {
   const allOn = keys.every((k) => matrixState.value[k])
   for (const k of keys) {
     matrixState.value[k] = !allOn
   }
+}
+
+const toggleOrg = (orgId: string) => {
+  if (!config.value) return
+  toggleKeys(config.value.states.map((s) => `${orgId}_${s.id}`))
 }
 
 const toggleState = (stateId: string) => {
   if (!config.value) return
-  const keys = config.value.orgs.map((o) => `${o.id}_${stateId}`)
-  const allOn = keys.every((k) => matrixState.value[k])
-  for (const k of keys) {
-    matrixState.value[k] = !allOn
-  }
+  toggleKeys(config.value.orgs.map((o) => `${o.id}_${stateId}`))
 }
 
 const toggleContacts = () => {
   if (!config.value) return
-  const keys = config.value.orgs.map((o) => `${o.id}_contacts`)
-  const allOn = keys.every((k) => matrixState.value[k])
-  for (const k of keys) {
-    matrixState.value[k] = !allOn
-  }
+  toggleKeys(config.value.orgs.map((o) => `${o.id}_contacts`))
 }
 
-const matrixRows = () => {
-  if (!config.value) return []
-  const rows: { id: string; label: string; type: 'state' | 'contacts' }[] = config.value.states.map(
-    (s: StateRef) => ({
-      id: s.id,
-      label: s.label,
-      type: 'state' as const,
-    }),
-  )
-  rows.push({
-    id: 'contacts',
-    label: 'Kontakte',
-    type: 'contacts',
-  })
-  return rows
-}
-
-const getMatrixKey = (orgId: string, row: { id: string; type: string }) => {
+const getMatrixKey = (orgId: string, row: MatrixRow) => {
   return row.type === 'contacts' ? `${orgId}_contacts` : `${orgId}_${row.id}`
 }
 
 const doExport = async () => {
   exporting.value = true
   try {
-    const payload: Record<string, unknown> = {
+    const payload: ExportRequestPayload = {
       module: selectedModule.value,
       selections: matrixState.value,
       ...flags.value,
     }
     const resp = await standesdbService.downloadExport(payload)
-
-    const disposition = resp.headers['content-disposition'] ?? ''
-    const match = disposition.match(/filename=(.+)/)
-    const filename = match ? match[1] : `export_${toLocalDateStr(new Date())}`
-
-    const url = URL.createObjectURL(resp.data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = downloadBlobResponse(resp, `export_${toLocalDateStr(new Date())}`)
 
     toast.add({
       severity: 'success',
@@ -125,16 +114,22 @@ const doExport = async () => {
   }
 }
 
-onMounted(async () => {
+const loadConfig = async () => {
+  loading.value = true
+  loadFailed.value = false
   try {
     const resp = await standesdbService.getExportConfig()
     config.value = resp.data
     selectedModule.value = resp.data.modules[0]?.id ?? ''
     initMatrix()
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadConfig)
 </script>
 
 <template>
@@ -144,12 +139,19 @@ onMounted(async () => {
       <p class="export-subtitle">Export</p>
     </div>
 
-    <template v-if="!loading && config">
-      <!-- Schritt 1: Modul -->
+    <div v-if="loadFailed" class="load-error">
+      <Message severity="error" :closable="false">
+        Die Export-Einstellungen konnten nicht geladen werden.
+      </Message>
+      <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="loadConfig" />
+    </div>
+
+    <template v-else-if="!loading && config">
+      <!-- step 1: format -->
       <Card class="export-card">
         <template #title>
-          <div class="step-title">
-            <span class="step-badge">1</span>
+          <div id="export-format-title" class="step-title">
+            <span class="step-badge" aria-hidden="true">1</span>
             Export-Format
           </div>
         </template>
@@ -159,16 +161,17 @@ onMounted(async () => {
             :options="config.modules"
             option-label="label"
             option-value="id"
+            aria-labelledby="export-format-title"
             class="module-select"
           />
         </template>
       </Card>
 
-      <!-- Schritt 2: Datenauswahl -->
+      <!-- step 2: data selection -->
       <Card class="export-card">
         <template #title>
           <div class="step-title">
-            <span class="step-badge">2</span>
+            <span class="step-badge" aria-hidden="true">2</span>
             Daten auswählen
           </div>
         </template>
@@ -203,19 +206,20 @@ onMounted(async () => {
             </div>
           </div>
 
-          <DataTable :value="matrixRows()" striped-rows size="small" class="matrix-table">
+          <DataTable :value="matrixRows" striped-rows size="small" class="matrix-table">
             <Column header="" style="width: 40%">
               <template #body="{ data: row }">
-                <a
+                <button
                   v-if="row.type === 'state'"
+                  type="button"
                   class="matrix-link"
-                  @click.prevent="toggleState(row.id)"
+                  @click="toggleState(row.id)"
                 >
                   {{ row.label }}
-                </a>
-                <a v-else class="matrix-link" @click.prevent="toggleContacts">
+                </button>
+                <button v-else type="button" class="matrix-link" @click="toggleContacts">
                   {{ row.label }}
-                </a>
+                </button>
               </template>
             </Column>
             <Column v-for="org in config.orgs" :key="org.id" style="width: 30%; text-align: center">
@@ -224,7 +228,11 @@ onMounted(async () => {
               </template>
               <template #body="{ data: row }">
                 <div class="matrix-cell">
-                  <Checkbox v-model="matrixState[getMatrixKey(org.id, row)]" :binary="true" />
+                  <Checkbox
+                    v-model="matrixState[getMatrixKey(org.id, row)]"
+                    :binary="true"
+                    :aria-label="`${row.label} ${org.label}`"
+                  />
                 </div>
               </template>
             </Column>
@@ -232,11 +240,11 @@ onMounted(async () => {
         </template>
       </Card>
 
-      <!-- Schritt 3: Optionen -->
+      <!-- step 3: options -->
       <Card class="export-card">
         <template #title>
           <div class="step-title">
-            <span class="step-badge">3</span>
+            <span class="step-badge" aria-hidden="true">3</span>
             Optionen
           </div>
         </template>
@@ -270,12 +278,11 @@ onMounted(async () => {
         </template>
       </Card>
 
-      <!-- Export-Button -->
+      <!-- start button -->
       <div class="export-action">
         <Button
           label="Export starten"
           icon="pi pi-download"
-          severity="primary"
           size="large"
           :loading="exporting"
           @click="doExport"
@@ -293,6 +300,13 @@ onMounted(async () => {
 
 .export-header {
   margin-bottom: 1rem;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .export-subtitle {
@@ -319,7 +333,7 @@ onMounted(async () => {
   min-width: 28px;
   border-radius: 50%;
   background: var(--p-primary-color);
-  color: #fff;
+  color: var(--p-primary-contrast-color);
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -362,8 +376,12 @@ onMounted(async () => {
 }
 
 .matrix-link {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--p-primary-color);
   cursor: pointer;
+  font: inherit;
   font-weight: 600;
   text-decoration: none;
 }

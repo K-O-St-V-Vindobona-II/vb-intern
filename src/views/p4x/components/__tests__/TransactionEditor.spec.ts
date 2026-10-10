@@ -16,7 +16,7 @@ vi.mock('@/services/p4xService', () => ({
 
 function buildTransaction(overrides: Partial<P4xTransaction> = {}): P4xTransaction {
   return {
-    id: 1,
+    id: 'transaction-uuid-1',
     booking: '2026-06-01',
     valuation: '2026-06-01',
     iban: 'AT001234',
@@ -87,10 +87,10 @@ describe('TransactionEditor', () => {
   })
 
   it('saves the comment, deletion flag and file as form data, and emits changed', async () => {
-    const updated = buildTransaction({ id: 9, comment: 'Neuer Kommentar' })
+    const updated = buildTransaction({ id: 'transaction-uuid-9', comment: 'Neuer Kommentar' })
     mockUpdateTransaction.mockResolvedValue({ data: updated })
     const wrapper = mount(TransactionEditor, {
-      props: { transaction: buildTransaction({ id: 9 }) },
+      props: { transaction: buildTransaction({ id: 'transaction-uuid-9' }) },
       ...mountOpts,
     })
     ;(wrapper.vm as unknown as { open: () => void }).open()
@@ -109,7 +109,7 @@ describe('TransactionEditor', () => {
 
     expect(mockUpdateTransaction).toHaveBeenCalledOnce()
     const [id, formData] = mockUpdateTransaction.mock.calls[0]!
-    expect(id).toBe(9)
+    expect(id).toBe('transaction-uuid-9')
     expect(formData).toBeInstanceOf(FormData)
     expect((formData as FormData).get('comment')).toBe('Neuer Kommentar')
     expect((formData as FormData).get('delete_attachment')).toBe('false')
@@ -222,6 +222,78 @@ describe('TransactionEditor', () => {
     )
     expect(wrapper.emitted('changed')).toBeUndefined()
     expect(document.querySelector('.p-dialog')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('binds the comment label to the textarea', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction() },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement
+    const label = document.querySelector('label.field-label') as HTMLLabelElement
+    expect(label.htmlFor).toBe(textarea.id)
+    expect(textarea.id).not.toBe('')
+    wrapper.unmount()
+  })
+
+  it('limits the comment to 250 characters and the upload to a PDF of at most 3 MiB', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: false }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    expect(document.querySelector('textarea')!.getAttribute('maxlength')).toBe('250')
+    const upload = wrapper.findComponent({ name: 'FileUpload' })
+    expect(upload.props('accept')).toBe('.pdf')
+    expect(upload.props('maxFileSize')).toBe(3145728)
+    wrapper.unmount()
+  })
+
+  it('starts every opening without a pending deletion or a chosen file', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: true }) },
+      ...mountOpts,
+    })
+    const vm = wrapper.vm as unknown as { open: () => void }
+    vm.open()
+    await flushPromises()
+    const buttonByText = (text: string) =>
+      Array.from(document.querySelectorAll('button')).find((b) => b.textContent === text)
+    buttonByText('Anhang löschen')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    expect(buttonByText('Löschen rückgängig')).toBeTruthy()
+
+    buttonByText('Abbrechen')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    vm.open()
+    await flushPromises()
+
+    expect(buttonByText('Anhang löschen')).toBeTruthy()
+    expect(buttonByText('Löschen rückgängig')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('sends no file field when no file was chosen', async () => {
+    const wrapper = mount(TransactionEditor, {
+      props: { transaction: buildTransaction({ has_attachment: false }) },
+      ...mountOpts,
+    })
+    ;(wrapper.vm as unknown as { open: () => void }).open()
+    await flushPromises()
+
+    Array.from(document.querySelectorAll('button'))
+      .find((b) => b.textContent === 'Speichern')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    const [, formData] = mockUpdateTransaction.mock.calls[0]!
+    expect((formData as FormData).has('file')).toBe(false)
     wrapper.unmount()
   })
 })

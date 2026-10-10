@@ -1,32 +1,34 @@
 <script setup lang="ts">
 import { formatApiError } from '@/utils/formatters'
-import { ref } from 'vue'
+import { downloadBlobResponse } from '@/utils/downloadBlob'
+import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import p4xService from '@/services/p4xService'
 import DatePicker from 'primevue/datepicker'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 
 const toast = useToast()
 const ordering = ref(false)
 
-const now = new Date()
-const startDate = ref(new Date(now.getFullYear(), now.getMonth() - 12))
-const endDate = ref(new Date(new Date().getFullYear(), new Date().getMonth() - 1))
+const today = new Date()
+const startDate = ref(new Date(today.getFullYear(), today.getMonth() - 12))
+const endDate = ref(new Date(today.getFullYear(), today.getMonth() - 1))
+
+const rangeInvalid = computed(() => startDate.value > endDate.value)
+
+const firstOfMonth = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
 
 const order = async () => {
+  if (rangeInvalid.value) return
   ordering.value = true
   try {
-    const start = `${startDate.value.getFullYear()}-${String(startDate.value.getMonth() + 1).padStart(2, '0')}-01`
-    const end = `${endDate.value.getFullYear()}-${String(endDate.value.getMonth() + 1).padStart(2, '0')}-01`
+    const start = firstOfMonth(startDate.value)
+    const end = firstOfMonth(endDate.value)
 
     const resp = await p4xService.orderSummary({ start, end })
-    const blob = new Blob([resp.data], { type: 'application/zip' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Abrechnung_${start}_bis_${end}.zip`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadBlobResponse(resp, `Abrechnung_${start}_bis_${end}.zip`)
   } catch (e: unknown) {
     const msg = formatApiError(e)
     toast.add({ severity: 'error', summary: msg, life: 4000 })
@@ -43,29 +45,40 @@ const order = async () => {
 
     <div class="form-grid">
       <div class="field">
-        <label>Von (Monat)</label>
+        <label for="summary-start">Von (Monat)</label>
         <DatePicker
           v-model="startDate"
+          input-id="summary-start"
           :manual-input="false"
           view="month"
           date-format="MM yy"
-          :max-date="new Date()"
+          :max-date="today"
         />
       </div>
       <div class="field">
-        <label>Bis (Monat)</label>
+        <label for="summary-end">Bis (Monat)</label>
         <DatePicker
           v-model="endDate"
+          input-id="summary-end"
           :manual-input="false"
           view="month"
           date-format="MM yy"
-          :max-date="new Date()"
+          :max-date="today"
         />
       </div>
     </div>
 
+    <Message v-if="rangeInvalid" severity="warn" :closable="false" class="range-hint">
+      Das Startdatum darf nicht nach dem Enddatum liegen.
+    </Message>
+
     <div class="actions">
-      <Button label="Auswertung bestellen" :loading="ordering" @click="order" />
+      <Button
+        label="Auswertung bestellen"
+        :loading="ordering"
+        :disabled="rangeInvalid"
+        @click="order"
+      />
     </div>
 
     <p class="hint">Die Auswertung wird als ZIP-Datei heruntergeladen (Excel + Anlagen).</p>
@@ -93,6 +106,9 @@ const order = async () => {
   display: block;
   font-weight: 600;
   margin-bottom: 0.3rem;
+}
+.range-hint {
+  margin-bottom: 1.5rem;
 }
 .actions {
   text-align: center;

@@ -4,7 +4,25 @@ import { useAuthStore } from '@/stores/auth'
 import authService from '@/services/authService'
 import memberService from '@/services/memberService'
 import api from '@/services/api'
+import { REFRESH_TIMEOUT_MS } from '@/services/sessionRefresh'
 import { clearPresignedUrlCache } from '@/composables/useArchiveDownload'
+import type { User } from '@/types/member'
+
+function buildUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 'user-uuid-1',
+    cn: 'Test User',
+    default_image: null,
+    org_id: 'vbw',
+    auth_locked: false,
+    permissions: [],
+    google_linked: false,
+    chroniclemail: false,
+    is_fee_member: false,
+    session_idle_timeout: 30,
+    ...overrides,
+  }
+}
 
 vi.mock('@/composables/useArchiveDownload', () => ({ clearPresignedUrlCache: vi.fn() }))
 vi.mock('@/services/authService')
@@ -33,12 +51,12 @@ describe('Auth Store', () => {
 
     // Provide fake data for mocked services
     vi.mocked(authService.login).mockResolvedValue('fake-jwt')
-    vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Max' })
+    vi.mocked(memberService.getCurrentUser).mockResolvedValue(buildUser({ vorname: 'Max' }))
 
     await store.login(new URLSearchParams())
 
     expect(store.token).toBe('fake-jwt')
-    expect(store.user).toEqual({ vorname: 'Max' })
+    expect(store.user).toEqual(buildUser({ vorname: 'Max' }))
   })
 
   it('should clear state and notify backend on logout()', async () => {
@@ -86,7 +104,7 @@ describe('Auth Store', () => {
     it('should be kept while a session is established', async () => {
       const store = useAuthStore()
       vi.mocked(authService.login).mockResolvedValue('fake-jwt')
-      vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Max' })
+      vi.mocked(memberService.getCurrentUser).mockResolvedValue(buildUser({ vorname: 'Max' }))
 
       await store.login(new URLSearchParams())
 
@@ -98,20 +116,20 @@ describe('Auth Store', () => {
     const store = useAuthStore()
 
     vi.mocked(authService.loginWithGoogle).mockResolvedValue('google-jwt')
-    vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Google User' })
+    vi.mocked(memberService.getCurrentUser).mockResolvedValue(buildUser({ vorname: 'Google User' }))
 
     await store.googleLogin('google-credential')
 
     expect(authService.loginWithGoogle).toHaveBeenCalledWith('google-credential')
     expect(store.token).toBe('google-jwt')
-    expect(store.user).toEqual({ vorname: 'Google User' })
+    expect(store.user).toEqual(buildUser({ vorname: 'Google User' }))
   })
 
   it('should successfully link account via linkGoogle()', async () => {
     const store = useAuthStore()
 
     vi.mocked(authService.linkGoogleAccount).mockResolvedValue('linked-jwt')
-    vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Linked User' })
+    vi.mocked(memberService.getCurrentUser).mockResolvedValue(buildUser({ vorname: 'Linked User' }))
 
     await store.linkGoogle({ credential: 'c', email: 'e', password: 'p' })
 
@@ -143,14 +161,16 @@ describe('Auth Store', () => {
     const store = useAuthStore()
 
     vi.mocked(api.post).mockResolvedValue({ data: { access_token: 'restored-jwt' } })
-    vi.mocked(memberService.getCurrentUser).mockResolvedValue({ vorname: 'Restored' })
+    vi.mocked(memberService.getCurrentUser).mockResolvedValue(buildUser({ vorname: 'Restored' }))
 
     const result = await store.restoreSession()
 
     expect(result).toBe(true)
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh')
+    expect(api.post).toHaveBeenCalledWith('/auth/refresh', undefined, {
+      timeout: REFRESH_TIMEOUT_MS,
+    })
     expect(store.token).toBe('restored-jwt')
-    expect(store.user).toEqual({ vorname: 'Restored' })
+    expect(store.user).toEqual(buildUser({ vorname: 'Restored' }))
     expect(store.isRestoringSession).toBe(false)
   })
 
