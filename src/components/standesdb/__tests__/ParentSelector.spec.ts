@@ -359,4 +359,95 @@ describe('ParentSelector', () => {
     expect(autocomplete.props('suggestions')).toEqual([{ id: 'b', cn: 'Maxi Muster' }])
     w.unmount()
   })
+
+  describe('the search field and the dialog state', () => {
+    it('keeps what the user types in the search field', async () => {
+      const w = mountWith({ parentId: null, parentCn: '', memberId: '1', label: 'Leibbursch' })
+      await openDialog(w)
+      await flushPromises()
+
+      const autocomplete = w.findComponent({ name: 'AutoComplete' })
+      autocomplete.vm.$emit('update:modelValue', 'Treff')
+      await flushPromises()
+
+      expect(autocomplete.props('modelValue')).toBe('Treff')
+      w.unmount()
+    })
+
+    it('empties the search field once a candidate is chosen', async () => {
+      const w = mountWith({ parentId: null, parentCn: '', memberId: '1', label: 'Leibbursch' })
+      await openDialog(w)
+      await flushPromises()
+      const autocomplete = w.findComponent({ name: 'AutoComplete' })
+      autocomplete.vm.$emit('update:modelValue', 'Treff')
+
+      autocomplete.vm.$emit('item-select', { value: { id: '10', cn: 'Treffer v/o Test' } })
+      await flushPromises()
+
+      expect(autocomplete.props('modelValue')).toBe('')
+      w.unmount()
+    })
+
+    it('starts every opening with an empty search field and the stored parent', async () => {
+      const w = mountWith({
+        parentId: '5',
+        parentCn: 'Aktueller Leibbursch',
+        memberId: '1',
+        label: 'Leibbursch',
+      })
+      await openDialog(w)
+      await flushPromises()
+      const autocomplete = w.findComponent({ name: 'AutoComplete' })
+      autocomplete.vm.$emit('item-select', { value: { id: '10', cn: 'Anderer' } })
+      autocomplete.vm.$emit('update:modelValue', 'Halbfertig')
+      clickButton('Abbrechen')
+      await flushPromises()
+      expect(w.findComponent({ name: 'Dialog' }).props('visible')).toBe(false)
+
+      await openDialog(w)
+      await flushPromises()
+
+      expect(w.findComponent({ name: 'AutoComplete' }).props('modelValue')).toBe('')
+      expect(document.querySelector('.current-selection')?.textContent).toContain(
+        'Aktueller Leibbursch',
+      )
+      expect(document.querySelector('.current-selection')?.textContent).not.toContain('Anderer')
+      w.unmount()
+    })
+
+    it('saves an empty parent after the selection was cleared', async () => {
+      const w = mountWith({
+        parentId: '5',
+        parentCn: 'Aktueller Leibbursch',
+        memberId: '1',
+        label: 'Leibbursch',
+      })
+      await openDialog(w)
+      await flushPromises()
+
+      clickByAriaLabel('Auswahl löschen')
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      expect(w.emitted('update:parentId')![0]).toEqual([null])
+      expect(w.emitted('update:parentCn')![0]).toEqual([''])
+      w.unmount()
+    })
+
+    it('closes the dialog without emitting when it asks to be hidden', async () => {
+      const w = mountWith({ parentId: null, parentCn: '', memberId: '1', label: 'Leibbursch' })
+      await openDialog(w)
+      await flushPromises()
+      const dialog = w.findComponent({ name: 'Dialog' })
+      expect(dialog.props('visible')).toBe(true)
+
+      dialog.vm.$emit('update:visible', false)
+      await flushPromises()
+
+      expect(dialog.props('visible')).toBe(false)
+      expect(w.emitted('update:parentId')).toBeUndefined()
+      w.unmount()
+    })
+  })
 })

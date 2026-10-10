@@ -223,6 +223,159 @@ describe('DirEditor', () => {
     wrapper.unmount()
   })
 
+  describe('the other fields of the dialog', () => {
+    const editProps = {
+      dirId: '5',
+      dirName: 'Fotos',
+      dirDescription: 'Urlaubsfotos',
+      dirPermissions: ['vbw_active'],
+      dirRecursive: false,
+    }
+
+    // The permission grid has checkboxes of its own; the recursive switch comes last.
+    const recursiveCheckbox = (wrapper: Awaited<ReturnType<typeof openEditor>>) =>
+      wrapper.findAllComponents({ name: 'Checkbox' }).at(-1)!
+
+    const typeDescription = (value: string) => {
+      const input = document.querySelectorAll<HTMLInputElement>('.editor-form input')[1]!
+      input.value = value
+      input.dispatchEvent(new Event('input'))
+      return flushPromises()
+    }
+
+    const clickLabelled = (label: string) =>
+      (
+        Array.from(document.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === label,
+        ) as HTMLButtonElement
+      ).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    it('sends the edited description, permissions and recursive flag', async () => {
+      const wrapper = await openEditor(editProps)
+      await typeDescription('Neue Beschreibung')
+      wrapper
+        .findComponent({ name: 'PermissionGrid' })
+        .vm.$emit('update:modelValue', ['vbw_active', 'vbw_member'])
+      recursiveCheckbox(wrapper).vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      findSaveButton().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+
+      expect(mockUpdateDir).toHaveBeenCalledWith('5', {
+        name: 'Fotos',
+        description: 'Neue Beschreibung',
+        permissions: ['vbw_active', 'vbw_member'],
+        recursive_permissions: true,
+      })
+      wrapper.unmount()
+    })
+
+    it('sends a cleared description as null', async () => {
+      const wrapper = await openEditor(editProps)
+      await typeDescription('')
+
+      findSaveButton().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+
+      expect(mockUpdateDir).toHaveBeenCalledWith(
+        '5',
+        expect.objectContaining({ description: null }),
+      )
+      wrapper.unmount()
+    })
+
+    it('hands the current permissions to the permission grid', async () => {
+      const wrapper = await openEditor(editProps)
+
+      const grid = wrapper.findComponent({ name: 'PermissionGrid' })
+      expect(grid.props('modelValue')).toEqual(['vbw_active'])
+      expect(grid.props('orgs')).toEqual(sets.orgs)
+      expect(grid.props('states')).toEqual(sets.states)
+      wrapper.unmount()
+    })
+
+    it('closes with the cancel button without saving', async () => {
+      const wrapper = await openEditor(editProps)
+      expect(document.body.innerHTML).toContain('Verzeichnis bearbeiten')
+
+      clickLabelled('Abbrechen')
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('visible')).toBe(false)
+      expect(mockUpdateDir).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('closes when the dialog asks to be hidden', async () => {
+      const wrapper = await openEditor(editProps)
+      const dialog = wrapper.findComponent({ name: 'Dialog' })
+      expect(dialog.props('visible')).toBe(true)
+
+      dialog.vm.$emit('update:visible', false)
+      await flushPromises()
+
+      expect(dialog.props('visible')).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('forgets abandoned edits when it is opened again', async () => {
+      const wrapper = await openEditor(editProps)
+      await typeName('Etwas anderes')
+      await typeDescription('Verworfen')
+      clickLabelled('Abbrechen')
+      await flushPromises()
+
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+
+      const inputs = document.querySelectorAll<HTMLInputElement>('.editor-form input')
+      expect(inputs[0]!.value).toBe('Fotos')
+      expect(inputs[1]!.value).toBe('Urlaubsfotos')
+      wrapper.unmount()
+    })
+
+    it('starts a new directory blank even after an earlier one was filled in', async () => {
+      const wrapper = await openEditor({ create: true, parentId: '3' })
+      await typeName('Erstes Verzeichnis')
+      await typeDescription('Erste Beschreibung')
+      wrapper
+        .findComponent({ name: 'PermissionGrid' })
+        .vm.$emit('update:modelValue', ['vbw_active'])
+      recursiveCheckbox(wrapper).vm.$emit('update:modelValue', true)
+      await flushPromises()
+      clickLabelled('Abbrechen')
+      await flushPromises()
+
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+
+      const inputs = document.querySelectorAll<HTMLInputElement>('.editor-form input')
+      expect(inputs[0]!.value).toBe('')
+      expect(inputs[1]!.value).toBe('')
+      expect(wrapper.findComponent({ name: 'PermissionGrid' }).props('modelValue')).toEqual([])
+      expect(recursiveCheckbox(wrapper).props('modelValue')).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('opens an edit with the stored recursive flag', async () => {
+      const wrapper = await openEditor({ ...editProps, dirRecursive: true })
+
+      expect(recursiveCheckbox(wrapper).props('modelValue')).toBe(true)
+      wrapper.unmount()
+    })
+
+    it('opens an edit without stored description or permissions with empty fields', async () => {
+      const wrapper = await openEditor({ dirId: '5', dirName: 'Fotos' })
+
+      const inputs = document.querySelectorAll<HTMLInputElement>('.editor-form input')
+      expect(inputs[1]!.value).toBe('')
+      expect(wrapper.findComponent({ name: 'PermissionGrid' }).props('modelValue')).toEqual([])
+      expect(recursiveCheckbox(wrapper).props('modelValue')).toBe(false)
+      wrapper.unmount()
+    })
+  })
+
   it('associates the name and description labels with their inputs and names the edit button', async () => {
     const wrapper = mount(DirEditor, {
       props: { sets, dirId: '5', dirName: 'Fotos' },

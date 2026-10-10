@@ -350,6 +350,155 @@ describe('RolesHistoryEditor', () => {
     })
   })
 
+  describe('role list, fallbacks and dates picked by hand', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    type SavedEntry = {
+      id: string
+      label: string
+      group: string
+      startdate: string
+      enddate: string | null
+    }
+    const lastEmitted = (w: ReturnType<typeof mountWith>) =>
+      w.emitted('update:modelValue')!.at(-1)![0] as SavedEntry[]
+
+    it('groups the roles in the picker by group, in order, with fallbacks for a missing group or label', async () => {
+      const w = mountWith({
+        modelValue: [],
+        roles: [
+          { id: 'zweiter', group: null, label: null, order: 2 },
+          { id: 'erster', group: 'chc', label: 'Erster', order: 1 },
+          { id: 'dritter', group: 'chc', label: 'Dritter', order: 3 },
+        ],
+      })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      expect(w.findComponent({ name: 'Select' }).props('options')).toEqual([
+        {
+          label: 'chc',
+          items: [
+            { label: 'Erster', value: 'erster' },
+            { label: 'Dritter', value: 'dritter' },
+          ],
+        },
+        { label: 'sonstige', items: [{ label: 'zweiter', value: 'zweiter' }] },
+      ])
+      w.unmount()
+    })
+
+    it('preselects the first role of the list for a new entry and nothing when there are no roles', async () => {
+      const withRoles = mountWith({ modelValue: [], roles })
+      await withRoles.find('.pi-plus').trigger('click')
+      await flushPromises()
+      expect(withRoles.findComponent({ name: 'Select' }).props('modelValue')).toBe('senior')
+      withRoles.unmount()
+
+      const withoutRoles = mountWith({ modelValue: [], roles: [] })
+      await withoutRoles.find('.pi-plus').trigger('click')
+      await flushPromises()
+      expect(withoutRoles.findComponent({ name: 'Select' }).props('modelValue')).toBe('')
+      withoutRoles.unmount()
+    })
+
+    it('shows the id and no group for an entry whose role is not in the list', async () => {
+      const w = mountWith({
+        modelValue: [{ id: 'verschollen', startdate: '2020-02-01', enddate: '2020-07-31' }],
+        roles,
+      })
+
+      const cells = w.findAll('tbody tr td').map((c) => c.text())
+      expect(cells[2]).toBe('')
+      expect(cells[3]).toBe('verschollen')
+      w.unmount()
+    })
+
+    it('proposes the summer semester for a new entry between February and July', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 3, 15))
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      clickButton('Ok')
+      await flushPromises()
+
+      const added = lastEmitted(w)[0]!
+      expect(added.startdate).toBe('2026-02-01')
+      expect(added.enddate).toBe('2026-07-31')
+      w.unmount()
+    })
+
+    it('saves the dates the user picks in the two date fields', async () => {
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      const [start, end] = w.findAllComponents({ name: 'DatePicker' })
+      start!.vm.$emit('update:modelValue', new Date(2019, 4, 7))
+      end!.vm.$emit('update:modelValue', new Date(2019, 10, 20))
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      const added = lastEmitted(w)[0]!
+      expect(added.startdate).toBe('2019-05-07')
+      expect(added.enddate).toBe('2019-11-20')
+      w.unmount()
+    })
+
+    it('applies the summer semester quick selection of the chosen year', async () => {
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      const [, semesterSelect, yearSelect] = w.findAllComponents({ name: 'Select' })
+      semesterSelect!.vm.$emit('update:modelValue', 'WS')
+      semesterSelect!.vm.$emit('update:modelValue', 'SS')
+      yearSelect!.vm.$emit('update:modelValue', 2018)
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      const added = lastEmitted(w)[0]!
+      expect(added.startdate).toBe('2018-02-01')
+      expect(added.enddate).toBe('2018-07-31')
+      w.unmount()
+    })
+
+    it('closes the dialog without saving when it asks to be hidden', async () => {
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+      const dialog = w.findComponent({ name: 'Dialog' })
+      expect(dialog.props('visible')).toBe(true)
+
+      dialog.vm.$emit('update:visible', false)
+      await flushPromises()
+
+      expect(dialog.props('visible')).toBe(false)
+      expect(w.emitted('update:modelValue')).toBeUndefined()
+      w.unmount()
+    })
+
+    it('saves an ongoing entry without an end date', async () => {
+      const w = mountWith({ modelValue: [], roles })
+      await w.find('.pi-plus').trigger('click')
+      await flushPromises()
+
+      await w.findComponent({ name: 'Checkbox' }).vm.$emit('update:modelValue', true)
+      await flushPromises()
+      clickButton('Ok')
+      await flushPromises()
+
+      expect(lastEmitted(w)[0]!.enddate).toBeNull()
+      w.unmount()
+    })
+  })
+
   describe('range validation', () => {
     async function openAddDialog() {
       const w = mountWith({ modelValue: [], roles })
