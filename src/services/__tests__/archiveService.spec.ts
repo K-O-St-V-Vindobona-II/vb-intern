@@ -121,6 +121,11 @@ describe('archiveService', () => {
     expect(mockDelete).toHaveBeenCalledWith('/archive/files/42/comments/comment-uuid-9')
   })
 
+  it('deleteUnfiledUpload deletes the own unfiled upload', () => {
+    archiveService.deleteUnfiledUpload('f-7')
+    expect(mockDelete).toHaveBeenCalledWith('/archive/upload/unfiled/f-7')
+  })
+
   it('getUploadConfig fetches upload limits', () => {
     archiveService.getUploadConfig()
     expect(mockGet).toHaveBeenCalledWith('/archive/upload/config')
@@ -163,6 +168,12 @@ describe('archiveService', () => {
       () => archiveService.receiveItems('a/b', { type: 'file', ids: [], action: 'move' }),
       mockPost,
       '/archive/dirs/a%2Fb/receive',
+    ],
+    [
+      'deleteUnfiledUpload',
+      () => archiveService.deleteUnfiledUpload('a/b'),
+      mockDelete,
+      '/archive/upload/unfiled/a%2Fb',
     ],
     [
       'deleteComment',

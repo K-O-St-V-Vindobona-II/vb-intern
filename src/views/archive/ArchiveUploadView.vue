@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import archiveService from '@/services/archiveService'
-import { formatApiError, formatDate, formatSize } from '@/utils/formatters'
+import { formatApiError, formatDate, formatSize, getApiErrorStatus } from '@/utils/formatters'
 import type { FileShort, UploadConfig } from '@/types/archive'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
@@ -18,6 +19,7 @@ interface PreparedFile {
 }
 
 const toast = useToast()
+const confirm = useConfirm()
 
 const placeholderYear = new Date().getFullYear()
 
@@ -29,6 +31,7 @@ const uploading = ref(false)
 const uploadProgress = ref(0)
 const dragOver = ref(false)
 const unfiled = ref<FileShort[]>([])
+const deletingId = ref<string | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const validFiles = computed(() => preparedFiles.value.filter((f) => f.valid))
@@ -184,6 +187,43 @@ const loadUnfiled = async () => {
       life: 5000,
     })
   }
+}
+
+const fileLabel = (file: FileShort): string => `${file.name}.${file.extension}`
+
+// The file was filed by an admin or is already gone: nothing to delete any more.
+const isNoLongerDeletable = (err: unknown): boolean =>
+  [404, 409].includes(getApiErrorStatus(err) ?? 0)
+
+const deleteUnfiled = async (file: FileShort) => {
+  deletingId.value = file.id
+  try {
+    await archiveService.deleteUnfiledUpload(file.id)
+    toast.add({ severity: 'success', summary: 'Datei gelöscht', life: 4000 })
+  } catch (err: unknown) {
+    const gone = isNoLongerDeletable(err)
+    toast.add({
+      severity: gone ? 'warn' : 'error',
+      summary: gone ? 'Hinweis' : 'Fehler',
+      detail: formatApiError(err, 'Datei konnte nicht gelöscht werden.'),
+      life: 5000,
+    })
+    if (!gone) return
+  } finally {
+    deletingId.value = null
+  }
+  await loadUnfiled()
+}
+
+const confirmDeleteUnfiled = (file: FileShort) => {
+  confirm.require({
+    message: `Datei "${fileLabel(file)}" endgültig löschen? Dies kann nicht rückgängig gemacht werden.`,
+    header: 'Endgültig löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Abbrechen', severity: 'secondary' },
+    acceptProps: { label: 'Endgültig löschen', severity: 'danger' },
+    accept: () => deleteUnfiled(file),
+  })
 }
 
 const loadConfig = async () => {
@@ -368,6 +408,21 @@ onMounted(loadConfig)
           <Column field="created_at" header="Datum" sortable style="width: 100px">
             <template #body="{ data }">
               {{ formatDate(data.created_at) }}
+            </template>
+          </Column>
+          <Column style="width: 3rem">
+            <template #body="{ data }">
+              <Button
+                v-tooltip="'Endgültig löschen'"
+                :aria-label="`${fileLabel(data)} endgültig löschen`"
+                icon="pi pi-trash"
+                severity="danger"
+                text
+                size="small"
+                :loading="deletingId === data.id"
+                :disabled="deletingId !== null"
+                @click="confirmDeleteUnfiled(data)"
+              />
             </template>
           </Column>
         </DataTable>
