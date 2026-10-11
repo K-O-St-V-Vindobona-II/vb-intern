@@ -43,12 +43,19 @@ function setInputFiles(input: HTMLInputElement, files: File[]) {
 const mockGetUploadConfig = vi.fn()
 const mockGetUnfiledUploads = vi.fn()
 const mockUploadFile = vi.fn()
+const mockDeleteUnfiledUpload = vi.fn()
 vi.mock('@/services/archiveService', () => ({
   default: {
     getUploadConfig: (...args: unknown[]) => mockGetUploadConfig(...args),
     getUnfiledUploads: (...args: unknown[]) => mockGetUnfiledUploads(...args),
     uploadFile: (...args: unknown[]) => mockUploadFile(...args),
+    deleteUnfiledUpload: (...args: unknown[]) => mockDeleteUnfiledUpload(...args),
   },
+}))
+
+const mockConfirmRequire = vi.fn()
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: vi.fn(() => ({ require: mockConfirmRequire })),
 }))
 
 const mockToastAdd = vi.fn()
@@ -70,6 +77,7 @@ describe('ArchiveUploadView', () => {
     mockGetUploadConfig.mockResolvedValue({ data: buildConfig() })
     mockGetUnfiledUploads.mockResolvedValue({ data: { files: [] } })
     mockUploadFile.mockResolvedValue({})
+    mockDeleteUnfiledUpload.mockResolvedValue({})
   })
 
   it('loads the upload config and unfiled uploads on mount', async () => {
@@ -409,6 +417,125 @@ describe('ArchiveUploadView', () => {
 
       expect(mockUploadFile).toHaveBeenCalledTimes(1)
       expect(mockToastAdd).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }))
+    })
+  })
+
+  describe('deleting an own unfiled upload', () => {
+    const own = buildUnfiled({ id: 'f-7', name: 'Foto', extension: 'jpg' })
+
+    async function mountWithOne() {
+      mockGetUnfiledUploads.mockResolvedValue({ data: { files: [own] } })
+      return mountView()
+    }
+
+    async function askToDelete(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      await wrapper.find('[aria-label="Foto.jpg endgültig löschen"]').trigger('click')
+      return mockConfirmRequire.mock.calls[0]![0]
+    }
+
+    it('names the file on a button and asks before anything is deleted', async () => {
+      const wrapper = await mountWithOne()
+
+      const options = await askToDelete(wrapper)
+
+      expect(options.header).toBe('Endgültig löschen')
+      expect(options.message).toBe(
+        'Datei "Foto.jpg" endgültig löschen? Dies kann nicht rückgängig gemacht werden.',
+      )
+      expect(options.acceptProps).toEqual({ label: 'Endgültig löschen', severity: 'danger' })
+      expect(mockDeleteUnfiledUpload).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when the question is not confirmed', async () => {
+      const wrapper = await mountWithOne()
+
+      await askToDelete(wrapper)
+      await flushPromises()
+
+      expect(mockDeleteUnfiledUpload).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Foto.jpg')
+    })
+
+    it('deletes after confirmation, reports it and reloads the list', async () => {
+      const wrapper = await mountWithOne()
+      const options = await askToDelete(wrapper)
+      mockGetUnfiledUploads.mockResolvedValue({ data: { files: [] } })
+
+      await options.accept()
+      await flushPromises()
+
+      expect(mockDeleteUnfiledUpload).toHaveBeenCalledWith('f-7')
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'success', summary: 'Datei gelöscht' }),
+      )
+      expect(mockGetUnfiledUploads).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('.unfiled-card').exists()).toBe(false)
+    })
+
+    it.each([404, 409])(
+      'warns and reloads the list when the server answers %i (already filed or gone)',
+      async (status) => {
+        const wrapper = await mountWithOne()
+        const options = await askToDelete(wrapper)
+        mockDeleteUnfiledUpload.mockRejectedValueOnce({
+          response: { status, data: { detail: 'Schon einsortiert' } },
+        })
+
+        await options.accept()
+        await flushPromises()
+
+        expect(mockToastAdd).toHaveBeenCalledWith(
+          expect.objectContaining({
+            severity: 'warn',
+            summary: 'Hinweis',
+            detail: 'Schon einsortiert',
+          }),
+        )
+        expect(mockGetUnfiledUploads).toHaveBeenCalledTimes(2)
+      },
+    )
+
+    it('shows an error and keeps the list as it is for any other failure', async () => {
+      const wrapper = await mountWithOne()
+      const options = await askToDelete(wrapper)
+      mockDeleteUnfiledUpload.mockRejectedValueOnce(new Error('boom'))
+
+      await options.accept()
+      await flushPromises()
+
+      expect(mockToastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ severity: 'error', summary: 'Fehler' }),
+      )
+      expect(mockGetUnfiledUploads).toHaveBeenCalledTimes(1)
+      expect(wrapper.text()).toContain('Foto.jpg')
+    })
+
+    it('blocks every delete button while one deletion is running', async () => {
+      const second = buildUnfiled({ id: 'f-8', name: 'Zweite', extension: 'pdf' })
+      mockGetUnfiledUploads.mockResolvedValue({ data: { files: [own, second] } })
+      const wrapper = await mountView()
+      const options = await askToDelete(wrapper)
+      let finish: () => void = () => {}
+      mockDeleteUnfiledUpload.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+      )
+
+      const pending = options.accept()
+      await flushPromises()
+
+      const buttons = wrapper.findAll('tbody button')
+      expect(buttons).toHaveLength(2)
+      expect(buttons.every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+
+      finish()
+      await pending
+      await flushPromises()
+
+      expect(
+        wrapper.findAll('tbody button').every((b) => b.attributes('disabled') === undefined),
+      ).toBe(true)
     })
   })
 

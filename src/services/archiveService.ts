@@ -115,6 +115,10 @@ export default {
     return api.get<{ files: FileShort[] }>('/archive/upload/unfiled')
   },
 
+  deleteUnfiledUpload(id: string) {
+    return api.delete(`/archive/upload/unfiled/${encodeURIComponent(id)}`)
+  },
+
   uploadFile(file: File, description: string) {
     const formData = new FormData()
     formData.append('file', file)
