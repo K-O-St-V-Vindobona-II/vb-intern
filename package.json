@@ -17,7 +17,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@primevue/themes": "^4.5.4",
+    "@primeuix/themes": "^2.0.3",
     "axios": "^1.20.0",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
