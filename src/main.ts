@@ -4,7 +4,7 @@ import 'primeicons/primeicons.css' // Icons for PrimeVue components
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
-import Aura from '@primevue/themes/aura'
+import Aura from '@primeuix/themes/aura'
 import vue3GoogleLogin from 'vue3-google-login'
 import ConfirmationService from 'primevue/confirmationservice'
 import ToastService from 'primevue/toastservice'
