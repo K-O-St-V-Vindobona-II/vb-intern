@@ -58,9 +58,10 @@ vi.mock('@/services/standesdbService', () => ({
   default: { getImageUrl: (...args: unknown[]) => mockGetImageUrl(...args) },
 }))
 
+const mockLoginTime = ref('')
 vi.mock('@/composables/useSessionManager', () => ({
   useSessionManager: vi.fn(() => ({
-    loginTime: ref('25.06.2026, 10:00'),
+    loginTime: mockLoginTime,
   })),
 }))
 
@@ -84,6 +85,7 @@ describe('AppNavbar.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthStore.user = null
+    mockLoginTime.value = '25.06.2026, 10:00'
     mockGetImageUrl.mockResolvedValue({ data: { url: 'https://cdn.test/avatar.jpg' } })
   })
 
@@ -276,5 +278,14 @@ describe('AppNavbar.vue', () => {
     await wrapper.find('.avatar-btn').trigger('click')
 
     expect(document.body.textContent).toContain('Angemeldet seit 25.06.2026, 10:00')
+  })
+
+  it('hides the login time row while the session start is unknown', async () => {
+    mockLoginTime.value = ''
+    mockAuthStore.user = { cn: 'Maria Muster', default_image: null }
+    const wrapper = mountNavbar({ attachTo: document.body })
+    await wrapper.find('.avatar-btn').trigger('click')
+
+    expect(document.body.textContent).not.toContain('Angemeldet seit')
   })
 })

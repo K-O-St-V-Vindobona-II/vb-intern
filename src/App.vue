@@ -7,7 +7,7 @@ import ConsoleBanner from '@/components/layout/ConsoleBanner.vue'
 
 <template>
   <ConsoleBanner />
-  <Toast position="bottom-left" />
+  <Toast position="bottom-left" style="width: min(25rem, calc(100vw - 2.5rem))" />
   <ConfirmDialog />
   <RouterView />
 </template>

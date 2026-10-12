@@ -72,15 +72,31 @@ describe('useSessionManager', () => {
     vi.useRealTimers()
   })
 
-  it('parses login time from JWT iat claim and shows it in the browser timezone', () => {
+  it('shows the session start from the JWT auth_time claim in the browser timezone', () => {
     vi.stubEnv('TZ', 'Europe/Vienna')
-    const iat = Math.floor(new Date('2026-06-25T10:00:00Z').getTime() / 1000)
+    const authTime = Math.floor(new Date('2026-06-25T10:00:00Z').getTime() / 1000)
+    mockAuthStore.token = makeJwt({
+      auth_time: authTime,
+      iat: authTime + 3 * 3600,
+      exp: authTime + 4 * 3600,
+      sub: 'test',
+    })
+
+    const { result } = mountComposable()
+
+    // The token itself was minted three hours later (a refresh); the label
+    // is about when the session began, not about the current token.
+    expect(result.loginTime.value).toBe('25.06.2026, 12:00')
+    vi.unstubAllEnvs()
+  })
+
+  it('leaves the login time empty for a token without an auth_time claim', () => {
+    const iat = Math.floor(Date.now() / 1000)
     mockAuthStore.token = makeJwt({ iat, exp: iat + 3600, sub: 'test' })
 
     const { result } = mountComposable()
 
-    expect(result.loginTime.value).toBe('25.06.2026, 12:00')
-    vi.unstubAllEnvs()
+    expect(result.loginTime.value).toBe('')
   })
 
   it('attempts refresh when token expires instead of logging out', async () => {

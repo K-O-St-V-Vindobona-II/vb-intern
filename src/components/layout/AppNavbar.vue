@@ -120,7 +120,7 @@ const openProfileDrawer = () => {
               <i class="pi pi-pencil" />
             </span>
           </button>
-          <div class="user-card-meta">
+          <div v-if="loginTime" class="user-card-meta">
             <i class="pi pi-clock" />
             Angemeldet seit {{ loginTime }}
           </div>
