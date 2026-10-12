@@ -1,4 +1,5 @@
-// Central runtime-configuration reader.
+// Central runtime-configuration reader. The variables it reads, their
+// validation and the per-stage values are described in README.md, section 4.
 //
 // PRODUCTION: the Docker entrypoint hook script
 // (docker/docker-entrypoint.d/40-generate-runtime-config.sh) renders
