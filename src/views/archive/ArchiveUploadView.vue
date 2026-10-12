@@ -396,7 +396,7 @@ onMounted(loadConfig)
         </span>
       </template>
       <template #content>
-        <DataTable :value="unfiled" striped-rows size="small">
+        <DataTable :value="unfiled" striped-rows size="small" scrollable class="unfiled-table">
           <Column field="name" header="Name" sortable>
             <template #body="{ data }">
               <i :class="['pi', fileIcon(`${data.name}.${data.extension}`), 'unfiled-icon']" />
@@ -410,7 +410,7 @@ onMounted(loadConfig)
               {{ formatDate(data.created_at) }}
             </template>
           </Column>
-          <Column style="width: 3rem">
+          <Column frozen align-frozen="right" style="width: 2.5rem">
             <template #body="{ data }">
               <Button
                 v-tooltip="'Endgültig löschen'"
@@ -645,6 +645,22 @@ onMounted(loadConfig)
 .unfiled-hint {
   font-size: 0.8rem;
 }
+/* Three data columns plus the delete button need about 50px more than a
+   phone has with the default cell padding and header sizes, which pushed the
+   delete button out of sight. Tighter padding, a slightly smaller header and
+   a narrower title/sort-icon gap keep every column on screen down to 360px;
+   the delete column is also frozen (see template) so it stays reachable on
+   devices that are narrower still. */
+.unfiled-table {
+  --p-datatable-header-cell-sm-padding: 0.375rem 0.25rem;
+  --p-datatable-body-cell-sm-padding: 0.375rem 0.25rem;
+}
+.unfiled-table :deep(.p-datatable-column-title) {
+  font-size: 0.875rem;
+}
+.unfiled-table :deep(.p-datatable-column-header-content) {
+  gap: 0.25rem;
+}
 .unfiled-icon {
   margin-right: 0.3rem;
   color: var(--p-primary-500);
@@ -654,6 +670,16 @@ onMounted(loadConfig)
 }
 
 @media (min-width: 640px) {
+  .unfiled-table {
+    --p-datatable-header-cell-sm-padding: 0.375rem 0.5rem;
+    --p-datatable-body-cell-sm-padding: 0.375rem 0.5rem;
+  }
+  .unfiled-table :deep(.p-datatable-column-title) {
+    font-size: inherit;
+  }
+  .unfiled-table :deep(.p-datatable-column-header-content) {
+    gap: 0.5rem;
+  }
   .drop-zone {
     padding: 2.5rem 1.5rem;
   }

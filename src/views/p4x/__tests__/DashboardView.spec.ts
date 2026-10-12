@@ -145,6 +145,41 @@ describe('DashboardView (p4x)', () => {
     wrapper.unmount()
   })
 
+  it('names the menu button of every account, active and inactive, for screen readers', async () => {
+    mockGetDashboard.mockResolvedValue({
+      data: buildDashboard({
+        accounts: [
+          buildAccount({ id: '1', label: 'Girokonto' }),
+          buildAccount({ id: '2', label: 'Altkonto', transactions_latest: null }),
+        ],
+      }),
+    })
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+    await wrapper.find('.toggle-link').trigger('click')
+
+    const menuButtons = wrapper.findAll('button:has(.pi-chevron-down)')
+
+    expect(menuButtons.map((b) => b.attributes('aria-label'))).toEqual([
+      'Aktionen für Girokonto',
+      'Aktionen für Altkonto',
+    ])
+    wrapper.unmount()
+  })
+
+  it('names the warnings refresh button for screen readers', async () => {
+    mockGetDashboard.mockResolvedValue({
+      data: buildDashboard({ warnings_partner: { count: 1, preview: [] } }),
+    })
+    const wrapper = mount(DashboardView, buildMountOpts())
+    await flushPromises()
+
+    const refresh = wrapper.find('.warnings-section button:has(.pi-refresh)')
+
+    expect(refresh.attributes('aria-label')).toBe('Warnungen neu laden')
+    wrapper.unmount()
+  })
+
   it('does not show the create-account link for non-admins', async () => {
     mockGetDashboard.mockResolvedValue({ data: buildDashboard() })
     const wrapper = mount(DashboardView, buildMountOpts())

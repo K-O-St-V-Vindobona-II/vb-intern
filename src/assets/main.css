@@ -75,3 +75,17 @@ body {
 .p-datatable-table-container {
   overflow-x: auto !important;
 }
+
+/* The suggestion panel of every AutoComplete is attached to <body>, outside
+   any component's scoped styles. PrimeVue keeps each suggestion on one line,
+   so a long label such as "Mitglied (VBW): <full name> v/o <couleurname>"
+   widens the panel past the edge of a phone screen. Keep the panel inside
+   the viewport and wrap the label instead. */
+.p-autocomplete-overlay {
+  max-width: calc(100vw - 1rem);
+}
+
+.p-autocomplete-overlay .p-autocomplete-option {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

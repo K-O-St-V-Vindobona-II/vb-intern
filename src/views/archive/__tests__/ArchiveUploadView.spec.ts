@@ -446,6 +446,19 @@ describe('ArchiveUploadView', () => {
       expect(mockDeleteUnfiledUpload).not.toHaveBeenCalled()
     })
 
+    it('regression: pins the delete column to the right edge so it stays in reach on a phone', async () => {
+      const wrapper = await mountWithOne()
+
+      const deleteCell = wrapper
+        .find('[aria-label="Foto.jpg endgültig löschen"]')
+        .element.closest('td')
+
+      // PrimeVue only makes a frozen column sticky in scrollable mode.
+      expect(wrapper.find('.unfiled-card .p-datatable-scrollable').exists()).toBe(true)
+      expect(deleteCell?.classList.contains('p-datatable-frozen-column')).toBe(true)
+      expect(deleteCell?.getAttribute('style')).toContain('inset-inline-end: 0')
+    })
+
     it('does nothing when the question is not confirmed', async () => {
       const wrapper = await mountWithOne()
 

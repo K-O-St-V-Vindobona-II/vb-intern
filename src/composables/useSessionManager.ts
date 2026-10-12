@@ -19,7 +19,7 @@ export function useSessionManager() {
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
   let lastActivityTs = 0
 
-  const parseTokenPayload = (): { iat?: number; exp?: number } => {
+  const parseTokenPayload = (): { auth_time?: number; exp?: number } => {
     const tokenValue = authStore.token
     if (!tokenValue) return {}
     try {
@@ -97,9 +97,11 @@ export function useSessionManager() {
   }
 
   onMounted(() => {
-    const { iat } = parseTokenPayload()
-    loginTime.value = iat
-      ? new Date(iat * 1000).toLocaleString('de-AT', {
+    // auth_time survives token refreshes, unlike iat, which only marks when the
+    // current access token was minted.
+    const { auth_time: authTime } = parseTokenPayload()
+    loginTime.value = authTime
+      ? new Date(authTime * 1000).toLocaleString('de-AT', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',

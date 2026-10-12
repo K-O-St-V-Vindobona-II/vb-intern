@@ -101,7 +101,7 @@ const contactRows = computed(() => {
         <div class="search-row">
           <SearchField
             :search-fn="searchStandesdb"
-            placeholder="Mitglied oder Kontakt suchen (mind. 3 Zeichen)..."
+            placeholder="Mitglied oder Kontakt (mind. 3 Zeichen)..."
             class="search-input"
             @select="onSelectResult"
           />

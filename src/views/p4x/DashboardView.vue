@@ -172,6 +172,8 @@ const toggleMenu = (event: Event, accountId: string) => {
             <Amount :amount="account.balance" />
             <Button
               icon="pi pi-chevron-down"
+              :aria-label="`Aktionen für ${account.label}`"
+              aria-haspopup="true"
               text
               size="small"
               @click="toggleMenu($event, account.id)"
@@ -209,6 +211,8 @@ const toggleMenu = (event: Event, accountId: string) => {
               <Amount :amount="account.balance" />
               <Button
                 icon="pi pi-chevron-down"
+                :aria-label="`Aktionen für ${account.label}`"
+                aria-haspopup="true"
                 text
                 size="small"
                 @click="toggleMenu($event, account.id)"
@@ -240,6 +244,7 @@ const toggleMenu = (event: Event, accountId: string) => {
         Warnungen
         <Button
           v-tooltip="'Warnungen neu laden'"
+          aria-label="Warnungen neu laden"
           icon="pi pi-refresh"
           text
           size="small"
