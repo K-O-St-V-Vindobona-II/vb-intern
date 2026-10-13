@@ -78,8 +78,16 @@ jobs:
           push: false
           load: true
           tags: vb-intern:smoke-test
+          # Lets an operator read the commit of a running image with podman inspect
+          # (vb-deploy README, section 2.3).
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Check the revision label
+        run: |
+          revision="$(docker image inspect vb-intern:smoke-test --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+          test "$revision" = "${{ github.sha }}"
 
       # Mirrors the Quadlet hardening applied in the deploy repo's
       # templates: read-only rootfs and every capability dropped. The image
@@ -198,6 +206,9 @@ jobs:
           push: true
           tags: |
             ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest
-            ghcr.io/k-o-st-v-vindobona-ii/vb-intern:sha-${{ github.sha }}
+            ghcr.io/k-o-st-v-vindobona-ii/vb-intern:${{ github.sha }}
+          # Lets an operator read the commit of a running image with podman inspect
+          # (vb-deploy README, section 2.3).
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
