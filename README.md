@@ -32,7 +32,7 @@ On start the container writes `config.js` from its environment (see below) and r
 
 ## 4. Where the code of this repository runs
 
-The code is built **once**, in the `Dockerfile`: a Node stage runs `npm ci` and `npm run build`; a second stage copies the result into `nginx-unprivileged`. The CI publishes the image as `ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest` and `...:<full commit sha>`. The same image runs on every stage: **nothing stage specific is built in.** Instead a start-up script (`docker/docker-entrypoint.d/40-generate-runtime-config.sh`) renders `config.js` from four environment variables of the container on every start, and the application reads them through `src/runtimeConfig.ts`:
+The code is built **once**, in the `Dockerfile`: a Node stage runs `npm ci` and `npm run build`; a second stage copies the result into `nginx-unprivileged`. The CI publishes the image as `ghcr.io/k-o-st-v-vindobona-ii/vb-intern:latest` and `...:<full commit sha>` (the image also carries the commit as the label `org.opencontainers.image.revision`). The same image runs on every stage: **nothing stage specific is built in.** Instead a start-up script (`docker/docker-entrypoint.d/40-generate-runtime-config.sh`) renders `config.js` from four environment variables of the container on every start, and the application reads them through `src/runtimeConfig.ts`:
 
 | Variable | Required | Purpose |
 |---|---|---|
