@@ -8,7 +8,7 @@ Die Verwaltungs-Webanwendung des Vindobona-II-Systems, für Mitglieder und Funkt
 
 `vb-intern` ist das **Frontend mit Anmeldung**: die Single-Page-Anwendung, in der sich Mitglieder und Funktionäre anmelden und die Mitgliederdatenbank ("Standesdatenbank"), das Archiv, die Beitragskonten und die Buchhaltung der Altherrenschaft ("AH-Kassen"/`p4x`), die Informationsseiten, die Verwaltung der öffentlichen Website ("www-Administration") und die Systemseiten für Betreiber nutzen. Sie enthält keine eigenen Daten: Jede Seite ist ein Client von [`vb-api`](https://github.com/K-O-St-V-Vindobona-II/vb-api). Die öffentliche Website ist eine eigene Anwendung, [`vb-www`](https://github.com/K-O-St-V-Vindobona-II/vb-www).
 
-**Namenskonvention:** Der Repository-Name ist die Subdomain. `vb-intern` wird unter **`intern.vindobona2.at`** ausgeliefert (und `vb-api` unter `api.vindobona2.at`, `vb-www` unter `www.vindobona2.at`). Auf anderen Stages kommen die Domains aus dem Inventory der Stage in `vb-deploy`.
+**Namenskonvention:** Der Repository-Name ist die Subdomain. `vb-intern` wird unter **`intern.vindobona2.at`** ausgeliefert (und `vb-api` unter `api.vindobona2.at`, `vb-www` unter `www.vindobona2.at`). Auf anderen Stages kommen die Domains aus der Inventory-Datei der Stage im privaten Repository `vb-access` (siehe `vb-deploy` [1.3](https://github.com/K-O-St-V-Vindobona-II/vb-deploy/blob/main/README.de.md#13-die-github-organisation-und-die-repositories)).
 
 Tech-Stack: Vue 3 (`<script setup>`, TypeScript, Composition API), Vite, Pinia, Vue Router, PrimeVue, axios; in Produktion von nginx ausgeliefert.
 
@@ -41,7 +41,7 @@ Der Code wird **einmal** gebaut, im `Dockerfile`: Eine Node-Stufe führt `npm ci
 | `APP_ENVIRONMENT` | ja | Welche Stage diese Instanz ist (`development`, `test`, `qa`, `production`). |
 | `GOOGLE_CLIENT_ID` | nein | Client-ID für "Mit Google anmelden"; ohne sie wird der Button ausgeblendet. |
 
-Die Werte landen in JavaScript, das der Browser jedes Besuchers ausführt, deshalb prüft das Skript sie: `API_BASE_URL` muss eine schlichte `http://`- oder `https://`-Adresse ohne Anführungszeichen, Backslashes, spitze Klammern, `$`, Backticks oder Leerzeichen sein; `PASSWORD_MIN_LENGTH` eine positive ganze Zahl; `APP_ENVIRONMENT` einer der vier Stage-Namen; `GOOGLE_CLIENT_ID` nur Buchstaben, Ziffern, Punkte, Unterstriche und Bindestriche. Die echten Werte je Stage liegen in `vb-deploy` ([Anhang A](https://github.com/K-O-St-V-Vindobona-II/vb-deploy/blob/main/README.de.md#anhang-a-secrets-und-pflichtvariablen)).
+Die Werte landen in JavaScript, das der Browser jedes Besuchers ausführt, deshalb prüft das Skript sie: `API_BASE_URL` muss eine schlichte `http://`- oder `https://`-Adresse ohne Anführungszeichen, Backslashes, spitze Klammern, `$`, Backticks oder Leerzeichen sein; `PASSWORD_MIN_LENGTH` eine positive ganze Zahl; `APP_ENVIRONMENT` einer der vier Stage-Namen; `GOOGLE_CLIENT_ID` nur Buchstaben, Ziffern, Punkte, Unterstriche und Bindestriche. Die echten Werte je Stage liegen im privaten Repository `vb-access`; die Variablen sind in `vb-deploy` beschrieben ([Anhang A](https://github.com/K-O-St-V-Vindobona-II/vb-deploy/blob/main/README.de.md#anhang-a-secrets-und-pflichtvariablen)).
 
 Auf der **Entwicklungs-Stage** erzeugt nichts eine `config.js`: Ihre Anfrage liefert 404 (harmlos), und die Anwendung fällt auf die `VITE_*`-Variablen aus `.env` und dann auf eingebaute Standardwerte zurück.
 
