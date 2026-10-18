@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
 // Regression guard for a production incident (reported 2026-08-12): PrimeVue

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { useThumbnailLoadQueue } from '@/composables/useThumbnailLoadQueue'
