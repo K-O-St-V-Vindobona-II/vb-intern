@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import standesdbService from '@/services/standesdbService'
 import type { MemberSelfServiceFormData } from '@/types/standesdb'
