@@ -17,8 +17,10 @@ const endDate = ref(new Date(today.getFullYear(), today.getMonth() - 1))
 
 const rangeInvalid = computed(() => startDate.value > endDate.value)
 
-const firstOfMonth = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+const yearMonth = (date: Date): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+const firstOfMonth = (date: Date): string => `${yearMonth(date)}-01`
 
 const order = async () => {
   if (rangeInvalid.value) return
@@ -28,7 +30,10 @@ const order = async () => {
     const end = firstOfMonth(endDate.value)
 
     const resp = await p4xService.orderSummary({ start, end })
-    downloadBlobResponse(resp, `Abrechnung_${start}_bis_${end}.zip`)
+    downloadBlobResponse(
+      resp,
+      `Abrechnung_${yearMonth(startDate.value)}_bis_${yearMonth(endDate.value)}.zip`,
+    )
   } catch (e: unknown) {
     const msg = formatApiError(e)
     toast.add({ severity: 'error', summary: msg, life: 4000 })
