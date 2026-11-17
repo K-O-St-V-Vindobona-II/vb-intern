@@ -60,6 +60,12 @@ const categoryOptions = computed(() =>
   })),
 )
 
+// Only a bound that is switched on counts: the stored value of an unchecked
+// one is not sent.
+const rangeInvalid = computed(
+  () => useMin.value && useMax.value && form.value.max_amount < form.value.min_amount,
+)
+
 function resolveAccountIdFromQuery(
   query: LocationQuery,
   defaultAccountId: string | null,
@@ -153,6 +159,7 @@ const load = async () => {
 onMounted(load)
 
 const save = async () => {
+  if (rangeInvalid.value) return
   saving.value = true
   try {
     const data = {
@@ -244,6 +251,9 @@ const deleteFilter = () => {
           <FormAmount v-if="useMax" v-model="form.max_amount" />
         </div>
       </div>
+      <Message v-if="rangeInvalid" severity="warn" :closable="false">
+        Der Maximalbetrag darf nicht kleiner als der Minimalbetrag sein.
+      </Message>
       <div class="condition-row">
         <div class="field">
           <label>Bedingung Betreff</label>
@@ -273,7 +283,7 @@ const deleteFilter = () => {
     </div>
 
     <div class="actions">
-      <Button label="Speichern" :loading="saving" @click="save" />
+      <Button label="Speichern" :loading="saving" :disabled="rangeInvalid" @click="save" />
       <Button v-if="isEdit" label="Löschen" severity="danger" @click="deleteFilter" />
       <Button
         label="Zur Liste"

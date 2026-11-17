@@ -205,6 +205,64 @@ describe('CategoryFilterFormView', () => {
     wrapper.unmount()
   })
 
+  describe('amount range', () => {
+    const hint = 'Der Maximalbetrag darf nicht kleiner als der Minimalbetrag sein.'
+
+    function saveButton(wrapper: ReturnType<typeof mount>) {
+      return wrapper.findAll('button').find((b) => b.text() === 'Speichern')!
+    }
+
+    async function mountEditing(overrides: Partial<CategoryFilter>) {
+      mockRoute.params = { id: '1' }
+      mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter(overrides)] })
+      const wrapper = mount(CategoryFilterFormView, mountOpts)
+      await flushPromises()
+      return wrapper
+    }
+
+    it('names the problem and blocks saving when the maximum is below the minimum', async () => {
+      const wrapper = await mountEditing({ min_amount: 100, max_amount: 10 })
+
+      expect(wrapper.text()).toContain(hint)
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+      clickButton('Speichern')
+      await flushPromises()
+      expect(mockUpdateCategoryFilter).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([
+      ['equal', 10, 10],
+      ['ordered', -77, 100],
+    ])('accepts bounds that are %s', async (_name, min, max) => {
+      const wrapper = await mountEditing({ min_amount: min, max_amount: max })
+
+      expect(wrapper.text()).not.toContain(hint)
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('ignores the stored value of a bound whose checkbox is off', async () => {
+      const wrapper = await mountEditing({ min_amount: 100, max_amount: null })
+
+      expect(wrapper.text()).not.toContain(hint)
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('reacts as soon as the maximum is edited below the minimum', async () => {
+      const wrapper = await mountEditing({ min_amount: 10, max_amount: 20 })
+      expect(wrapper.text()).not.toContain(hint)
+
+      const maxAmount = wrapper.findAllComponents({ name: 'FormAmount' })[1]!
+      await maxAmount.vm.$emit('update:modelValue', 5)
+
+      expect(wrapper.text()).toContain(hint)
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+      wrapper.unmount()
+    })
+  })
+
   it('updates an existing filter and navigates back', async () => {
     mockRoute.params = { id: '1' }
     mockGetCategoryFilters.mockResolvedValue({ data: [buildFilter()] })

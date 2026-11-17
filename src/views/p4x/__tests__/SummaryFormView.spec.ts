@@ -105,7 +105,8 @@ describe('SummaryFormView', () => {
     orderButton().dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
-    expect(downloads).toEqual(['Abrechnung_2025-01-01_bis_2025-06-01.zip'])
+    expect(downloads).toEqual(['Abrechnung_2025-01_bis_2025-06.zip'])
+    expect(mockOrderSummary).toHaveBeenCalledWith({ start: '2025-01-01', end: '2025-06-01' })
     wrapper.unmount()
   })
 
