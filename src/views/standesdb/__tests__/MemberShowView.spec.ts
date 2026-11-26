@@ -252,6 +252,7 @@ describe('MemberShowView', () => {
   it('hides entlassungsdatum when the member is not entlassen', async () => {
     const w = await mountView()
     expect(w.text()).not.toContain('Entlassungsdatum')
+    expect(w.text()).not.toContain('Dieses Profil sehen nur die Admins')
   })
 
   it('shows entlassungsdatum when the member is entlassen', async () => {
@@ -264,6 +265,8 @@ describe('MemberShowView', () => {
       },
     })
     const w = await mountView()
+    expect(w.text()).toContain('Entlassen: Dieses Profil sehen nur die Admins der Organisation.')
+    expect(w.text()).toContain('Bearbeiten')
     expect(w.text()).toContain('Entlassungsdatum')
     expect(w.text()).toContain('05')
     expect(w.text()).toContain('November')

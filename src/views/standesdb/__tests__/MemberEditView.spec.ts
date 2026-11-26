@@ -168,6 +168,44 @@ describe('MemberEditView', () => {
     expect(inputs.some((i) => (i.element as HTMLInputElement).value === 'Max')).toBe(true)
   })
 
+  it('never fills the form from the data-protection stub of a dismissed member', async () => {
+    mockGetMember.mockResolvedValueOnce({
+      data: { id: '7', cn: 'Weg v/o Fort', org_id: 'vbw', dataprotection: 'dismissed' },
+    })
+    const wrapper = await mountAt('/standesdb/members/7/edit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Dieses Mitglied ist entlassen.')
+    expect(wrapper.text()).not.toContain('Mitglied bearbeiten')
+    expect(wrapper.findAll('input[type="text"]')).toHaveLength(0)
+    expect(wrapper.findAll('button').some((b) => b.text().includes('Speichern'))).toBe(false)
+    expect(mockUpdateMember).not.toHaveBeenCalled()
+  })
+
+  it('goes back from the notice about a dismissed member', async () => {
+    mockGetMember.mockResolvedValueOnce({
+      data: { id: '7', cn: 'Weg v/o Fort', org_id: 'vbw', dataprotection: 'dismissed' },
+    })
+    const back = vi.spyOn(router, 'back').mockImplementation(() => {})
+    const wrapper = await mountAt('/standesdb/members/7/edit')
+    await flushPromises()
+
+    const button = wrapper.findAll('button').find((b) => b.text().includes('Zurück'))!
+    await button.trigger('click')
+
+    expect(back).toHaveBeenCalled()
+    back.mockRestore()
+  })
+
+  it('edits the full entry of a dismissed member for the org admin', async () => {
+    mockGetMember.mockResolvedValueOnce({ data: buildMember({ entlassen: true }) })
+    const wrapper = await mountAt('/standesdb/members/11111111-1111-1111-1111-111111111111/edit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Mitglied bearbeiten')
+    expect(wrapper.text()).not.toContain('Dieses Mitglied ist entlassen.')
+  })
+
   it('redirects to not-found on a 404', async () => {
     mockGetMember.mockRejectedValueOnce({ response: { status: 404 } })
     await mountAt('/standesdb/members/00000000-0000-0000-0000-000000000000/edit')
