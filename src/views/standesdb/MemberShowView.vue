@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePermission } from '@/composables/usePermission'
 import standesdbService from '@/services/standesdbService'
 import { formatDateTime, formatFullDate, fuzzyDisplay, getApiErrorStatus } from '@/utils/formatters'
+import { isDismissedStub } from '@/utils/memberDismissed'
 import type { MemberDetail, MemberDismissed } from '@/types/standesdb'
 import ImagePreview from '@/components/standesdb/ImagePreview.vue'
 import FamilyTreeModal from '@/components/standesdb/FamilyTreeModal.vue'
@@ -108,12 +109,11 @@ const loadMember = async (id: string) => {
   authActivity.value = null
   try {
     const resp = await standesdbService.getMember(id)
-    const data = resp.data as unknown
-    if (typeof data === 'object' && data !== null && 'dataprotection' in data) {
+    if (isDismissedStub(resp.data)) {
       isDismissed.value = true
-      dismissedData.value = data as MemberDismissed
+      dismissedData.value = resp.data
     } else {
-      member.value = data as MemberDetail
+      member.value = resp.data
       loadAuthActivity(id)
     }
   } catch (err: unknown) {
@@ -234,6 +234,10 @@ const capitalize = (s: string | null | undefined) =>
           />
         </div>
       </div>
+
+      <Message v-if="member.entlassen" severity="warn" :closable="false" class="dismissed-banner">
+        Entlassen: Dieses Profil sehen nur die Admins der Organisation.
+      </Message>
 
       <!-- two-column layout -->
       <div class="two-col">
@@ -1027,6 +1031,10 @@ const capitalize = (s: string | null | undefined) =>
 
 .dismissed-message {
   margin: 2rem 0;
+}
+
+.dismissed-banner {
+  margin: 0 0 1rem;
 }
 
 .dismissed-field {

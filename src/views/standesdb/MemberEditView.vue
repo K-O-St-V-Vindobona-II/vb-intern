@@ -5,12 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'primevue/usetoast'
 import standesdbService from '@/services/standesdbService'
 import { getApiErrorDetail, getApiErrorStatus, trimmedOrNull } from '@/utils/formatters'
-import type {
-  MemberDetail,
-  MemberFormData,
-  ReferenceData,
-  ApiValidationErrorItem,
-} from '@/types/standesdb'
+import { isDismissedStub } from '@/utils/memberDismissed'
+import type { MemberFormData, ReferenceData, ApiValidationErrorItem } from '@/types/standesdb'
 import FuzzyDatePicker from '@/components/standesdb/FuzzyDatePicker.vue'
 import ParentSelector from '@/components/standesdb/ParentSelector.vue'
 import SetEditor from '@/components/standesdb/SetEditor.vue'
@@ -29,6 +25,9 @@ const toast = useToast()
 
 const loading = ref(true)
 const loadFailed = ref(false)
+// The API answers with the data-protection stub instead of the entry: there is
+// nothing to edit, and a form filled from the stub would blank the stored data.
+const withheld = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 const generalErrors = ref<string[]>([])
@@ -141,30 +140,41 @@ const copyField = <K extends keyof MemberFormData>(key: K, data: MemberFormData)
   form.value[key] = data[key]
 }
 
+// Fills the form from the stored entry, or marks the entry as withheld when the
+// API sends only the data-protection stub of a dismissed member.
+const fillFromMember = async (id: string) => {
+  const resp = await standesdbService.getMember(id)
+  if (isDismissedStub(resp.data)) {
+    withheld.value = true
+    return
+  }
+  const detail = resp.data
+  // The API withholds the account status from viewers who may not see it:
+  // keep the form's safe defaults for those two flags.
+  const data = {
+    ...detail,
+    chroniclemail: detail.chroniclemail ?? form.value.chroniclemail,
+    auth_locked: detail.auth_locked ?? form.value.auth_locked,
+  }
+  ;(Object.keys(form.value) as (keyof MemberFormData)[]).forEach((key) => {
+    if (key in data) {
+      copyField(key, data)
+    }
+  })
+}
+
 // A failed load never leaves the blank defaults of the create form behind for an
 // existing member: saving that form would overwrite the stored data.
 const load = async () => {
   loading.value = true
   loadFailed.value = false
+  withheld.value = false
   try {
     const refResp = await standesdbService.getReferenceData()
     refs.value = refResp.data
 
     if (!isNew.value && memberId.value) {
-      const resp = await standesdbService.getMember(memberId.value)
-      const detail = resp.data as MemberDetail
-      // The API withholds the account status from viewers who may not see it:
-      // keep the form's safe defaults for those two flags.
-      const data = {
-        ...detail,
-        chroniclemail: detail.chroniclemail ?? form.value.chroniclemail,
-        auth_locked: detail.auth_locked ?? form.value.auth_locked,
-      }
-      ;(Object.keys(form.value) as (keyof MemberFormData)[]).forEach((key) => {
-        if (key in data) {
-          copyField(key, data)
-        }
-      })
+      await fillFromMember(memberId.value)
     }
   } catch (err: unknown) {
     const status = getApiErrorStatus(err)
@@ -296,6 +306,13 @@ const save = async () => {
         Das Mitglied konnte nicht geladen werden.
       </Message>
       <Button label="Erneut versuchen" icon="pi pi-refresh" size="small" @click="load" />
+    </div>
+
+    <div v-else-if="withheld" class="load-error">
+      <Message severity="warn" :closable="false">
+        Dieses Mitglied ist entlassen. Bearbeiten können es nur die Admins seiner Organisation.
+      </Message>
+      <Button label="Zurück" icon="pi pi-arrow-left" size="small" @click="router.back()" />
     </div>
 
     <template v-else-if="!loading">
